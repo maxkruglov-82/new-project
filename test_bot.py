@@ -63,7 +63,7 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
 class PriceTests(unittest.IsolatedAsyncioTestCase):
     async def fetch_from_response(self, payload, status=200):
         def respond(request):
-            self.assertEqual(request.url.host, "data-api.binance.vision")
+            self.assertEqual(request.url.host, "api.mexc.com")
             self.assertEqual(request.url.path, "/api/v3/ticker/price")
             self.assertEqual(request.url.params["symbol"], "BTCUSDT")
             return httpx.Response(status, json=payload)
@@ -72,7 +72,7 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
         with patch("bot.httpx.AsyncClient", return_value=client):
             return await bot.fetch_btc_price()
 
-    async def test_fetch_price_from_binance_response(self):
+    async def test_fetch_price_from_mexc_response(self):
         price = await self.fetch_from_response({"symbol": "BTCUSDT", "price": "67123.45000000"})
         self.assertEqual(price, Decimal("67123.45"))
 
@@ -108,7 +108,7 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
             await bot.price_command(update, None)
         update.message.reply_text.assert_awaited_once()
         text = update.message.reply_text.await_args.args[0]
-        self.assertIn("BTC/USDT — Binance (спот)", text)
+        self.assertIn("BTC/USDT — MEXC (спот)", text)
         self.assertIn("1 BTC = 67 123.45 USDT", text)
         self.assertRegex(text, r"Получено: \d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2} \(Красноярск, UTC\+7\)")
 
@@ -119,7 +119,7 @@ class PriceTests(unittest.IsolatedAsyncioTestCase):
                 with patch("bot.fetch_btc_price", new=AsyncMock(side_effect=error)):
                     await bot.price_command(update, None)
                 update.message.reply_text.assert_awaited_once_with(
-                    "Не удалось получить курс Binance. Попробуй /price чуть позже."
+                    "Не удалось получить курс MEXC. Попробуй /price чуть позже."
                 )
 
 

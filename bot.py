@@ -16,12 +16,12 @@ from telegram.ext import (
 )
 
 START_MESSAGE = "Привет, Макс, я твой бот."
-BINANCE_PRICE_URL = "https://data-api.binance.vision/api/v3/ticker/price"
+MEXC_PRICE_URL = "https://api.mexc.com/api/v3/ticker/price"
 PRICE_TIMEZONE = timezone(timedelta(hours=7))
 HELP_MESSAGE = (
     "/start — приветствие.\n"
     "/help — объяснение команд.\n"
-    "/price — текущая цена BTC/USDT на Binance (спот).\n"
+    "/price — текущая цена BTC/USDT на MEXC (спот).\n"
     "Отправь обычный текст, и я отвечу: «Ты написал: …», повторив сообщение."
 )
 
@@ -39,17 +39,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def fetch_btc_price() -> Decimal:
     """Последняя цена сделки BTCUSDT; публичный API, без ключа и кеша."""
     async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(BINANCE_PRICE_URL, params={"symbol": "BTCUSDT"})
+        response = await client.get(MEXC_PRICE_URL, params={"symbol": "BTCUSDT"})
         response.raise_for_status()
         data = response.json()
     if not isinstance(data, dict) or data.get("symbol") != "BTCUSDT":
-        raise ValueError("Неожиданный ответ Binance")
+        raise ValueError("Неожиданный ответ MEXC")
     raw_price = data.get("price")
     if not isinstance(raw_price, str):
-        raise ValueError("В ответе Binance нет цены")
+        raise ValueError("В ответе MEXC нет цены")
     price = Decimal(raw_price)
     if not price.is_finite() or price <= 0:
-        raise ValueError("Некорректная цена Binance")
+        raise ValueError("Некорректная цена MEXC")
     return price
 
 
@@ -60,13 +60,13 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         price = await fetch_btc_price()
     except (httpx.HTTPError, ValueError, InvalidOperation):
         await update.message.reply_text(
-            "Не удалось получить курс Binance. Попробуй /price чуть позже."
+            "Не удалось получить курс MEXC. Попробуй /price чуть позже."
         )
         return
     received_at = datetime.now(PRICE_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
     formatted_price = f"{price:,.2f}".replace(",", " ")
     await update.message.reply_text(
-        f"BTC/USDT — Binance (спот)\n"
+        f"BTC/USDT — MEXC (спот)\n"
         f"1 BTC = {formatted_price} USDT\n"
         f"Получено: {received_at} (Красноярск, UTC+7)"
     )
