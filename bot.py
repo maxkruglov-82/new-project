@@ -229,7 +229,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         fiat_quote, btc_usdt = await asyncio.gather(fetch_usdt_rub_quote(), fetch_btc_price())
         usdt_rub = fiat_quote.rate
-        usdt_amount = calculate_usdt_amount(amount, usdt_rub)
         btc_amount = calculate_btc_amount(amount, usdt_rub, btc_usdt)
     except (httpx.HTTPError, ValueError, InvalidOperation):
         await update.message.reply_text(
@@ -238,27 +237,21 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
     context.user_data.pop("change_waiting_amount", None)
-    amount_with_markup = amount * Decimal("1.085")
     amount_text = f"{amount:,.2f}".replace(",", " ").replace(".", ",")
-    markup_text = f"{amount_with_markup:,.2f}".replace(",", " ").replace(".", ",")
+    if amount_text.endswith(",00"):
+        amount_text = amount_text[:-3]
+    displayed_btc = btc_amount.quantize(Decimal("0.000001"), rounding=ROUND_UP)
     btc_price_text = f"{btc_usdt:,.2f}".replace(",", " ")
-    received_at = datetime.now(PRICE_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
     source_time = fiat_quote.updated_at.astimezone(PRICE_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
     quote_age = max(0, (datetime.now(timezone.utc) - fiat_quote.updated_at).total_seconds())
     delay_notice = (
-        f"\nКотировка Binance опубликована {int(quote_age // 60)} мин. назад; расчёт по этим данным."
+        f"; котировка Binance: {source_time} (Красноярск, UTC+7), {int(quote_age // 60)} мин. назад"
         if quote_age > 300 else ""
     )
     await update.message.reply_text(
-        f"Сумма: {amount_text} ₽\n"
-        f"С учётом 8,5%: {markup_text} ₽\n"
-        f"USDT/RUB (Binance): {usdt_rub:.4f} ₽ за 1 USDT\n"
-        f"Котировка Binance: {source_time} (Красноярск, UTC+7)\n"
-        f"Получается: {usdt_amount:.6f} USDT\n"
-        f"BTC/USDT (MEXC): {btc_price_text} USDT за 1 BTC\n"
-        f"Нужно: {btc_amount:.8f} BTC\n"
-        f"Получено: {received_at} (Красноярск, UTC+7)\n"
-        f"BTC округлён вверх до 8 знаков.{delay_notice}"
+        f"Для суммы {amount_text} руб необходимо {displayed_btc:.6f} btc "
+        f"(курс USDT: {usdt_rub:.4f} руб — Binance; "
+        f"курс BTC: {btc_price_text} USDT — MEXC{delay_notice})."
     )
 
 

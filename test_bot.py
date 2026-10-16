@@ -93,13 +93,23 @@ class ChangeTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("change_waiting_amount", self.context.user_data)
         self.message.reply_text.assert_awaited_once()
         text = self.message.reply_text.await_args.args[0]
-        for expected in (
-            "Сумма: 100 000,00 ₽", "С учётом 8,5%: 108 500,00 ₽",
-            "USDT/RUB (Binance): 100.0000 ₽ за 1 USDT", "Получается: 1085.000000 USDT",
-            "BTC/USDT (MEXC): 50 000.00 USDT за 1 BTC", "Нужно: 0.02170000 BTC",
-            "BTC округлён вверх до 8 знаков.",
-        ):
-            self.assertIn(expected, text)
+        self.assertEqual(
+            text,
+            "Для суммы 100 000 руб необходимо 0.021700 btc "
+            "(курс USDT: 100.0000 руб — Binance; курс BTC: 50 000.00 USDT — MEXC).",
+        )
+
+    async def test_result_keeps_kopecks_and_rounds_btc_up_to_six_places(self):
+        self.context.user_data["change_waiting_amount"] = True
+        self.message.text = "100 000,50"
+        with patch("bot.fetch_usdt_rub_quote", new=AsyncMock(return_value=make_usdt_quote())):
+            with patch("bot.fetch_btc_price", new=AsyncMock(return_value=Decimal("90000"))):
+                await bot.handle_text(self.update, self.context)
+        self.assertEqual(
+            self.message.reply_text.await_args.args[0],
+            "Для суммы 100 000,50 руб необходимо 0.012056 btc "
+            "(курс USDT: 100.0000 руб — Binance; курс BTC: 90 000.00 USDT — MEXC).",
+        )
 
     async def test_api_failure_preserves_input_and_allows_retry(self):
         self.context.user_data["change_waiting_amount"] = True
@@ -110,13 +120,13 @@ class ChangeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.context.user_data["change_amount_rub"], Decimal("100000"))
         text = self.message.reply_text.await_args.args[0]
         self.assertIn("Не удалось получить свежие курсы", text)
-        self.assertNotIn("Нужно:", text)
+        self.assertNotIn("необходимо", text)
         self.message.reply_text.reset_mock()
         with patch("bot.fetch_usdt_rub_quote", new=AsyncMock(return_value=make_usdt_quote())):
             with patch("bot.fetch_btc_price", new=AsyncMock(return_value=Decimal("50000"))):
                 await bot.handle_text(self.update, self.context)
         self.assertNotIn("change_waiting_amount", self.context.user_data)
-        self.assertIn("Нужно: 0.02170000 BTC", self.message.reply_text.await_args.args[0])
+        self.assertIn("необходимо 0.021700 btc", self.message.reply_text.await_args.args[0])
 
     async def test_mexc_failure_does_not_return_a_calculation(self):
         self.context.user_data["change_waiting_amount"] = True
@@ -142,9 +152,10 @@ class ChangeTests(unittest.IsolatedAsyncioTestCase):
                 await bot.handle_text(self.update, self.context)
         text = self.message.reply_text.await_args.args[0]
         local_time = quote.updated_at.astimezone(bot.PRICE_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
-        self.assertIn(f"Котировка Binance: {local_time}", text)
-        self.assertIn("Котировка Binance опубликована 10 мин. назад", text)
-        self.assertIn("Нужно: 0.02170000 BTC", text)
+        self.assertIn(f"котировка Binance: {local_time}", text)
+        self.assertIn("10 мин. назад", text)
+        self.assertIn("необходимо 0.021700 btc", text)
+        self.assertNotIn("\n", text)
 
     async def test_start_cancels_amount_input(self):
         self.context.user_data["change_waiting_amount"] = True
