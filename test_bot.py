@@ -3,9 +3,11 @@
 import os
 import unittest
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
 from telegram import Chat, Message, MessageEntity, Update
 from telegram.ext import CommandHandler, MessageHandler
 
@@ -29,6 +31,7 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
         text = self.message.reply_text.await_args.args[0]
         self.assertIn("/start", text)
         self.assertIn("/help", text)
+        self.assertIn("/price", text)
         self.assertIn("Ты написал:", text)
 
     async def test_echo_preserves_text(self):
@@ -48,13 +51,76 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_updates_without_message_are_ignored(self):
         update = SimpleNamespace(message=None)
-        for callback in (bot.start, bot.help_command, bot.echo):
+        for callback in (bot.start, bot.help_command, bot.price_command, bot.echo):
             await callback(update, None)
 
     async def test_non_text_is_ignored(self):
         self.message.text = None
         await bot.echo(self.update, None)
         self.message.reply_text.assert_not_awaited()
+
+
+class PriceTests(unittest.IsolatedAsyncioTestCase):
+    async def fetch_from_response(self, payload, status=200):
+        def respond(request):
+            self.assertEqual(request.url.host, "data-api.binance.vision")
+            self.assertEqual(request.url.path, "/api/v3/ticker/price")
+            self.assertEqual(request.url.params["symbol"], "BTCUSDT")
+            return httpx.Response(status, json=payload)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+        with patch("bot.httpx.AsyncClient", return_value=client):
+            return await bot.fetch_btc_price()
+
+    async def test_fetch_price_from_binance_response(self):
+        price = await self.fetch_from_response({"symbol": "BTCUSDT", "price": "67123.45000000"})
+        self.assertEqual(price, Decimal("67123.45"))
+
+    async def test_fetch_rejects_invalid_data(self):
+        payloads = [
+            {}, [], {"symbol": "ETHUSDT", "price": "123.45"},
+            *({"symbol": "BTCUSDT", "price": value}
+              for value in (None, 123, "abc", "NaN", "Infinity", "0", "-1")),
+        ]
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                with self.assertRaises((ValueError, InvalidOperation)):
+                    await self.fetch_from_response(payload)
+
+    async def test_fetch_rejects_http_errors(self):
+        for status in (429, 500):
+            with self.subTest(status=status):
+                with self.assertRaises(httpx.HTTPStatusError):
+                    await self.fetch_from_response({"code": -1}, status=status)
+
+    async def test_fetch_timeout(self):
+        def timeout(request):
+            raise httpx.ReadTimeout("Test timeout", request=request)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(timeout))
+        with patch("bot.httpx.AsyncClient", return_value=client):
+            with self.assertRaises(httpx.ReadTimeout):
+                await bot.fetch_btc_price()
+
+    async def test_price_reply(self):
+        update = SimpleNamespace(message=SimpleNamespace(reply_text=AsyncMock()))
+        with patch("bot.fetch_btc_price", new=AsyncMock(return_value=Decimal("67123.45"))):
+            await bot.price_command(update, None)
+        update.message.reply_text.assert_awaited_once()
+        text = update.message.reply_text.await_args.args[0]
+        self.assertIn("BTC/USDT — Binance (спот)", text)
+        self.assertIn("1 BTC = 67 123.45 USDT", text)
+        self.assertRegex(text, r"Получено: \d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2} \(Красноярск, UTC\+7\)")
+
+    async def test_price_failure_has_friendly_reply(self):
+        for error in (httpx.ReadTimeout("Timeout"), ValueError("Bad data"), InvalidOperation()):
+            with self.subTest(error=type(error).__name__):
+                update = SimpleNamespace(message=SimpleNamespace(reply_text=AsyncMock()))
+                with patch("bot.fetch_btc_price", new=AsyncMock(side_effect=error)):
+                    await bot.price_command(update, None)
+                update.message.reply_text.assert_awaited_once_with(
+                    "Не удалось получить курс Binance. Попробуй /price чуть позже."
+                )
 
 
 class ApplicationTests(unittest.TestCase):
@@ -82,14 +148,16 @@ class ApplicationTests(unittest.TestCase):
 
     def test_command_and_text_routing(self):
         application = bot.build_application(OFFLINE_TOKEN)
-        start_handler, help_handler, echo_handler = application.handlers[0]
+        start_handler, help_handler, price_handler, echo_handler = application.handlers[0]
         self.assertIsInstance(start_handler, CommandHandler)
         self.assertIsInstance(help_handler, CommandHandler)
+        self.assertIsInstance(price_handler, CommandHandler)
         self.assertIsInstance(echo_handler, MessageHandler)
         self.assertIs(start_handler.callback, bot.start)
         self.assertIs(help_handler.callback, bot.help_command)
+        self.assertIs(price_handler.callback, bot.price_command)
         self.assertIs(echo_handler.callback, bot.echo)
-        for command, handler in (("/start", start_handler), ("/help", help_handler)):
+        for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler)):
             update = self.make_update(command, is_command=True)
             match = handler.check_update(update)
             self.assertIsNotNone(match)
