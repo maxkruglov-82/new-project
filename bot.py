@@ -22,6 +22,7 @@ HELP_MESSAGE = (
     "/start — приветствие.\n"
     "/help — объяснение команд.\n"
     "/price — текущая цена BTC/USDT на MEXC (спот).\n"
+    "/change — расчёт количества BTC (пока настраивается).\n"
     "Отправь обычный текст, и я отвечу: «Ты написал: …», повторив сообщение."
 )
 
@@ -72,6 +73,13 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
+async def change_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is not None:
+        await update.message.reply_text(
+            "Расчёт количества BTC пока настраивается. Формула ещё не задана."
+        )
+
+
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.message.text is None:
         return
@@ -88,6 +96,7 @@ async def setup_menu(application: Application) -> None:
             BotCommand("start", "Приветствие"),
             BotCommand("help", "Список команд и помощь"),
             BotCommand("price", "Цена BTC/USDT на MEXC"),
+            BotCommand("change", "Расчёт количества BTC (скоро)"),
         ]
     )
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
@@ -98,6 +107,7 @@ def build_application(token: str) -> Application:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("price", price_command))
+    application.add_handler(CommandHandler("change", change_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     return application
 

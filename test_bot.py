@@ -32,6 +32,7 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("/start", text)
         self.assertIn("/help", text)
         self.assertIn("/price", text)
+        self.assertIn("/change", text)
         self.assertIn("Ты написал:", text)
 
     async def test_echo_preserves_text(self):
@@ -51,7 +52,7 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_updates_without_message_are_ignored(self):
         update = SimpleNamespace(message=None)
-        for callback in (bot.start, bot.help_command, bot.price_command, bot.echo):
+        for callback in (bot.start, bot.help_command, bot.price_command, bot.change_command, bot.echo):
             await callback(update, None)
 
     async def test_non_text_is_ignored(self):
@@ -74,6 +75,7 @@ class MenuTests(unittest.IsolatedAsyncioTestCase):
                 ("start", "Приветствие"),
                 ("help", "Список команд и помощь"),
                 ("price", "Цена BTC/USDT на MEXC"),
+                ("change", "Расчёт количества BTC (скоро)"),
             ],
         )
         telegram_bot.set_chat_menu_button.assert_awaited_once()
@@ -170,16 +172,18 @@ class ApplicationTests(unittest.TestCase):
     def test_command_and_text_routing(self):
         application = bot.build_application(OFFLINE_TOKEN)
         self.assertIs(application.post_init, bot.setup_menu)
-        start_handler, help_handler, price_handler, echo_handler = application.handlers[0]
+        start_handler, help_handler, price_handler, change_handler, echo_handler = application.handlers[0]
         self.assertIsInstance(start_handler, CommandHandler)
         self.assertIsInstance(help_handler, CommandHandler)
         self.assertIsInstance(price_handler, CommandHandler)
+        self.assertIsInstance(change_handler, CommandHandler)
         self.assertIsInstance(echo_handler, MessageHandler)
         self.assertIs(start_handler.callback, bot.start)
         self.assertIs(help_handler.callback, bot.help_command)
         self.assertIs(price_handler.callback, bot.price_command)
+        self.assertIs(change_handler.callback, bot.change_command)
         self.assertIs(echo_handler.callback, bot.echo)
-        for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler)):
+        for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler), ("/change", change_handler)):
             update = self.make_update(command, is_command=True)
             match = handler.check_update(update)
             self.assertIsNotNone(match)
