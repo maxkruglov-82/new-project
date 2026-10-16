@@ -1,0 +1,23 @@
+# Переменные окружения и секреты
+.env
+.env.*
+*.env
+secrets/
+secrets.*
+credentials/
+credentials.*
+*.pem
+*.key
+
+# Python и локальная среда
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+.idea/
+.vscode/
+.DS_Store
