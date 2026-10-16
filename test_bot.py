@@ -52,13 +52,202 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_updates_without_message_are_ignored(self):
         update = SimpleNamespace(message=None)
-        for callback in (bot.start, bot.help_command, bot.price_command, bot.change_command, bot.echo):
+        for callback in (bot.start, bot.help_command, bot.price_command, bot.change_command, bot.handle_text, bot.echo):
             await callback(update, None)
 
     async def test_non_text_is_ignored(self):
         self.message.text = None
         await bot.echo(self.update, None)
         self.message.reply_text.assert_not_awaited()
+
+
+class ChangeTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.context = SimpleNamespace(user_data={})
+        self.message = SimpleNamespace(text="100 тысяч", reply_text=AsyncMock())
+        self.update = SimpleNamespace(message=self.message)
+
+    async def test_change_requests_amount_and_resets_previous_amount(self):
+        self.context.user_data["change_amount_rub"] = Decimal("300000")
+        await bot.change_command(self.update, self.context)
+        self.assertTrue(self.context.user_data["change_waiting_amount"])
+        self.assertNotIn("change_amount_rub", self.context.user_data)
+        self.assertIn("Введи сумму в рублях", self.message.reply_text.await_args.args[0])
+
+    async def test_valid_amount_fetches_rates_and_calculates_btc(self):
+        self.context.user_data["change_waiting_amount"] = True
+        with patch("bot.fetch_usdt_rub_rate", new=AsyncMock(return_value=Decimal("100"))) as fiat:
+            with patch("bot.fetch_btc_price", new=AsyncMock(return_value=Decimal("50000"))) as btc:
+                await bot.handle_text(self.update, self.context)
+        fiat.assert_awaited_once()
+        btc.assert_awaited_once()
+        self.assertEqual(self.context.user_data["change_amount_rub"], Decimal("100000"))
+        self.assertNotIn("change_waiting_amount", self.context.user_data)
+        self.message.reply_text.assert_awaited_once()
+        text = self.message.reply_text.await_args.args[0]
+        for expected in (
+            "Сумма: 100 000,00 ₽", "С учётом 8,5%: 108 500,00 ₽",
+            "USDT/RUB (CoinGecko): 100.0000 ₽ за 1 USDT", "Получается: 1085.000000 USDT",
+            "BTC/USDT (MEXC): 50 000.00 USDT за 1 BTC", "Нужно: 0.02170000 BTC",
+            "BTC округлён вверх до 8 знаков.",
+        ):
+            self.assertIn(expected, text)
+
+    async def test_api_failure_preserves_input_and_allows_retry(self):
+        self.context.user_data["change_waiting_amount"] = True
+        with patch("bot.fetch_usdt_rub_rate", new=AsyncMock(side_effect=httpx.ReadTimeout("Test timeout"))):
+            with patch("bot.fetch_btc_price", new=AsyncMock(return_value=Decimal("50000"))):
+                await bot.handle_text(self.update, self.context)
+        self.assertTrue(self.context.user_data["change_waiting_amount"])
+        self.assertEqual(self.context.user_data["change_amount_rub"], Decimal("100000"))
+        text = self.message.reply_text.await_args.args[0]
+        self.assertIn("Не удалось получить свежие курсы", text)
+        self.assertNotIn("Нужно:", text)
+        self.message.reply_text.reset_mock()
+        with patch("bot.fetch_usdt_rub_rate", new=AsyncMock(return_value=Decimal("100"))):
+            with patch("bot.fetch_btc_price", new=AsyncMock(return_value=Decimal("50000"))):
+                await bot.handle_text(self.update, self.context)
+        self.assertNotIn("change_waiting_amount", self.context.user_data)
+        self.assertIn("Нужно: 0.02170000 BTC", self.message.reply_text.await_args.args[0])
+
+    async def test_mexc_failure_does_not_return_a_calculation(self):
+        self.context.user_data["change_waiting_amount"] = True
+        with patch("bot.fetch_usdt_rub_rate", new=AsyncMock(return_value=Decimal("100"))):
+            with patch("bot.fetch_btc_price", new=AsyncMock(side_effect=ValueError("Bad quote"))):
+                await bot.handle_text(self.update, self.context)
+        self.assertTrue(self.context.user_data["change_waiting_amount"])
+        self.assertIn("Не удалось получить свежие курсы", self.message.reply_text.await_args.args[0])
+
+    async def test_invalid_amount_keeps_waiting_for_input(self):
+        self.context.user_data["change_waiting_amount"] = True
+        self.message.text = "не число"
+        await bot.handle_text(self.update, self.context)
+        self.assertTrue(self.context.user_data["change_waiting_amount"])
+        self.assertNotIn("change_amount_rub", self.context.user_data)
+        self.assertIn("положительную сумму", self.message.reply_text.await_args.args[0])
+
+    async def test_start_cancels_amount_input(self):
+        self.context.user_data["change_waiting_amount"] = True
+        await bot.start(self.update, self.context)
+        self.assertNotIn("change_waiting_amount", self.context.user_data)
+        self.message.reply_text.assert_awaited_once_with("Привет, Макс, я твой бот.")
+
+    async def test_normal_text_still_echoes(self):
+        self.message.text = "Привет"
+        await bot.handle_text(self.update, self.context)
+        self.message.reply_text.assert_awaited_once_with("Ты написал: Привет")
+
+
+class RubAmountTests(unittest.TestCase):
+    def test_supported_amount_formats(self):
+        examples = {
+            "100000": "100000", "150 000": "150000", "300 тысяч": "300000",
+            "100 тыс.": "100000", "1\u00a0234,56 ₽": "1234.56",
+            "150,5 тыс": "150500", "0.01": "0.01",
+        }
+        for text, expected in examples.items():
+            with self.subTest(text=text):
+                self.assertEqual(bot.parse_rub_amount(text), Decimal(expected))
+
+    def test_invalid_amounts(self):
+        for text in ("", "0", "-100", "NaN", "Infinity", "1e5", "сто", "100.001"):
+            with self.subTest(text=text):
+                with self.assertRaises((ValueError, InvalidOperation)):
+                    bot.parse_rub_amount(text)
+
+
+class ChangeCalculationTests(unittest.TestCase):
+    def test_rubles_plus_8_5_percent_divided_by_rub_per_usdt(self):
+        examples = (
+            ("100000", "100", "1085"),
+            ("150000", "93", "1750"),
+            ("300000", "100", "3255"),
+            ("1000.50", "100", "10.855425"),
+        )
+        for rubles, rate, expected in examples:
+            with self.subTest(rubles=rubles, rate=rate):
+                self.assertEqual(
+                    bot.calculate_usdt_amount(Decimal(rubles), Decimal(rate)),
+                    Decimal(expected),
+                )
+
+    def test_nonpositive_or_nonfinite_inputs_are_rejected(self):
+        for invalid in ("0", "-1", "NaN", "Infinity"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    bot.calculate_usdt_amount(Decimal(invalid), Decimal("100"))
+                with self.assertRaises(ValueError):
+                    bot.calculate_usdt_amount(Decimal("100000"), Decimal(invalid))
+
+
+    def test_btc_amount_rounds_up_to_a_satoshi(self):
+        self.assertEqual(
+            bot.calculate_btc_amount(Decimal("100000"), Decimal("100"), Decimal("90000")),
+            Decimal("0.01205556"),
+        )
+
+    def test_usdt_is_not_rounded_before_conversion_to_btc(self):
+        self.assertEqual(
+            bot.calculate_btc_amount(Decimal("1000.50"), Decimal("100"), Decimal("100000")),
+            Decimal("0.00010856"),
+        )
+
+    def test_invalid_btc_price_is_rejected(self):
+        for invalid in ("0", "-1", "NaN", "Infinity"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    bot.calculate_btc_amount(Decimal("100000"), Decimal("100"), Decimal(invalid))
+
+
+class CoinGeckoTests(unittest.IsolatedAsyncioTestCase):
+    async def fetch_from_response(self, payload, status=200):
+        def respond(request):
+            self.assertEqual(request.url.host, "api.coingecko.com")
+            self.assertEqual(request.url.path, "/api/v3/simple/price")
+            self.assertEqual(request.url.params["ids"], "tether")
+            self.assertEqual(request.url.params["vs_currencies"], "rub")
+            self.assertEqual(request.url.params["include_last_updated_at"], "true")
+            return httpx.Response(status, json=payload)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+        with patch("bot.httpx.AsyncClient", return_value=client):
+            return await bot.fetch_usdt_rub_rate()
+
+    async def test_fresh_usdt_rub_quote(self):
+        now = int(datetime.now(timezone.utc).timestamp())
+        rate = await self.fetch_from_response({"tether": {"rub": 92.34, "last_updated_at": now}})
+        self.assertEqual(rate, Decimal("92.34"))
+
+    async def test_invalid_rates_and_responses_are_rejected(self):
+        now = int(datetime.now(timezone.utc).timestamp())
+        payloads = [
+            [], {}, {"tether": []}, {"tether": {}},
+            *({"tether": {"rub": rate, "last_updated_at": now}}
+              for rate in (None, True, 0, -1, "NaN", "Infinity", "bad")),
+        ]
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                with self.assertRaises((ValueError, InvalidOperation)):
+                    await self.fetch_from_response(payload)
+
+    async def test_stale_missing_and_future_timestamps_are_rejected(self):
+        now = int(datetime.now(timezone.utc).timestamp())
+        for timestamp in (None, True, "today", now - 301, now + 120):
+            with self.subTest(timestamp=timestamp):
+                with self.assertRaises(ValueError):
+                    await self.fetch_from_response({"tether": {"rub": 100, "last_updated_at": timestamp}})
+
+    async def test_rate_limit_and_server_failure(self):
+        for status in (429, 500):
+            with self.subTest(status=status):
+                with self.assertRaises(httpx.HTTPStatusError):
+                    await self.fetch_from_response({"error": "Unavailable"}, status=status)
+
+    async def test_non_json_response(self):
+        client = httpx.AsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(200, text="Unavailable")))
+        with patch("bot.httpx.AsyncClient", return_value=client):
+            with self.assertRaises(ValueError):
+                await bot.fetch_usdt_rub_rate()
 
 
 class MenuTests(unittest.IsolatedAsyncioTestCase):
@@ -75,7 +264,7 @@ class MenuTests(unittest.IsolatedAsyncioTestCase):
                 ("start", "Приветствие"),
                 ("help", "Список команд и помощь"),
                 ("price", "Цена BTC/USDT на MEXC"),
-                ("change", "Расчёт количества BTC (скоро)"),
+                ("change", "Сколько BTC нужно за сумму в рублях"),
             ],
         )
         telegram_bot.set_chat_menu_button.assert_awaited_once()
@@ -182,7 +371,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertIs(help_handler.callback, bot.help_command)
         self.assertIs(price_handler.callback, bot.price_command)
         self.assertIs(change_handler.callback, bot.change_command)
-        self.assertIs(echo_handler.callback, bot.echo)
+        self.assertIs(echo_handler.callback, bot.handle_text)
         for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler), ("/change", change_handler)):
             update = self.make_update(command, is_command=True)
             match = handler.check_update(update)
