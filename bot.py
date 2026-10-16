@@ -1,10 +1,13 @@
 """Учебный Telegram-бот Макса. Токен задаётся через BOT_TOKEN."""
 
 import asyncio
+import json
 import os
 import re
 from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_UP
+from html.parser import HTMLParser
 
 import httpx
 
@@ -19,14 +22,14 @@ from telegram.ext import (
 
 START_MESSAGE = "Привет, Макс, я твой бот."
 MEXC_PRICE_URL = "https://api.mexc.com/api/v3/ticker/price"
-COINGECKO_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price"
-MAX_RATE_AGE_SECONDS = 300
+BINANCE_USDT_RUB_URL = "https://www.binance.com/ru/price/tether/RUB"
+MAX_RATE_AGE_SECONDS = 900
 PRICE_TIMEZONE = timezone(timedelta(hours=7))
 HELP_MESSAGE = (
     "/start — приветствие.\n"
     "/help — объяснение команд.\n"
     "/price — текущая цена BTC/USDT на MEXC (спот).\n"
-    "/change — сколько BTC нужно: сумма в рублях + 8,5%, курсы CoinGecko и MEXC.\n"
+    "/change — сколько BTC нужно: сумма в рублях + 8,5%, курсы Binance и MEXC.\n"
     "Отправь обычный текст, и я отвечу: «Ты написал: …», повторив сообщение."
 )
 
@@ -79,31 +82,96 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
-async def fetch_usdt_rub_rate() -> Decimal:
-    """Рыночный курс RUB за 1 USDT из CoinGecko, с проверкой свежести."""
-    async with httpx.AsyncClient(timeout=10.0) as client:
+@dataclass(frozen=True)
+class UsdtRubQuote:
+    rate: Decimal
+    updated_at: datetime
+
+
+class BinancePageDataParser(HTMLParser):
+    """Читает только JSON состояния страницы, не выполняя её JavaScript."""
+
+    def __init__(self):
+        super().__init__()
+        self.reading = False
+        self.payloads = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "script" and dict(attrs).get("id") == "__APP_DATA":
+            self.reading = True
+            self.payloads.append("")
+
+    def handle_data(self, data):
+        if self.reading:
+            self.payloads[-1] += data
+
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self.reading = False
+
+
+def parse_usdt_rub_quote(html: str) -> UsdtRubQuote:
+    parser = BinancePageDataParser()
+    parser.feed(html)
+    if len(parser.payloads) != 1:
+        raise ValueError("На странице Binance нет однозначных данных курса")
+    data = json.loads(parser.payloads[0], parse_float=Decimal)
+    try:
+        routes = data["appState"]["loader"]["dataByRouteId"]
+        if not isinstance(routes, dict):
+            raise ValueError("Некорректные данные страницы Binance")
+        candidates = [
+            route for route in routes.values()
+            if isinstance(route, dict)
+            and isinstance(route.get("coin"), dict)
+            and route["coin"].get("symbol") == "USDT"
+            and route["coin"].get("slug") == "tether"
+            and route.get("paramCurrency") == "RUB"
+        ]
+        if len(candidates) != 1:
+            raise ValueError("На странице Binance нет однозначной пары USDT/RUB")
+        route = candidates[0]
+        if route.get("c2cConvertPriceEnabled") is not False:
+            raise ValueError("На странице Binance используется другой режим конвертации")
+        currency = route["currencyData"]
+        if currency["value"] != "RUB" or currency["pair"] != "RUB_USD":
+            raise ValueError("На странице Binance выбрана другая валюта")
+        quote = route["coin"]["quote"]["USD"]
+        prices = (quote["price"], currency["rate"])
+        if any(isinstance(value, bool) or not isinstance(value, (Decimal, int, str)) for value in prices):
+            raise ValueError("В данных Binance нет числового курса")
+        usdt_usd, usd_rub = (Decimal(value) for value in prices)
+        if any(not value.is_finite() or value <= 0 for value in (usdt_usd, usd_rub)):
+            raise ValueError("Некорректный курс Binance")
+        updated_at = quote["last_updated"]
+        if not isinstance(updated_at, str):
+            raise ValueError("В данных Binance нет времени обновления")
+        updated = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+        if updated.tzinfo is None:
+            raise ValueError("В дате Binance нет часового пояса")
+        age = (datetime.now(timezone.utc) - updated).total_seconds()
+        if not -60 <= age <= MAX_RATE_AGE_SECONDS:
+            raise ValueError("Котировка Binance устарела или её дата некорректна")
+        # Конвертер Binance умножает цену USDT в USD на курс RUB за 1 USD.
+        return UsdtRubQuote(rate=usdt_usd * usd_rub, updated_at=updated)
+    except (KeyError, TypeError) as error:
+        raise ValueError("Изменился формат данных страницы Binance") from error
+
+
+async def fetch_usdt_rub_quote() -> UsdtRubQuote:
+    """Курс из конвертера Binance USDT/RUB; старая копия страницы не используется."""
+    async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.get(
-            COINGECKO_PRICE_URL,
-            params={"ids": "tether", "vs_currencies": "rub", "include_last_updated_at": "true"},
+            BINANCE_USDT_RUB_URL,
+            params={"_": int(datetime.now(timezone.utc).timestamp())},
+            headers={"Cache-Control": "no-cache"},
         )
         response.raise_for_status()
-        data = response.json(parse_float=Decimal)
-    if not isinstance(data, dict) or not isinstance(data.get("tether"), dict):
-        raise ValueError("Неожиданный ответ CoinGecko")
-    quote = data["tether"]
-    raw_rate = quote.get("rub")
-    if isinstance(raw_rate, bool) or not isinstance(raw_rate, (Decimal, int, str)):
-        raise ValueError("В ответе CoinGecko нет курса USDT/RUB")
-    rate = Decimal(raw_rate)
-    if not rate.is_finite() or rate <= 0:
-        raise ValueError("Некорректный курс CoinGecko")
-    updated_at = quote.get("last_updated_at")
-    if isinstance(updated_at, bool) or not isinstance(updated_at, int):
-        raise ValueError("В ответе CoinGecko нет времени обновления")
-    age = datetime.now(timezone.utc).timestamp() - updated_at
-    if not -60 <= age <= MAX_RATE_AGE_SECONDS:
-        raise ValueError("Курс CoinGecko устарел или время обновления некорректно")
-    return rate
+    return parse_usdt_rub_quote(response.text)
+
+
+async def fetch_usdt_rub_rate() -> Decimal:
+    return (await fetch_usdt_rub_quote()).rate
 
 
 async def change_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -159,12 +227,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
     context.user_data["change_amount_rub"] = amount
     try:
-        usdt_rub, btc_usdt = await asyncio.gather(fetch_usdt_rub_rate(), fetch_btc_price())
+        fiat_quote, btc_usdt = await asyncio.gather(fetch_usdt_rub_quote(), fetch_btc_price())
+        usdt_rub = fiat_quote.rate
         usdt_amount = calculate_usdt_amount(amount, usdt_rub)
         btc_amount = calculate_btc_amount(amount, usdt_rub, btc_usdt)
     except (httpx.HTTPError, ValueError, InvalidOperation):
         await update.message.reply_text(
-            "Не удалось получить свежие курсы CoinGecko и MEXC.\n"
+            "Не удалось получить свежие курсы Binance и MEXC.\n"
             "Для повтора отправь сумму ещё раз. Для отмены — /start."
         )
         return
@@ -174,15 +243,22 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     markup_text = f"{amount_with_markup:,.2f}".replace(",", " ").replace(".", ",")
     btc_price_text = f"{btc_usdt:,.2f}".replace(",", " ")
     received_at = datetime.now(PRICE_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
+    source_time = fiat_quote.updated_at.astimezone(PRICE_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
+    quote_age = max(0, (datetime.now(timezone.utc) - fiat_quote.updated_at).total_seconds())
+    delay_notice = (
+        f"\nКотировка Binance опубликована {int(quote_age // 60)} мин. назад; расчёт по этим данным."
+        if quote_age > 300 else ""
+    )
     await update.message.reply_text(
         f"Сумма: {amount_text} ₽\n"
         f"С учётом 8,5%: {markup_text} ₽\n"
-        f"USDT/RUB (CoinGecko): {usdt_rub:.4f} ₽ за 1 USDT\n"
+        f"USDT/RUB (Binance): {usdt_rub:.4f} ₽ за 1 USDT\n"
+        f"Котировка Binance: {source_time} (Красноярск, UTC+7)\n"
         f"Получается: {usdt_amount:.6f} USDT\n"
         f"BTC/USDT (MEXC): {btc_price_text} USDT за 1 BTC\n"
         f"Нужно: {btc_amount:.8f} BTC\n"
         f"Получено: {received_at} (Красноярск, UTC+7)\n"
-        "BTC округлён вверх до 8 знаков."
+        f"BTC округлён вверх до 8 знаков.{delay_notice}"
     )
 
 
