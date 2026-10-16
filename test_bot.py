@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
-from telegram import Chat, Message, MessageEntity, Update
+from telegram import Chat, MenuButtonCommands, Message, MessageEntity, Update
 from telegram.ext import CommandHandler, MessageHandler
 
 import bot
@@ -58,6 +58,27 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
         self.message.text = None
         await bot.echo(self.update, None)
         self.message.reply_text.assert_not_awaited()
+
+
+class MenuTests(unittest.IsolatedAsyncioTestCase):
+    async def test_menu_registers_all_commands_and_commands_button(self):
+        telegram_bot = SimpleNamespace(
+            set_my_commands=AsyncMock(), set_chat_menu_button=AsyncMock()
+        )
+        await bot.setup_menu(SimpleNamespace(bot=telegram_bot))
+        telegram_bot.set_my_commands.assert_awaited_once()
+        commands = telegram_bot.set_my_commands.await_args.args[0]
+        self.assertEqual(
+            [(command.command, command.description) for command in commands],
+            [
+                ("start", "Приветствие"),
+                ("help", "Список команд и помощь"),
+                ("price", "Цена BTC/USDT на MEXC"),
+            ],
+        )
+        telegram_bot.set_chat_menu_button.assert_awaited_once()
+        button = telegram_bot.set_chat_menu_button.await_args.kwargs["menu_button"]
+        self.assertIsInstance(button, MenuButtonCommands)
 
 
 class PriceTests(unittest.IsolatedAsyncioTestCase):
@@ -148,6 +169,7 @@ class ApplicationTests(unittest.TestCase):
 
     def test_command_and_text_routing(self):
         application = bot.build_application(OFFLINE_TOKEN)
+        self.assertIs(application.post_init, bot.setup_menu)
         start_handler, help_handler, price_handler, echo_handler = application.handlers[0]
         self.assertIsInstance(start_handler, CommandHandler)
         self.assertIsInstance(help_handler, CommandHandler)

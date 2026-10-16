@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 import httpx
 
-from telegram import Update
+from telegram import BotCommand, MenuButtonCommands, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -81,8 +81,20 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(reply[offset : offset + 4096])
 
 
+async def setup_menu(application: Application) -> None:
+    """Регистрирует команды и кнопку меню при каждом запуске бота."""
+    await application.bot.set_my_commands(
+        [
+            BotCommand("start", "Приветствие"),
+            BotCommand("help", "Список команд и помощь"),
+            BotCommand("price", "Цена BTC/USDT на MEXC"),
+        ]
+    )
+    await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+
 def build_application(token: str) -> Application:
-    application = Application.builder().token(token).build()
+    application = Application.builder().token(token).post_init(setup_menu).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("price", price_command))
