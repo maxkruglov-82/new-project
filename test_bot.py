@@ -22,7 +22,7 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_start(self):
         await bot.start(self.update, None)
-        self.message.reply_text.assert_awaited_once_with("Привет! Я учебный бот Макса")
+        self.message.reply_text.assert_awaited_once_with("Привет, Макс, я твой бот.")
 
     async def test_help(self):
         await bot.help_command(self.update, None)

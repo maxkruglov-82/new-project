@@ -11,7 +11,7 @@ from telegram.ext import (
     filters,
 )
 
-START_MESSAGE = "Привет! Я учебный бот Макса"
+START_MESSAGE = "Привет, Макс, я твой бот."
 HELP_MESSAGE = (
     "/start — приветствие.\n"
     "/help — объяснение команд.\n"
