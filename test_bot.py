@@ -1,5 +1,6 @@
 """Проверки без настоящего токена и без запросов к Telegram."""
 
+import asyncio
 import json
 import os
 import unittest
@@ -23,6 +24,23 @@ def make_usdt_quote(rate="100", age_seconds=0):
         rate=Decimal(rate),
         updated_at=datetime.now(timezone.utc) - timedelta(seconds=age_seconds),
     )
+
+
+def make_binance_route():
+    return {
+        "coin": {
+            "symbol": "USDT", "slug": "tether",
+            "quote": {"USD": {"price": 0.9988, "last_updated": datetime.now(timezone.utc).isoformat()}},
+        },
+        "paramCurrency": "RUB",
+        "currencyData": {"value": "RUB", "pair": "RUB_USD", "rate": 83.58},
+        "c2cConvertPriceEnabled": False,
+    }
+
+
+def make_binance_page(routes):
+    data = {"appState": {"loader": {"dataByRouteId": routes}}}
+    return '<html><script type="application/json" id="__APP_DATA">' + json.dumps(data) + '</script></html>'
 
 
 class ReplyTests(unittest.IsolatedAsyncioTestCase):
@@ -120,6 +138,8 @@ class ChangeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.context.user_data["change_amount_rub"], Decimal("100000"))
         text = self.message.reply_text.await_args.args[0]
         self.assertIn("Не удалось получить свежие курсы", text)
+        self.assertIn("Binance (USDT/RUB)", text)
+        self.assertNotIn("MEXC", text)
         self.assertNotIn("необходимо", text)
         self.message.reply_text.reset_mock()
         with patch("bot.fetch_usdt_rub_quote", new=AsyncMock(return_value=make_usdt_quote())):
@@ -135,6 +155,8 @@ class ChangeTests(unittest.IsolatedAsyncioTestCase):
                 await bot.handle_text(self.update, self.context)
         self.assertTrue(self.context.user_data["change_waiting_amount"])
         self.assertIn("Не удалось получить свежие курсы", self.message.reply_text.await_args.args[0])
+        self.assertIn("MEXC (BTC/USDT)", self.message.reply_text.await_args.args[0])
+        self.assertNotIn("Binance", self.message.reply_text.await_args.args[0])
 
     async def test_invalid_amount_keeps_waiting_for_input(self):
         self.context.user_data["change_waiting_amount"] = True
@@ -162,6 +184,16 @@ class ChangeTests(unittest.IsolatedAsyncioTestCase):
         await bot.start(self.update, self.context)
         self.assertNotIn("change_waiting_amount", self.context.user_data)
         self.message.reply_text.assert_awaited_once_with("Привет, Макс, я твой бот.")
+
+    async def test_quote_that_expired_while_waiting_for_other_source_is_not_used(self):
+        self.context.user_data["change_waiting_amount"] = True
+        with patch("bot.fetch_usdt_rub_quote", new=AsyncMock(return_value=make_usdt_quote(age_seconds=901))):
+            with patch("bot.fetch_btc_price", new=AsyncMock(return_value=Decimal("50000"))):
+                await bot.handle_text(self.update, self.context)
+        text = self.message.reply_text.await_args.args[0]
+        self.assertIn("Binance (USDT/RUB)", text)
+        self.assertNotIn("необходимо", text)
+        self.assertTrue(self.context.user_data["change_waiting_amount"])
 
     async def test_normal_text_still_echoes(self):
         self.message.text = "Привет"
@@ -231,20 +263,16 @@ class ChangeCalculationTests(unittest.TestCase):
 
 
 class BinancePageTests(unittest.IsolatedAsyncioTestCase):
-    def make_route(self):
-        return {
-            "coin": {
-                "symbol": "USDT", "slug": "tether",
-                "quote": {"USD": {"price": 0.9988, "last_updated": datetime.now(timezone.utc).isoformat()}},
-            },
-            "paramCurrency": "RUB",
-            "currencyData": {"value": "RUB", "pair": "RUB_USD", "rate": 83.58},
-            "c2cConvertPriceEnabled": False,
-        }
+    make_route = staticmethod(make_binance_route)
+    make_page = staticmethod(make_binance_page)
 
-    def make_page(self, routes):
-        data = {"appState": {"loader": {"dataByRouteId": routes}}}
-        return '<html><script type="application/json" id="__APP_DATA">' + json.dumps(data) + '</script></html>'
+    def setUp(self):
+        sleeper = patch("bot.asyncio.sleep", new_callable=AsyncMock)
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
+        warning = patch("bot.logger.warning")
+        warning.start()
+        self.addCleanup(warning.stop)
 
     async def fetch_from_page(self, html, status=200):
         def respond(request):
@@ -343,6 +371,147 @@ class BinancePageTests(unittest.IsolatedAsyncioTestCase):
                 await bot.fetch_usdt_rub_rate()
 
 
+class QuoteRecoveryTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        sleeper = patch("bot.asyncio.sleep", new_callable=AsyncMock)
+        self.sleep = sleeper.start()
+        self.addCleanup(sleeper.stop)
+        warning = patch("bot.logger.warning")
+        self.warning = warning.start()
+        self.addCleanup(warning.stop)
+        self.client_class = httpx.AsyncClient
+
+    def clients(self, respond):
+        def factory(**kwargs):
+            return self.client_class(transport=httpx.MockTransport(respond), **kwargs)
+        return patch("bot.httpx.AsyncClient", side_effect=factory)
+
+    async def test_change_recovers_on_third_binance_attempt_without_resending_amount(self):
+        requests = {"www.binance.com": [], "api.mexc.com": []}
+        route = make_binance_route()
+        route["coin"]["quote"]["USD"]["price"] = 1
+        route["currencyData"]["rate"] = 100
+        stale = make_binance_route()
+        stale["coin"]["quote"]["USD"]["last_updated"] = (
+            datetime.now(timezone.utc) - timedelta(minutes=20)
+        ).isoformat()
+
+        def respond(request):
+            calls = requests[request.url.host]
+            calls.append(request)
+            if request.url.host == "api.mexc.com":
+                return httpx.Response(200, json={"symbol": "BTCUSDT", "price": "50000"})
+            if len(calls) == 1:
+                raise httpx.ReadTimeout("Temporary timeout", request=request)
+            if len(calls) == 2:
+                return httpx.Response(200, text=make_binance_page({"r": stale}))
+            return httpx.Response(200, text=make_binance_page({"r": route}))
+
+        context = SimpleNamespace(user_data={})
+        message = SimpleNamespace(text="100000", reply_text=AsyncMock())
+        update = SimpleNamespace(message=message)
+        await bot.change_command(update, context)
+        with self.clients(respond), patch("bot.time_ns", side_effect=(101, 102, 103)):
+            await bot.handle_text(update, context)
+        self.assertEqual(message.reply_text.await_count, 2)  # Приглашение и готовый расчёт.
+        text = message.reply_text.await_args.args[0]
+        self.assertIn("необходимо 0.021700 btc", text)
+        self.assertNotIn("Не удалось", text)
+        self.assertNotIn("change_waiting_amount", context.user_data)
+        self.assertEqual(len(requests["www.binance.com"]), 3)
+        self.assertEqual(len(requests["api.mexc.com"]), 1)
+        self.assertEqual([r.url.params["_"] for r in requests["www.binance.com"]], ["101", "102", "103"])
+        self.assertEqual([c.args[0] for c in self.sleep.await_args_list], [0.5, 1.0])
+
+    async def test_mexc_recovers_after_503_and_timeout(self):
+        calls = []
+        def respond(request):
+            calls.append(request)
+            if len(calls) == 1:
+                return httpx.Response(503)
+            if len(calls) == 2:
+                raise httpx.ReadTimeout("Temporary timeout", request=request)
+            return httpx.Response(200, json={"symbol": "BTCUSDT", "price": "82000"})
+        with self.clients(respond):
+            self.assertEqual(await bot.fetch_btc_price(), Decimal("82000"))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(self.sleep.await_count, 2)
+
+    async def test_binance_recovers_after_empty_202_page(self):
+        calls = []
+        page = make_binance_page({"r": make_binance_route()})
+        def respond(request):
+            calls.append(request)
+            return httpx.Response(202 if len(calls) == 1 else 200, text="" if len(calls) == 1 else page)
+        with self.clients(respond):
+            self.assertEqual(await bot.fetch_usdt_rub_rate(), Decimal("83.479704"))
+        self.assertEqual(len(calls), 2)
+
+    async def test_mexc_recovers_after_invalid_json_and_rate_limit(self):
+        calls = []
+        def respond(request):
+            calls.append(request)
+            if len(calls) == 1:
+                return httpx.Response(200, text="temporarily unavailable")
+            if len(calls) == 2:
+                return httpx.Response(429)
+            return httpx.Response(200, json={"symbol": "BTCUSDT", "price": "82000"})
+        with self.clients(respond):
+            self.assertEqual(await bot.fetch_btc_price(), Decimal("82000"))
+        self.assertEqual(len(calls), 3)
+
+    async def test_stale_binance_quote_is_rejected_after_all_attempts(self):
+        route = make_binance_route()
+        route["coin"]["quote"]["USD"]["last_updated"] = (
+            datetime.now(timezone.utc) - timedelta(minutes=20)
+        ).isoformat()
+        calls = []
+        def respond(request):
+            calls.append(request)
+            return httpx.Response(200, text=make_binance_page({"r": route}))
+        with self.clients(respond):
+            with self.assertRaises(bot.TemporaryQuoteError):
+                await bot.fetch_usdt_rub_quote()
+        self.assertEqual(len(calls), 3)
+
+    async def test_mexc_failure_stops_after_three_attempts(self):
+        calls = []
+        def respond(request):
+            calls.append(request)
+            return httpx.Response(503)
+        with self.clients(respond):
+            with self.assertRaises(httpx.HTTPStatusError):
+                await bot.fetch_btc_price()
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(self.sleep.await_count, 2)
+
+    async def test_permanent_403_is_not_retried(self):
+        for fetch in (bot.fetch_btc_price, bot.fetch_usdt_rub_quote):
+            with self.subTest(source=fetch.__name__):
+                calls = []
+                self.sleep.reset_mock()
+                def respond(request):
+                    calls.append(request)
+                    return httpx.Response(403)
+                with self.clients(respond):
+                    with self.assertRaises(httpx.HTTPStatusError):
+                        await fetch()
+                self.assertEqual(len(calls), 1)
+                self.sleep.assert_not_awaited()
+
+    async def test_overall_budget_cancels_a_hanging_request(self):
+        cancelled = asyncio.Event()
+        async def respond(request):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+        with self.clients(respond), patch("bot.QUOTE_FETCH_BUDGET_SECONDS", 0.05):
+            with self.assertRaises(httpx.ReadTimeout):
+                await bot.fetch_usdt_rub_quote()
+        self.assertTrue(cancelled.is_set())
+
+
 class MenuTests(unittest.IsolatedAsyncioTestCase):
     async def test_menu_registers_all_commands_and_commands_button(self):
         telegram_bot = SimpleNamespace(
@@ -366,6 +535,14 @@ class MenuTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PriceTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        sleeper = patch("bot.asyncio.sleep", new_callable=AsyncMock)
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
+        warning = patch("bot.logger.warning")
+        warning.start()
+        self.addCleanup(warning.stop)
+
     async def fetch_from_response(self, payload, status=200):
         def respond(request):
             self.assertEqual(request.url.host, "api.mexc.com")

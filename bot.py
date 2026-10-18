@@ -2,12 +2,14 @@
 
 import asyncio
 import json
+import logging
 import os
 import re
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_UP
 from html.parser import HTMLParser
+from time import time_ns
 
 import httpx
 
@@ -24,6 +26,11 @@ START_MESSAGE = "Привет, Макс, я твой бот."
 MEXC_PRICE_URL = "https://api.mexc.com/api/v3/ticker/price"
 BINANCE_USDT_RUB_URL = "https://www.binance.com/ru/price/tether/RUB"
 MAX_RATE_AGE_SECONDS = 900
+QUOTE_ATTEMPTS = 3
+QUOTE_RETRY_DELAYS = (0.5, 1.0)
+QUOTE_FETCH_BUDGET_SECONDS = 18
+QUOTE_REQUEST_TIMEOUT = httpx.Timeout(5.0, connect=3.0)
+logger = logging.getLogger(__name__)
 PRICE_TIMEZONE = timezone(timedelta(hours=7))
 HELP_MESSAGE = (
     "/start — приветствие.\n"
@@ -46,12 +53,40 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(HELP_MESSAGE)
 
 
-async def fetch_btc_price() -> Decimal:
-    """Последняя цена сделки BTCUSDT; публичный API, без ключа и кеша."""
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(MEXC_PRICE_URL, params={"symbol": "BTCUSDT"})
-        response.raise_for_status()
-        data = response.json()
+class TemporaryQuoteError(ValueError):
+    """Временный пустой/повреждённый ответ или устаревшая копия котировки."""
+
+
+async def fetch_quote_with_retries(source, fetch_once):
+    """Повторяет временные сбои одного источника в пределах общего срока."""
+    async def attempts():
+        for attempt in range(QUOTE_ATTEMPTS):
+            try:
+                return await fetch_once()
+            except (httpx.HTTPError, ValueError, InvalidOperation) as error:
+                status = error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
+                retryable = (
+                    isinstance(error, (httpx.TransportError, TemporaryQuoteError))
+                    or status in (408, 425, 429)
+                    or (status is not None and 500 <= status <= 599)
+                )
+                # Только источник, тип ошибки и статус: без URL, токена и содержимого ответа.
+                logger.warning(
+                    "Курс %s: попытка %d/%d, %s, HTTP=%s",
+                    source, attempt + 1, QUOTE_ATTEMPTS, type(error).__name__, status,
+                )
+                if not retryable or attempt == QUOTE_ATTEMPTS - 1:
+                    raise
+                await asyncio.sleep(QUOTE_RETRY_DELAYS[attempt])
+
+    try:
+        return await asyncio.wait_for(attempts(), timeout=QUOTE_FETCH_BUDGET_SECONDS)
+    except asyncio.TimeoutError as error:
+        logger.warning("Курс %s: истёк общий срок получения котировки", source)
+        raise httpx.ReadTimeout(f"Истёк срок получения курса {source}") from error
+
+
+def parse_btc_price(data) -> Decimal:
     if not isinstance(data, dict) or data.get("symbol") != "BTCUSDT":
         raise ValueError("Неожиданный ответ MEXC")
     raw_price = data.get("price")
@@ -61,6 +96,21 @@ async def fetch_btc_price() -> Decimal:
     if not price.is_finite() or price <= 0:
         raise ValueError("Некорректная цена MEXC")
     return price
+
+
+async def fetch_btc_price() -> Decimal:
+    """Последняя цена BTCUSDT с повтором временных сбоев публичного API."""
+    async with httpx.AsyncClient(timeout=QUOTE_REQUEST_TIMEOUT) as client:
+        async def fetch_once():
+            response = await client.get(MEXC_PRICE_URL, params={"symbol": "BTCUSDT"})
+            response.raise_for_status()
+            try:
+                data = response.json()
+            except ValueError as error:
+                raise TemporaryQuoteError("Ответ MEXC не содержит JSON") from error
+            return parse_btc_price(data)
+
+        return await fetch_quote_with_retries("MEXC", fetch_once)
 
 
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -110,12 +160,25 @@ class BinancePageDataParser(HTMLParser):
             self.reading = False
 
 
+def validate_quote_time(updated: datetime) -> None:
+    age = (datetime.now(timezone.utc) - updated).total_seconds()
+    if age > MAX_RATE_AGE_SECONDS:
+        raise TemporaryQuoteError("Котировка Binance устарела")
+    if age < -60:
+        raise ValueError("Дата котировки Binance некорректна")
+
+
 def parse_usdt_rub_quote(html: str) -> UsdtRubQuote:
     parser = BinancePageDataParser()
     parser.feed(html)
+    if not parser.payloads:
+        raise TemporaryQuoteError("На странице Binance временно нет данных курса")
     if len(parser.payloads) != 1:
         raise ValueError("На странице Binance нет однозначных данных курса")
-    data = json.loads(parser.payloads[0], parse_float=Decimal)
+    try:
+        data = json.loads(parser.payloads[0], parse_float=Decimal)
+    except ValueError as error:
+        raise TemporaryQuoteError("Повреждён JSON страницы Binance") from error
     try:
         routes = data["appState"]["loader"]["dataByRouteId"]
         if not isinstance(routes, dict):
@@ -149,9 +212,7 @@ def parse_usdt_rub_quote(html: str) -> UsdtRubQuote:
         updated = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
         if updated.tzinfo is None:
             raise ValueError("В дате Binance нет часового пояса")
-        age = (datetime.now(timezone.utc) - updated).total_seconds()
-        if not -60 <= age <= MAX_RATE_AGE_SECONDS:
-            raise ValueError("Котировка Binance устарела или её дата некорректна")
+        validate_quote_time(updated)
         # Конвертер Binance умножает цену USDT в USD на курс RUB за 1 USD.
         return UsdtRubQuote(rate=usdt_usd * usd_rub, updated_at=updated)
     except (KeyError, TypeError) as error:
@@ -160,14 +221,18 @@ def parse_usdt_rub_quote(html: str) -> UsdtRubQuote:
 
 async def fetch_usdt_rub_quote() -> UsdtRubQuote:
     """Курс из конвертера Binance USDT/RUB; старая копия страницы не используется."""
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        response = await client.get(
-            BINANCE_USDT_RUB_URL,
-            params={"_": int(datetime.now(timezone.utc).timestamp())},
-            headers={"Cache-Control": "no-cache"},
-        )
-        response.raise_for_status()
-    return parse_usdt_rub_quote(response.text)
+    async with httpx.AsyncClient(timeout=QUOTE_REQUEST_TIMEOUT) as client:
+        async def fetch_once():
+            response = await client.get(
+                BINANCE_USDT_RUB_URL,
+                # Новый адрес даже при повторе в ту же секунду: старая CDN-копия не переиспользуется.
+                params={"_": time_ns()},
+                headers={"Cache-Control": "no-cache"},
+            )
+            response.raise_for_status()
+            return parse_usdt_rub_quote(response.text)
+
+        return await fetch_quote_with_retries("Binance", fetch_once)
 
 
 async def fetch_usdt_rub_rate() -> Decimal:
@@ -226,8 +291,27 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
     context.user_data["change_amount_rub"] = amount
+    quotes = await asyncio.gather(fetch_usdt_rub_quote(), fetch_btc_price(), return_exceptions=True)
+    if not isinstance(quotes[0], BaseException):
+        try:
+            # Курс мог устареть, пока второй источник выполнял повторы.
+            validate_quote_time(quotes[0].updated_at)
+        except (ValueError, InvalidOperation) as error:
+            quotes[0] = error
+    failed_sources = []
+    for source, result in zip(("Binance (USDT/RUB)", "MEXC (BTC/USDT)"), quotes):
+        if isinstance(result, BaseException):
+            if not isinstance(result, (httpx.HTTPError, ValueError, InvalidOperation)):
+                raise result
+            failed_sources.append(source)
+    if failed_sources:
+        await update.message.reply_text(
+            f"Не удалось получить свежие курсы: {', '.join(failed_sources)}.\n"
+            "Для повтора отправь сумму ещё раз. Для отмены — /start."
+        )
+        return
     try:
-        fiat_quote, btc_usdt = await asyncio.gather(fetch_usdt_rub_quote(), fetch_btc_price())
+        fiat_quote, btc_usdt = quotes
         usdt_rub = fiat_quote.rate
         btc_amount = calculate_btc_amount(amount, usdt_rub, btc_usdt)
     except (httpx.HTTPError, ValueError, InvalidOperation):
