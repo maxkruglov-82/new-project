@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, ROUND_UP
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_UP
 from html.parser import HTMLParser
 from time import time_ns
 
@@ -274,6 +274,14 @@ def calculate_btc_amount(amount_rub: Decimal, usdt_rub_rate: Decimal, btc_usdt_p
         raise ValueError("Цена BTC должна быть положительной")
     usdt_amount = calculate_usdt_amount(amount_rub, usdt_rub_rate)
     return (usdt_amount / btc_usdt_price).quantize(Decimal("0.00000001"), rounding=ROUND_UP)
+
+
+def calculate_sergey_usdt_amount(amount_rub: Decimal, rapira_rate: Decimal) -> Decimal:
+    """USDT для Сергея: рубли / (курс Rapira в RUB за USDT × 1,005)."""
+    if any(not value.is_finite() or value <= 0 for value in (amount_rub, rapira_rate)):
+        raise ValueError("Сумма и курс должны быть положительными")
+    effective_rate = rapira_rate * Decimal("1.005")
+    return (amount_rub / effective_rate).quantize(Decimal("0.000001"), rounding=ROUND_DOWN)
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

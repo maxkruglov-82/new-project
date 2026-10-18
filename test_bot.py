@@ -262,6 +262,30 @@ class ChangeCalculationTests(unittest.TestCase):
                     bot.calculate_btc_amount(Decimal("100000"), Decimal("100"), Decimal(invalid))
 
 
+class SergeyCalculationTests(unittest.TestCase):
+    def test_half_percent_is_added_to_rate_before_dividing_rubles(self):
+        for rubles, rate, expected in (
+            ("100000", "100", "995.024875"),
+            ("100000", "80", "1243.781094"),
+            ("100000", "87.3", "1139.776489"),
+            ("200000", "80", "2487.562189"),
+            ("0.01", "100", "0.000099"),
+        ):
+            with self.subTest(rubles=rubles, rate=rate):
+                self.assertEqual(
+                    bot.calculate_sergey_usdt_amount(Decimal(rubles), Decimal(rate)),
+                    Decimal(expected),
+                )
+
+    def test_invalid_amount_or_rate_is_rejected(self):
+        for invalid in ("0", "-1", "NaN", "Infinity"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    bot.calculate_sergey_usdt_amount(Decimal(invalid), Decimal("100"))
+                with self.assertRaises(ValueError):
+                    bot.calculate_sergey_usdt_amount(Decimal("100000"), Decimal(invalid))
+
+
 class BinancePageTests(unittest.IsolatedAsyncioTestCase):
     make_route = staticmethod(make_binance_route)
     make_page = staticmethod(make_binance_page)
