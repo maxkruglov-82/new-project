@@ -13,7 +13,11 @@ from time import time_ns
 
 import httpx
 
-from telegram import BotCommand, MenuButtonCommands, Update
+from telegram import (
+    BotCommand, BotCommandScopeAllChatAdministrators, BotCommandScopeAllGroupChats,
+    BotCommandScopeAllPrivateChats, BotCommandScopeChat, BotCommandScopeDefault,
+    MenuButtonCommands, MenuButtonDefault, Update,
+)
 from telegram.ext import (
     Application,
     ApplicationHandlerStop,
@@ -466,7 +470,17 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def setup_menu(application: Application) -> None:
-    """Регистрирует команды и кнопку меню при каждом запуске бота."""
+    """Удаляет публичные команды, регистрирует меню только для владельца."""
+    for scope in (
+        BotCommandScopeDefault(), BotCommandScopeAllPrivateChats(),
+        BotCommandScopeAllGroupChats(), BotCommandScopeAllChatAdministrators(),
+    ):
+        for language_code in ("", "ru", "en"):
+            await application.bot.delete_my_commands(scope=scope, language_code=language_code)
+    await application.bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+    owner_id = application.bot_data.get("allowed_user_id")
+    if owner_id is None:
+        return
     await application.bot.set_my_commands(
         [
             BotCommand("start", "Приветствие"),
@@ -474,9 +488,10 @@ async def setup_menu(application: Application) -> None:
             BotCommand("price", "Цена BTC/USDT на MEXC"),
             BotCommand("change", "BTC для Федерико Феллини"),
             BotCommand("sergey", "USDT для Сергея X"),
-        ]
+        ],
+        scope=BotCommandScopeChat(owner_id),
     )
-    await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+    await application.bot.set_chat_menu_button(chat_id=owner_id, menu_button=MenuButtonCommands())
 
 
 def read_allowed_user_id() -> int:
@@ -492,6 +507,7 @@ def build_application(token: str, allowed_user_id: int | None = None) -> Applica
     ):
         raise ValueError("Некорректный ALLOWED_USER_ID")
     application = Application.builder().token(token).post_init(setup_menu).build()
+    application.bot_data["allowed_user_id"] = allowed_user_id
 
     async def owner_only(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user, chat = update.effective_user, update.effective_chat

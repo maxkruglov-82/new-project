@@ -779,10 +779,14 @@ class QuoteRecoveryTests(unittest.IsolatedAsyncioTestCase):
 class MenuTests(unittest.IsolatedAsyncioTestCase):
     async def test_menu_registers_all_commands_and_commands_button(self):
         telegram_bot = SimpleNamespace(
-            set_my_commands=AsyncMock(), set_chat_menu_button=AsyncMock()
+            set_my_commands=AsyncMock(), set_chat_menu_button=AsyncMock(),
+            delete_my_commands=AsyncMock(),
         )
-        await bot.setup_menu(SimpleNamespace(bot=telegram_bot))
+        await bot.setup_menu(SimpleNamespace(bot=telegram_bot, bot_data={"allowed_user_id": 12345}))
         telegram_bot.set_my_commands.assert_awaited_once()
+        scope = telegram_bot.set_my_commands.await_args.kwargs["scope"]
+        self.assertEqual(scope.type, "chat")
+        self.assertEqual(scope.chat_id, 12345)
         commands = telegram_bot.set_my_commands.await_args.args[0]
         self.assertEqual(
             [(command.command, command.description) for command in commands],
@@ -794,9 +798,34 @@ class MenuTests(unittest.IsolatedAsyncioTestCase):
                 ("sergey", "USDT для Сергея X"),
             ],
         )
-        telegram_bot.set_chat_menu_button.assert_awaited_once()
+        self.assertEqual(telegram_bot.delete_my_commands.await_count, 12)
+        deleted = {
+            (call.kwargs["scope"].type, call.kwargs["language_code"])
+            for call in telegram_bot.delete_my_commands.await_args_list
+        }
+        self.assertEqual(deleted, {
+            (scope, language) for scope in
+            ("default", "all_private_chats", "all_group_chats", "all_chat_administrators")
+            for language in ("", "ru", "en")
+        })
+        self.assertEqual(telegram_bot.set_chat_menu_button.await_count, 2)
+        public = telegram_bot.set_chat_menu_button.await_args_list[0].kwargs
+        self.assertNotIn("chat_id", public)
+        self.assertEqual(public["menu_button"].type, "default")
+        self.assertEqual(telegram_bot.set_chat_menu_button.await_args.kwargs["chat_id"], 12345)
         button = telegram_bot.set_chat_menu_button.await_args.kwargs["menu_button"]
         self.assertIsInstance(button, MenuButtonCommands)
+
+    async def test_unconfigured_owner_never_publishes_commands(self):
+        telegram_bot = SimpleNamespace(
+            set_my_commands=AsyncMock(), set_chat_menu_button=AsyncMock(),
+            delete_my_commands=AsyncMock(),
+        )
+        await bot.setup_menu(SimpleNamespace(bot=telegram_bot, bot_data={}))
+        telegram_bot.set_my_commands.assert_not_awaited()
+        self.assertEqual(telegram_bot.delete_my_commands.await_count, 12)
+        telegram_bot.set_chat_menu_button.assert_awaited_once()
+        self.assertEqual(telegram_bot.set_chat_menu_button.await_args.kwargs["menu_button"].type, "default")
 
 
 class PriceTests(unittest.IsolatedAsyncioTestCase):
