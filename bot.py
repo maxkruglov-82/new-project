@@ -25,6 +25,7 @@ from telegram.ext import (
 START_MESSAGE = "Привет, Макс, я твой бот."
 MEXC_PRICE_URL = "https://api.mexc.com/api/v3/ticker/price"
 BINANCE_USDT_RUB_URL = "https://www.binance.com/ru/price/tether/RUB"
+RAPIRA_USDT_RUB_URL = "https://rapira.net/ru/exchange/USDT_RUB"
 MAX_RATE_AGE_SECONDS = 900
 QUOTE_ATTEMPTS = 3
 QUOTE_RETRY_DELAYS = (0.5, 1.0)
@@ -37,6 +38,7 @@ HELP_MESSAGE = (
     "/help — объяснение команд.\n"
     "/price — текущая цена BTC/USDT на MEXC (спот).\n"
     "/change — сколько BTC нужно: сумма в рублях + 8,5%, курсы Binance и MEXC.\n"
+    "/sergey — USDT для Сергея X: рубли ÷ (курс Rapira × 1,005). Курс вводится вручную.\n"
     "Отправь обычный текст, и я отвечу: «Ты написал: …», повторив сообщение."
 )
 
@@ -44,7 +46,8 @@ HELP_MESSAGE = (
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is not None:
         if context is not None and context.user_data is not None:
-            context.user_data.pop("change_waiting_amount", None)
+            for key in ("change_waiting_amount", "change_amount_rub", "sergey_stage", "sergey_amount_rub"):
+                context.user_data.pop(key, None)
         await update.message.reply_text(START_MESSAGE)
 
 
@@ -241,12 +244,28 @@ async def fetch_usdt_rub_rate() -> Decimal:
 
 async def change_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is not None:
+        context.user_data.pop("sergey_stage", None)
+        context.user_data.pop("sergey_amount_rub", None)
         context.user_data["change_waiting_amount"] = True
         context.user_data.pop("change_amount_rub", None)
         await update.message.reply_text(
             "Введи сумму в рублях, например: 100000, 150 000 или 300 тысяч.\n"
             "Для отмены отправь /start."
         )
+
+
+async def sergey_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
+    context.user_data.pop("change_waiting_amount", None)
+    context.user_data.pop("change_amount_rub", None)
+    context.user_data.pop("sergey_amount_rub", None)
+    context.user_data["sergey_stage"] = "amount"
+    await update.message.reply_text(
+        "USDT для Сергея X. Введи сумму в рублях, например: 100000 или 100 тысяч.\n"
+        "Затем введёшь текущий курс с Rapira вручную.\n"
+        "Расчёт: рубли ÷ (курс Rapira × 1,005). Для отмены — /start."
+    )
 
 
 def parse_rub_amount(text: str) -> Decimal:
@@ -260,6 +279,22 @@ def parse_rub_amount(text: str) -> Decimal:
     if amount <= 0:
         raise ValueError("Сумма должна быть положительной")
     return amount
+
+
+def parse_rapira_rate(text: str) -> Decimal:
+    normalized = re.sub(r"\s+", "", text.lower())
+    match = re.fullmatch(r"([0-9]+(?:[.,][0-9]{1,8})?)(?:руб\.?|₽)?", normalized)
+    if match is None:
+        raise ValueError("Введи курс числом")
+    rate = Decimal(match.group(1).replace(",", "."))
+    if rate <= 0:
+        raise ValueError("Курс должен быть положительным")
+    return rate
+
+
+def format_rub_amount(amount: Decimal) -> str:
+    text = f"{amount:,.2f}".replace(",", " ").replace(".", ",")
+    return text[:-3] if text.endswith(",00") else text
 
 
 def calculate_usdt_amount(amount_rub: Decimal, usdt_rub_rate: Decimal) -> Decimal:
@@ -284,8 +319,58 @@ def calculate_sergey_usdt_amount(amount_rub: Decimal, rapira_rate: Decimal) -> D
     return (amount_rub / effective_rate).quantize(Decimal("0.000001"), rounding=ROUND_DOWN)
 
 
+async def handle_sergey_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None or update.message.text is None:
+        return
+    if context.user_data.get("sergey_stage") == "amount":
+        try:
+            amount = parse_rub_amount(update.message.text)
+        except (ValueError, InvalidOperation):
+            await update.message.reply_text(
+                "Введи положительную сумму в рублях, например: 100000 или 100 тысяч.\n"
+                "Для отмены — /start."
+            )
+            return
+        context.user_data["sergey_amount_rub"] = amount
+        context.user_data["sergey_stage"] = "rate"
+        await update.message.reply_text(
+            f"Сумма: {format_rub_amount(amount)} руб.\n"
+            f"Открой Rapira и введи текущий курс RUB за 1 USDT вручную:\n{RAPIRA_USDT_RUB_URL}\n"
+            "Например: 87,3. К указанному курсу прибавлю 0,5%. Для отмены — /start."
+        )
+        return
+    if context.user_data.get("sergey_stage") != "rate":
+        return
+    try:
+        rate = parse_rapira_rate(update.message.text)
+    except (ValueError, InvalidOperation):
+        await update.message.reply_text(
+            "Введи положительный курс с Rapira числом, например: 87,3 или 87.3.\n"
+            "Для отмены — /start."
+        )
+        return
+    amount = context.user_data["sergey_amount_rub"]
+    try:
+        usdt = calculate_sergey_usdt_amount(amount, rate)
+    except (ValueError, InvalidOperation):
+        context.user_data.pop("sergey_amount_rub", None)
+        context.user_data["sergey_stage"] = "amount"
+        await update.message.reply_text("Не удалось рассчитать такую сумму. Введи другую сумму в рублях или /start.")
+        return
+    effective_rate = rate * Decimal("1.005")
+    context.user_data.pop("sergey_stage", None)
+    context.user_data.pop("sergey_amount_rub", None)
+    await update.message.reply_text(
+        f"Для суммы {format_rub_amount(amount)} руб получается {usdt:.6f} USDT "
+        f"(курс Rapira: {rate:f} руб, введён вручную; с 0,5%: {effective_rate:f} руб)."
+    )
+
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.message.text is None:
+        return
+    if context.user_data.get("sergey_stage") in ("amount", "rate"):
+        await handle_sergey_text(update, context)
         return
     if not context.user_data.get("change_waiting_amount"):
         await echo(update, context)
@@ -329,9 +414,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
     context.user_data.pop("change_waiting_amount", None)
-    amount_text = f"{amount:,.2f}".replace(",", " ").replace(".", ",")
-    if amount_text.endswith(",00"):
-        amount_text = amount_text[:-3]
+    amount_text = format_rub_amount(amount)
     displayed_btc = btc_amount.quantize(Decimal("0.000001"), rounding=ROUND_UP)
     btc_price_text = f"{btc_usdt:,.2f}".replace(",", " ")
     source_time = fiat_quote.updated_at.astimezone(PRICE_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
@@ -364,6 +447,7 @@ async def setup_menu(application: Application) -> None:
             BotCommand("help", "Список команд и помощь"),
             BotCommand("price", "Цена BTC/USDT на MEXC"),
             BotCommand("change", "BTC для Федерико Феллини"),
+            BotCommand("sergey", "USDT для Сергея X"),
         ]
     )
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
@@ -375,6 +459,7 @@ def build_application(token: str) -> Application:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("price", price_command))
     application.add_handler(CommandHandler("change", change_command))
+    application.add_handler(CommandHandler("sergey", sergey_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     return application
 

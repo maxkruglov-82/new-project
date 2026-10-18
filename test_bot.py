@@ -59,6 +59,8 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("/help", text)
         self.assertIn("/price", text)
         self.assertIn("/change", text)
+        self.assertIn("/sergey", text)
+        self.assertIn("вручную", text)
         self.assertIn("Ты написал:", text)
 
     async def test_echo_preserves_text(self):
@@ -78,7 +80,7 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_updates_without_message_are_ignored(self):
         update = SimpleNamespace(message=None)
-        for callback in (bot.start, bot.help_command, bot.price_command, bot.change_command, bot.handle_text, bot.echo):
+        for callback in (bot.start, bot.help_command, bot.price_command, bot.change_command, bot.sergey_command, bot.handle_sergey_text, bot.handle_text, bot.echo):
             await callback(update, None)
 
     async def test_non_text_is_ignored(self):
@@ -262,7 +264,124 @@ class ChangeCalculationTests(unittest.TestCase):
                     bot.calculate_btc_amount(Decimal("100000"), Decimal("100"), Decimal(invalid))
 
 
+class SergeyConversationTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.context = SimpleNamespace(user_data={})
+        self.message = SimpleNamespace(text="100 тысяч", reply_text=AsyncMock())
+        self.update = SimpleNamespace(message=self.message)
+        for name in ("fetch_usdt_rub_quote", "fetch_btc_price"):
+            provider = patch("bot." + name, new=AsyncMock(side_effect=AssertionError("Другой источник запрещён")))
+            provider.start()
+            self.addCleanup(provider.stop)
+
+    async def enter_amount(self, text="100 тысяч"):
+        await bot.sergey_command(self.update, self.context)
+        self.message.text = text
+        await bot.handle_text(self.update, self.context)
+
+    async def test_command_cancels_btc_input_and_requests_rubles(self):
+        self.context.user_data.update(change_waiting_amount=True, change_amount_rub=Decimal("50000"))
+        await bot.sergey_command(self.update, self.context)
+        self.assertNotIn("change_waiting_amount", self.context.user_data)
+        self.assertNotIn("change_amount_rub", self.context.user_data)
+        self.assertEqual(self.context.user_data["sergey_stage"], "amount")
+        self.assertIn("Введи сумму в рублях", self.message.reply_text.await_args.args[0])
+        self.assertIn("вручную", self.message.reply_text.await_args.args[0])
+
+    async def test_amount_requests_rate_from_the_specified_rapira_page(self):
+        await self.enter_amount()
+        self.assertEqual(self.context.user_data["sergey_amount_rub"], Decimal("100000"))
+        self.assertEqual(self.context.user_data["sergey_stage"], "rate")
+        text = self.message.reply_text.await_args.args[0]
+        self.assertIn("https://rapira.net/ru/exchange/USDT_RUB", text)
+        self.assertIn("0,5%", text)
+
+    async def test_user_example_calculates_and_clears_state_without_using_other_sources(self):
+        await self.enter_amount()
+        self.message.text = "87,3"
+        await bot.handle_text(self.update, self.context)
+        self.assertEqual(
+            self.message.reply_text.await_args.args[0],
+            "Для суммы 100 000 руб получается 1139.776489 USDT "
+            "(курс Rapira: 87.3 руб, введён вручную; с 0,5%: 87.7365 руб).",
+        )
+        self.assertNotIn("sergey_stage", self.context.user_data)
+        self.assertNotIn("sergey_amount_rub", self.context.user_data)
+        self.message.text = "Привет"
+        await bot.handle_text(self.update, self.context)
+        self.assertEqual(self.message.reply_text.await_args.args[0], "Ты написал: Привет")
+
+    async def test_invalid_rubles_keep_amount_stage(self):
+        await bot.sergey_command(self.update, self.context)
+        self.message.text = "не число"
+        await bot.handle_text(self.update, self.context)
+        self.assertEqual(self.context.user_data["sergey_stage"], "amount")
+        self.assertNotIn("sergey_amount_rub", self.context.user_data)
+
+    async def test_invalid_rate_preserves_rubles_and_allows_correction(self):
+        await self.enter_amount()
+        for invalid in ("0", "-87", "NaN", "Infinity", "1e2", "87,3+0,5%", "87.123456789", "abc"):
+            with self.subTest(rate=invalid):
+                self.message.text = invalid
+                await bot.handle_text(self.update, self.context)
+                self.assertEqual(self.context.user_data["sergey_stage"], "rate")
+                self.assertEqual(self.context.user_data["sergey_amount_rub"], Decimal("100000"))
+                self.assertIn("положительный курс", self.message.reply_text.await_args.args[0])
+        self.message.text = "87.3"
+        await bot.handle_text(self.update, self.context)
+        self.assertIn("1139.776489 USDT", self.message.reply_text.await_args.args[0])
+
+    async def test_start_cancels_both_stages(self):
+        for stage in ("amount", "rate"):
+            with self.subTest(stage=stage):
+                self.context.user_data.update(sergey_stage=stage, sergey_amount_rub=Decimal("100000"))
+                await bot.start(self.update, self.context)
+                self.assertNotIn("sergey_stage", self.context.user_data)
+                self.assertNotIn("sergey_amount_rub", self.context.user_data)
+                self.message.text = "87.3"
+                await bot.handle_text(self.update, self.context)
+                self.assertEqual(self.message.reply_text.await_args.args[0], "Ты написал: 87.3")
+
+    async def test_change_switches_back_to_btc_input(self):
+        await self.enter_amount()
+        await bot.change_command(self.update, self.context)
+        self.assertNotIn("sergey_stage", self.context.user_data)
+        self.assertNotIn("sergey_amount_rub", self.context.user_data)
+        self.assertTrue(self.context.user_data["change_waiting_amount"])
+
+    async def test_reopening_sergey_discards_previous_amount(self):
+        await self.enter_amount()
+        await bot.sergey_command(self.update, self.context)
+        self.assertEqual(self.context.user_data["sergey_stage"], "amount")
+        self.assertNotIn("sergey_amount_rub", self.context.user_data)
+
+    async def test_users_have_independent_amounts(self):
+        await self.enter_amount()
+        other = SimpleNamespace(user_data={})
+        await bot.sergey_command(self.update, other)
+        self.message.text = "50000"
+        await bot.handle_text(self.update, other)
+        self.message.text = "87.3"
+        await bot.handle_text(self.update, self.context)
+        self.assertIn("Для суммы 100 000 руб", self.message.reply_text.await_args.args[0])
+        self.assertEqual(other.user_data["sergey_stage"], "rate")
+        self.assertEqual(other.user_data["sergey_amount_rub"], Decimal("50000"))
+
+    async def test_unrepresentable_amount_does_not_crash_or_keep_invalid_calculation(self):
+        await self.enter_amount("9" * 100)
+        self.message.text = "87.3"
+        await bot.handle_text(self.update, self.context)
+        self.assertEqual(self.context.user_data["sergey_stage"], "amount")
+        self.assertNotIn("sergey_amount_rub", self.context.user_data)
+        self.assertIn("другую сумму", self.message.reply_text.await_args.args[0])
+
+
 class SergeyCalculationTests(unittest.TestCase):
+    def test_rate_input_accepts_decimal_comma_point_and_ruble_suffix(self):
+        for text in ("87.3", "87,3", "87,30 руб.", "87.3000 ₽"):
+            with self.subTest(text=text):
+                self.assertEqual(bot.parse_rapira_rate(text), Decimal("87.3"))
+
     def test_half_percent_is_added_to_rate_before_dividing_rubles(self):
         for rubles, rate, expected in (
             ("100000", "100", "995.024875"),
@@ -551,6 +670,7 @@ class MenuTests(unittest.IsolatedAsyncioTestCase):
                 ("help", "Список команд и помощь"),
                 ("price", "Цена BTC/USDT на MEXC"),
                 ("change", "BTC для Федерико Феллини"),
+                ("sergey", "USDT для Сергея X"),
             ],
         )
         telegram_bot.set_chat_menu_button.assert_awaited_once()
@@ -655,18 +775,20 @@ class ApplicationTests(unittest.TestCase):
     def test_command_and_text_routing(self):
         application = bot.build_application(OFFLINE_TOKEN)
         self.assertIs(application.post_init, bot.setup_menu)
-        start_handler, help_handler, price_handler, change_handler, echo_handler = application.handlers[0]
+        start_handler, help_handler, price_handler, change_handler, sergey_handler, echo_handler = application.handlers[0]
         self.assertIsInstance(start_handler, CommandHandler)
         self.assertIsInstance(help_handler, CommandHandler)
         self.assertIsInstance(price_handler, CommandHandler)
         self.assertIsInstance(change_handler, CommandHandler)
+        self.assertIsInstance(sergey_handler, CommandHandler)
         self.assertIsInstance(echo_handler, MessageHandler)
         self.assertIs(start_handler.callback, bot.start)
         self.assertIs(help_handler.callback, bot.help_command)
         self.assertIs(price_handler.callback, bot.price_command)
         self.assertIs(change_handler.callback, bot.change_command)
+        self.assertIs(sergey_handler.callback, bot.sergey_command)
         self.assertIs(echo_handler.callback, bot.handle_text)
-        for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler), ("/change", change_handler)):
+        for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler), ("/change", change_handler), ("/sergey", sergey_handler)):
             update = self.make_update(command, is_command=True)
             match = handler.check_update(update)
             self.assertIsNotNone(match)
