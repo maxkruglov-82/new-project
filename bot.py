@@ -355,7 +355,7 @@ async def setup_menu(application: Application) -> None:
             BotCommand("start", "Приветствие"),
             BotCommand("help", "Список команд и помощь"),
             BotCommand("price", "Цена BTC/USDT на MEXC"),
-            BotCommand("change", "Сколько BTC нужно за сумму в рублях"),
+            BotCommand("change", "BTC для Федерико Феллини"),
         ]
     )
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())

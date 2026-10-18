@@ -526,7 +526,7 @@ class MenuTests(unittest.IsolatedAsyncioTestCase):
                 ("start", "Приветствие"),
                 ("help", "Список команд и помощь"),
                 ("price", "Цена BTC/USDT на MEXC"),
-                ("change", "Сколько BTC нужно за сумму в рублях"),
+                ("change", "BTC для Федерико Феллини"),
             ],
         )
         telegram_bot.set_chat_menu_button.assert_awaited_once()
