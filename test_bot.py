@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
-from telegram import Chat, MenuButtonCommands, Message, MessageEntity, Update
+from telegram import Chat, MenuButtonCommands, Message, MessageEntity, Update, User
 from telegram.ext import CommandHandler, MessageHandler
 
 import bot
@@ -934,11 +934,70 @@ class ApplicationTests(unittest.TestCase):
             build.assert_not_called()
 
     def test_main_reads_token_and_starts_polling(self):
-        with patch.dict(os.environ, {"BOT_TOKEN": OFFLINE_TOKEN}):
+        with patch.dict(os.environ, {"BOT_TOKEN": OFFLINE_TOKEN, "ALLOWED_USER_ID": "12345"}):
             with patch("bot.build_application") as build:
                 bot.main()
-                build.assert_called_once_with(OFFLINE_TOKEN)
+                build.assert_called_once_with(OFFLINE_TOKEN, 12345)
                 build.return_value.run_polling.assert_called_once_with()
+
+
+class OwnerAccessTests(unittest.IsolatedAsyncioTestCase):
+    async def run_update(self, sender, chat_id, chat_type="private", text="/start", owner=12345):
+        application = bot.build_application(OFFLINE_TOKEN, owner)
+        # Проверяем настоящий диспетчер PTB, заменив бизнес-обработчики.
+        application.handlers[0].clear()
+        callback = AsyncMock()
+        application.add_handler(MessageHandler(bot.filters.ALL, callback))
+        application._initialized = True
+        message = Message(
+            message_id=1, date=datetime.now(timezone.utc),
+            chat=Chat(chat_id, chat_type), text=text,
+            from_user=User(sender, "Test", False) if sender is not None else None,
+        )
+        update = Update(1, message=message)
+        with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock()) as rapira:
+            with patch("bot.fetch_btc_price", new=AsyncMock()) as mexc:
+                await application.process_update(update)
+        rapira.assert_not_awaited()
+        mexc.assert_not_awaited()
+        return callback
+
+    async def test_owner_private_messages_pass_dispatcher(self):
+        for text in ("/start", "/price", "/change", "/sergey", "100000", "Привет"):
+            with self.subTest(text=text):
+                callback = await self.run_update(12345, 12345, text=text)
+                callback.assert_awaited_once()
+
+    async def test_other_accounts_are_silently_blocked_before_handlers(self):
+        for text in ("/start", "/help", "/price", "/change", "/sergey", "100000", "Привет"):
+            with self.subTest(text=text):
+                callback = await self.run_update(99999, 99999, text=text)
+                callback.assert_not_awaited()
+
+    async def test_owner_in_group_and_missing_or_mismatched_identity_are_blocked(self):
+        for sender, chat_id, kind in ((12345, -100, "supergroup"), (12345, -10, "group"),
+                                      (None, 12345, "private"), (99999, 12345, "private"),
+                                      (12345, 99999, "private")):
+            with self.subTest(sender=sender, chat=chat_id):
+                callback = await self.run_update(sender, chat_id, kind)
+                callback.assert_not_awaited()
+
+    async def test_unconfigured_application_denies_everyone(self):
+        callback = await self.run_update(12345, 12345, owner=None)
+        callback.assert_not_awaited()
+
+    def test_invalid_owner_setting_prevents_startup(self):
+        for value in ("", "0", "-1", "1.5", "@max", "123 456"):
+            with self.subTest(value=value), patch.dict(os.environ, {"BOT_TOKEN": OFFLINE_TOKEN, "ALLOWED_USER_ID": value}):
+                with patch("bot.build_application") as build:
+                    with self.assertRaisesRegex(SystemExit, "ALLOWED_USER_ID"):
+                        bot.main()
+                    build.assert_not_called()
+
+    def test_build_rejects_invalid_ids(self):
+        for value in (True, 0, -1, "12345"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                bot.build_application(OFFLINE_TOKEN, value)
 
 
 if __name__ == "__main__":

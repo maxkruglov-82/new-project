@@ -16,9 +16,11 @@ import httpx
 from telegram import BotCommand, MenuButtonCommands, Update
 from telegram.ext import (
     Application,
+    ApplicationHandlerStop,
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    TypeHandler,
     filters,
 )
 
@@ -477,8 +479,34 @@ async def setup_menu(application: Application) -> None:
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
 
-def build_application(token: str) -> Application:
+def read_allowed_user_id() -> int:
+    raw = os.environ.get("ALLOWED_USER_ID", "").strip()
+    if not re.fullmatch(r"[1-9][0-9]*", raw):
+        raise ValueError("Задайте ALLOWED_USER_ID: положительный числовой Telegram ID владельца.")
+    return int(raw)
+
+
+def build_application(token: str, allowed_user_id: int | None = None) -> Application:
+    if allowed_user_id is not None and (
+        isinstance(allowed_user_id, bool) or not isinstance(allowed_user_id, int) or allowed_user_id <= 0
+    ):
+        raise ValueError("Некорректный ALLOWED_USER_ID")
     application = Application.builder().token(token).post_init(setup_menu).build()
+
+    async def owner_only(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        user, chat = update.effective_user, update.effective_chat
+        if (
+            allowed_user_id is None
+            or user is None
+            or user.id != allowed_user_id
+            or chat is None
+            or chat.type != "private"
+            or chat.id != allowed_user_id
+        ):
+            # Без ответа и без запросов курсов. Запрет применяется до любых команд.
+            raise ApplicationHandlerStop
+
+    application.add_handler(TypeHandler(Update, owner_only), group=-1)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("price", price_command))
@@ -492,7 +520,11 @@ def main() -> None:
     token = os.environ.get("BOT_TOKEN", "").strip()
     if not token:
         raise SystemExit("Задайте секрет BOT_TOKEN в переменных окружения перед запуском.")
-    application = build_application(token)
+    try:
+        allowed_user_id = read_allowed_user_id()
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    application = build_application(token, allowed_user_id)
     application.run_polling()
 
 
