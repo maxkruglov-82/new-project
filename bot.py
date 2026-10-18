@@ -26,6 +26,7 @@ START_MESSAGE = "Привет, Макс, я твой бот."
 MEXC_PRICE_URL = "https://api.mexc.com/api/v3/ticker/price"
 BINANCE_USDT_RUB_URL = "https://www.binance.com/ru/price/tether/RUB"
 RAPIRA_USDT_RUB_URL = "https://rapira.net/ru/exchange/USDT_RUB"
+RAPIRA_MARKET_URL = "https://api.rapira.net/market/symbol-thumb"
 MAX_RATE_AGE_SECONDS = 900
 QUOTE_ATTEMPTS = 3
 QUOTE_RETRY_DELAYS = (0.5, 1.0)
@@ -38,7 +39,7 @@ HELP_MESSAGE = (
     "/help — объяснение команд.\n"
     "/price — текущая цена BTC/USDT на MEXC (спот).\n"
     "/change — сколько BTC нужно: сумма в рублях + 8,5%, курсы Binance и MEXC.\n"
-    "/sergey — USDT для Сергея X: рубли ÷ (курс Rapira × 1,005). Курс вводится вручную.\n"
+    "/sergey — USDT для Сергея X: рубли ÷ (текущий курс Rapira × 1,005).\n"
     "Отправь обычный текст, и я отвечу: «Ты написал: …», повторив сообщение."
 )
 
@@ -242,6 +243,44 @@ async def fetch_usdt_rub_rate() -> Decimal:
     return (await fetch_usdt_rub_quote()).rate
 
 
+def parse_rapira_usdt_rub_rate(data) -> Decimal:
+    if not isinstance(data, list):
+        raise ValueError("Неожиданный ответ Rapira")
+    pairs = [row for row in data if isinstance(row, dict) and row.get("symbol") == "USDT/RUB"]
+    if len(pairs) != 1:
+        raise ValueError("В ответе Rapira нет однозначной пары USDT/RUB")
+    pair = pairs[0]
+    # API самой страницы называет RUB baseCurrency, а USDT — quoteCurrency.
+    if pair.get("baseCurrency") != "RUB" or pair.get("quoteCurrency") != "USDT":
+        raise ValueError("В ответе Rapira другая валютная пара")
+    raw_rate = pair.get("close")  # Последняя сделка: основной курс страницы обмена.
+    if isinstance(raw_rate, bool) or not isinstance(raw_rate, (Decimal, int, str)):
+        raise ValueError("В ответе Rapira нет числового курса")
+    rate = Decimal(raw_rate)
+    if not rate.is_finite() or rate <= 0:
+        raise ValueError("Некорректный курс Rapira")
+    return rate
+
+
+async def fetch_rapira_usdt_rub_rate() -> Decimal:
+    """Тот же публичный API и поле close, которые использует страница Rapira."""
+    async with httpx.AsyncClient(timeout=QUOTE_REQUEST_TIMEOUT) as client:
+        async def fetch_once():
+            response = await client.get(
+                RAPIRA_MARKET_URL,
+                params={"_": time_ns()},
+                headers={"Cache-Control": "no-cache"},
+            )
+            response.raise_for_status()
+            try:
+                data = json.loads(response.text, parse_float=Decimal)
+            except ValueError as error:
+                raise TemporaryQuoteError("Ответ Rapira не содержит JSON") from error
+            return parse_rapira_usdt_rub_rate(data)
+
+        return await fetch_quote_with_retries("Rapira", fetch_once)
+
+
 async def change_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is not None:
         context.user_data.pop("sergey_stage", None)
@@ -263,7 +302,7 @@ async def sergey_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["sergey_stage"] = "amount"
     await update.message.reply_text(
         "USDT для Сергея X. Введи сумму в рублях, например: 100000 или 100 тысяч.\n"
-        "Затем введёшь текущий курс с Rapira вручную.\n"
+        "Текущий курс USDT/RUB получу с Rapira автоматически.\n"
         "Расчёт: рубли ÷ (курс Rapira × 1,005). Для отмены — /start."
     )
 
@@ -281,20 +320,14 @@ def parse_rub_amount(text: str) -> Decimal:
     return amount
 
 
-def parse_rapira_rate(text: str) -> Decimal:
-    normalized = re.sub(r"\s+", "", text.lower())
-    match = re.fullmatch(r"([0-9]+(?:[.,][0-9]{1,8})?)(?:руб\.?|₽)?", normalized)
-    if match is None:
-        raise ValueError("Введи курс числом")
-    rate = Decimal(match.group(1).replace(",", "."))
-    if rate <= 0:
-        raise ValueError("Курс должен быть положительным")
-    return rate
-
-
 def format_rub_amount(amount: Decimal) -> str:
     text = f"{amount:,.2f}".replace(",", " ").replace(".", ",")
     return text[:-3] if text.endswith(",00") else text
+
+
+def format_decimal(value: Decimal) -> str:
+    text = format(value, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 def calculate_usdt_amount(amount_rub: Decimal, usdt_rub_rate: Decimal) -> Decimal:
@@ -322,34 +355,25 @@ def calculate_sergey_usdt_amount(amount_rub: Decimal, rapira_rate: Decimal) -> D
 async def handle_sergey_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.message.text is None:
         return
-    if context.user_data.get("sergey_stage") == "amount":
-        try:
-            amount = parse_rub_amount(update.message.text)
-        except (ValueError, InvalidOperation):
-            await update.message.reply_text(
-                "Введи положительную сумму в рублях, например: 100000 или 100 тысяч.\n"
-                "Для отмены — /start."
-            )
-            return
-        context.user_data["sergey_amount_rub"] = amount
-        context.user_data["sergey_stage"] = "rate"
-        await update.message.reply_text(
-            f"Сумма: {format_rub_amount(amount)} руб.\n"
-            f"Открой Rapira и введи текущий курс RUB за 1 USDT вручную:\n{RAPIRA_USDT_RUB_URL}\n"
-            "Например: 87,3. К указанному курсу прибавлю 0,5%. Для отмены — /start."
-        )
-        return
-    if context.user_data.get("sergey_stage") != "rate":
+    if context.user_data.get("sergey_stage") != "amount":
         return
     try:
-        rate = parse_rapira_rate(update.message.text)
+        amount = parse_rub_amount(update.message.text)
     except (ValueError, InvalidOperation):
         await update.message.reply_text(
-            "Введи положительный курс с Rapira числом, например: 87,3 или 87.3.\n"
+            "Введи положительную сумму в рублях, например: 100000 или 100 тысяч.\n"
             "Для отмены — /start."
         )
         return
-    amount = context.user_data["sergey_amount_rub"]
+    context.user_data["sergey_amount_rub"] = amount
+    try:
+        rate = await fetch_rapira_usdt_rub_rate()
+    except (httpx.HTTPError, ValueError, InvalidOperation):
+        await update.message.reply_text(
+            "Не удалось получить текущий курс Rapira.\n"
+            "Для повтора отправь сумму рублей ещё раз. Для отмены — /start."
+        )
+        return
     try:
         usdt = calculate_sergey_usdt_amount(amount, rate)
     except (ValueError, InvalidOperation):
@@ -362,14 +386,14 @@ async def handle_sergey_text(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data.pop("sergey_amount_rub", None)
     await update.message.reply_text(
         f"Для суммы {format_rub_amount(amount)} руб получается {usdt:.6f} USDT "
-        f"(курс Rapira: {rate:f} руб, введён вручную; с 0,5%: {effective_rate:f} руб)."
+        f"(курс Rapira: {format_decimal(rate)} руб; с 0,5%: {format_decimal(effective_rate)} руб)."
     )
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.message.text is None:
         return
-    if context.user_data.get("sergey_stage") in ("amount", "rate"):
+    if context.user_data.get("sergey_stage") == "amount":
         await handle_sergey_text(update, context)
         return
     if not context.user_data.get("change_waiting_amount"):

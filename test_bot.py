@@ -43,6 +43,11 @@ def make_binance_page(routes):
     return '<html><script type="application/json" id="__APP_DATA">' + json.dumps(data) + '</script></html>'
 
 
+def make_rapira_payload(price="87.3"):
+    # Поля публичного /market/symbol-thumb, проверены по странице Rapira 18.10.2026.
+    return [{"symbol": "USDT/RUB", "baseCurrency": "RUB", "quoteCurrency": "USDT", "close": price}]
+
+
 class ReplyTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.message = SimpleNamespace(text="Привет, Макс!", reply_text=AsyncMock())
@@ -60,7 +65,8 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("/price", text)
         self.assertIn("/change", text)
         self.assertIn("/sergey", text)
-        self.assertIn("вручную", text)
+        self.assertIn("Rapira", text)
+        self.assertNotIn("вручную", text)
         self.assertIn("Ты написал:", text)
 
     async def test_echo_preserves_text(self):
@@ -269,6 +275,9 @@ class SergeyConversationTests(unittest.IsolatedAsyncioTestCase):
         self.context = SimpleNamespace(user_data={})
         self.message = SimpleNamespace(text="100 тысяч", reply_text=AsyncMock())
         self.update = SimpleNamespace(message=self.message)
+        rapira = patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock(return_value=Decimal("87.3")))
+        self.rapira = rapira.start()
+        self.addCleanup(rapira.stop)
         for name in ("fetch_usdt_rub_quote", "fetch_btc_price"):
             provider = patch("bot." + name, new=AsyncMock(side_effect=AssertionError("Другой источник запрещён")))
             provider.start()
@@ -286,27 +295,29 @@ class SergeyConversationTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("change_amount_rub", self.context.user_data)
         self.assertEqual(self.context.user_data["sergey_stage"], "amount")
         self.assertIn("Введи сумму в рублях", self.message.reply_text.await_args.args[0])
-        self.assertIn("вручную", self.message.reply_text.await_args.args[0])
+        self.assertIn("автоматически", self.message.reply_text.await_args.args[0])
+        self.rapira.assert_not_awaited()
 
-    async def test_amount_requests_rate_from_the_specified_rapira_page(self):
+    async def test_amount_fetches_rapira_rate_and_returns_result_immediately(self):
         await self.enter_amount()
-        self.assertEqual(self.context.user_data["sergey_amount_rub"], Decimal("100000"))
-        self.assertEqual(self.context.user_data["sergey_stage"], "rate")
+        self.rapira.assert_awaited_once()
+        self.assertNotIn("sergey_stage", self.context.user_data)
+        self.assertEqual(self.message.reply_text.await_count, 2)
         text = self.message.reply_text.await_args.args[0]
-        self.assertIn("https://rapira.net/ru/exchange/USDT_RUB", text)
+        self.assertIn("1139.776489 USDT", text)
+        self.assertNotIn("вручную", text)
         self.assertIn("0,5%", text)
 
     async def test_user_example_calculates_and_clears_state_without_using_other_sources(self):
         await self.enter_amount()
-        self.message.text = "87,3"
-        await bot.handle_text(self.update, self.context)
         self.assertEqual(
             self.message.reply_text.await_args.args[0],
             "Для суммы 100 000 руб получается 1139.776489 USDT "
-            "(курс Rapira: 87.3 руб, введён вручную; с 0,5%: 87.7365 руб).",
+            "(курс Rapira: 87.3 руб; с 0,5%: 87.7365 руб).",
         )
         self.assertNotIn("sergey_stage", self.context.user_data)
         self.assertNotIn("sergey_amount_rub", self.context.user_data)
+        self.rapira.assert_awaited_once()
         self.message.text = "Привет"
         await bot.handle_text(self.update, self.context)
         self.assertEqual(self.message.reply_text.await_args.args[0], "Ты написал: Привет")
@@ -317,19 +328,24 @@ class SergeyConversationTests(unittest.IsolatedAsyncioTestCase):
         await bot.handle_text(self.update, self.context)
         self.assertEqual(self.context.user_data["sergey_stage"], "amount")
         self.assertNotIn("sergey_amount_rub", self.context.user_data)
+        self.rapira.assert_not_awaited()
 
-    async def test_invalid_rate_preserves_rubles_and_allows_correction(self):
-        await self.enter_amount()
-        for invalid in ("0", "-87", "NaN", "Infinity", "1e2", "87,3+0,5%", "87.123456789", "abc"):
-            with self.subTest(rate=invalid):
-                self.message.text = invalid
-                await bot.handle_text(self.update, self.context)
-                self.assertEqual(self.context.user_data["sergey_stage"], "rate")
+    async def test_rapira_failure_preserves_amount_for_retry_without_other_sources(self):
+        for error in (httpx.ReadTimeout("Timeout"), httpx.ProxyError("Forbidden"), ValueError("Bad data")):
+            with self.subTest(error=type(error).__name__):
+                self.rapira.side_effect = error
+                await self.enter_amount()
+                self.assertEqual(self.context.user_data["sergey_stage"], "amount")
                 self.assertEqual(self.context.user_data["sergey_amount_rub"], Decimal("100000"))
-                self.assertIn("положительный курс", self.message.reply_text.await_args.args[0])
-        self.message.text = "87.3"
+                text = self.message.reply_text.await_args.args[0]
+                self.assertIn("Не удалось получить текущий курс Rapira", text)
+                self.assertNotIn("получается", text)
+                self.assertNotIn("вручную", text)
+        self.rapira.side_effect = None
+        self.message.text = "100000"
         await bot.handle_text(self.update, self.context)
         self.assertIn("1139.776489 USDT", self.message.reply_text.await_args.args[0])
+        self.assertNotIn("sergey_stage", self.context.user_data)
 
     async def test_start_cancels_both_stages(self):
         for stage in ("amount", "rate"):
@@ -343,45 +359,40 @@ class SergeyConversationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(self.message.reply_text.await_args.args[0], "Ты написал: 87.3")
 
     async def test_change_switches_back_to_btc_input(self):
-        await self.enter_amount()
+        await bot.sergey_command(self.update, self.context)
+        self.context.user_data["sergey_amount_rub"] = Decimal("100000")
         await bot.change_command(self.update, self.context)
         self.assertNotIn("sergey_stage", self.context.user_data)
         self.assertNotIn("sergey_amount_rub", self.context.user_data)
         self.assertTrue(self.context.user_data["change_waiting_amount"])
 
     async def test_reopening_sergey_discards_previous_amount(self):
-        await self.enter_amount()
+        self.context.user_data.update(sergey_stage="amount", sergey_amount_rub=Decimal("100000"))
         await bot.sergey_command(self.update, self.context)
         self.assertEqual(self.context.user_data["sergey_stage"], "amount")
         self.assertNotIn("sergey_amount_rub", self.context.user_data)
 
     async def test_users_have_independent_amounts(self):
-        await self.enter_amount()
+        await bot.sergey_command(self.update, self.context)
         other = SimpleNamespace(user_data={})
         await bot.sergey_command(self.update, other)
-        self.message.text = "50000"
-        await bot.handle_text(self.update, other)
-        self.message.text = "87.3"
+        self.message.text = "100000"
         await bot.handle_text(self.update, self.context)
         self.assertIn("Для суммы 100 000 руб", self.message.reply_text.await_args.args[0])
-        self.assertEqual(other.user_data["sergey_stage"], "rate")
-        self.assertEqual(other.user_data["sergey_amount_rub"], Decimal("50000"))
+        self.assertEqual(other.user_data["sergey_stage"], "amount")
+        self.message.text = "50000"
+        await bot.handle_text(self.update, other)
+        self.assertIn("Для суммы 50 000 руб", self.message.reply_text.await_args.args[0])
+        self.assertIn("569.888244 USDT", self.message.reply_text.await_args.args[0])
 
     async def test_unrepresentable_amount_does_not_crash_or_keep_invalid_calculation(self):
         await self.enter_amount("9" * 100)
-        self.message.text = "87.3"
-        await bot.handle_text(self.update, self.context)
         self.assertEqual(self.context.user_data["sergey_stage"], "amount")
         self.assertNotIn("sergey_amount_rub", self.context.user_data)
         self.assertIn("другую сумму", self.message.reply_text.await_args.args[0])
 
 
 class SergeyCalculationTests(unittest.TestCase):
-    def test_rate_input_accepts_decimal_comma_point_and_ruble_suffix(self):
-        for text in ("87.3", "87,3", "87,30 руб.", "87.3000 ₽"):
-            with self.subTest(text=text):
-                self.assertEqual(bot.parse_rapira_rate(text), Decimal("87.3"))
-
     def test_half_percent_is_added_to_rate_before_dividing_rubles(self):
         for rubles, rate, expected in (
             ("100000", "100", "995.024875"),
@@ -403,6 +414,116 @@ class SergeyCalculationTests(unittest.TestCase):
                     bot.calculate_sergey_usdt_amount(Decimal(invalid), Decimal("100"))
                 with self.assertRaises(ValueError):
                     bot.calculate_sergey_usdt_amount(Decimal("100000"), Decimal(invalid))
+
+
+class RapiraSourceTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.client_class = httpx.AsyncClient
+        sleeper = patch("bot.asyncio.sleep", new_callable=AsyncMock)
+        self.sleep = sleeper.start()
+        self.addCleanup(sleeper.stop)
+        warning = patch("bot.logger.warning")
+        warning.start()
+        self.addCleanup(warning.stop)
+
+    async def fetch(self, payload=None, *, raw=None):
+        def respond(request):
+            self.assertEqual(request.url.host, "api.rapira.net")
+            self.assertEqual(request.url.path, "/market/symbol-thumb")
+            self.assertGreater(int(request.url.params["_"]), 0)
+            self.assertEqual(request.headers["Cache-Control"], "no-cache")
+            return httpx.Response(200, text=raw) if raw is not None else httpx.Response(200, json=payload)
+        client = self.client_class(transport=httpx.MockTransport(respond))
+        with patch("bot.httpx.AsyncClient", return_value=client):
+            return await bot.fetch_rapira_usdt_rub_rate()
+
+    async def test_uses_page_close_price_for_the_exact_currency_pair(self):
+        data = make_rapira_payload()
+        data[0].update(usdRate=1, askPrice=90, bidPrice=80)
+        data.insert(0, {"symbol": "BTC/USDT", "close": "82000"})
+        self.assertEqual(await self.fetch(data), Decimal("87.3"))
+
+    async def test_numeric_json_price_preserves_decimal_precision(self):
+        raw = '[{"symbol":"USDT/RUB","baseCurrency":"RUB","quoteCurrency":"USDT","close":87.123456789012345678}]'
+        self.assertEqual(await self.fetch(raw=raw), Decimal("87.123456789012345678"))
+
+    async def test_missing_duplicate_and_reversed_pairs_are_rejected(self):
+        reversed_pair = make_rapira_payload()
+        reversed_pair[0]["symbol"] = "RUB/USDT"
+        for data in (None, {}, [], reversed_pair, make_rapira_payload() * 2):
+            with self.subTest(data=data):
+                with self.assertRaises(ValueError):
+                    await self.fetch(data)
+
+    async def test_wrong_currency_metadata_is_rejected(self):
+        for key, value in (("baseCurrency", "USDT"), ("quoteCurrency", "USD")):
+            with self.subTest(field=key):
+                data = make_rapira_payload()
+                data[0][key] = value
+                with self.assertRaises(ValueError):
+                    await self.fetch(data)
+
+    async def test_missing_or_invalid_close_never_falls_back_to_other_fields(self):
+        for price in (None, True, [], {}, "0", "-1", "NaN", "Infinity", "bad"):
+            with self.subTest(price=price):
+                data = make_rapira_payload(price)
+                data[0].update(askPrice=87.3, usdRate=1)
+                with self.assertRaises((ValueError, InvalidOperation)):
+                    await self.fetch(data)
+        data = make_rapira_payload()
+        del data[0]["close"]
+        with self.assertRaises(ValueError):
+            await self.fetch(data)
+
+    async def test_change_recovers_after_two_failures_without_requesting_manual_rate(self):
+        requests = []
+        def respond(request):
+            requests.append(request)
+            self.assertEqual(request.url.host, "api.rapira.net")
+            if len(requests) == 1:
+                return httpx.Response(503)
+            if len(requests) == 2:
+                return httpx.Response(200, text="temporary unavailable")
+            return httpx.Response(200, json=make_rapira_payload())
+        client = self.client_class(transport=httpx.MockTransport(respond))
+        message = SimpleNamespace(text="100000", reply_text=AsyncMock())
+        update = SimpleNamespace(message=message)
+        context = SimpleNamespace(user_data={})
+        await bot.sergey_command(update, context)
+        with patch("bot.httpx.AsyncClient", return_value=client), patch("bot.time_ns", side_effect=(101, 102, 103)):
+            await bot.handle_text(update, context)
+        self.assertEqual(message.reply_text.await_count, 2)
+        self.assertIn("1139.776489 USDT", message.reply_text.await_args.args[0])
+        self.assertNotIn("вручную", message.reply_text.await_args.args[0])
+        self.assertEqual([r.url.params["_"] for r in requests], ["101", "102", "103"])
+        self.assertEqual(self.sleep.await_count, 2)
+
+    async def test_request_failure_has_bounded_retries(self):
+        for status, expected_attempts in ((403, 1), (429, 3), (503, 3)):
+            with self.subTest(status=status):
+                requests = []
+                def respond(request):
+                    requests.append(request)
+                    return httpx.Response(status)
+                client = self.client_class(transport=httpx.MockTransport(respond))
+                with patch("bot.httpx.AsyncClient", return_value=client):
+                    with self.assertRaises(httpx.HTTPStatusError):
+                        await bot.fetch_rapira_usdt_rub_rate()
+                self.assertEqual(len(requests), expected_attempts)
+
+    async def test_each_calculation_fetches_a_new_rate(self):
+        requests = []
+        def respond(request):
+            requests.append(request)
+            return httpx.Response(200, json=make_rapira_payload("87.3" if len(requests) == 1 else "88"))
+        def client_factory(**kwargs):
+            return self.client_class(transport=httpx.MockTransport(respond), **kwargs)
+        with patch("bot.httpx.AsyncClient", side_effect=client_factory):
+            first = await bot.fetch_rapira_usdt_rub_rate()
+            second = await bot.fetch_rapira_usdt_rub_rate()
+        self.assertEqual((first, second), (Decimal("87.3"), Decimal("88")))
+        self.assertEqual(len(requests), 2)
+        self.assertNotEqual(requests[0].url.params["_"], requests[1].url.params["_"])
 
 
 class BinancePageTests(unittest.IsolatedAsyncioTestCase):
