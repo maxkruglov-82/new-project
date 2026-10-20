@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_UP
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP, ROUND_UP
 from html.parser import HTMLParser
 from time import time_ns
 
@@ -344,7 +344,7 @@ def calculate_misha_rub_amount(amount_usdt: Decimal, rapira_rate: Decimal) -> De
     """Рубли к получению: USDT × RUB за USDT Rapira × (1 − 0,007)."""
     if any(not value.is_finite() or value <= 0 for value in (amount_usdt, rapira_rate)):
         raise ValueError("Сумма и курс должны быть положительными")
-    return (amount_usdt * rapira_rate * Decimal("0.993")).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+    return (amount_usdt * rapira_rate * Decimal("0.993")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
 async def handle_misha_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -370,10 +370,11 @@ async def handle_misha_text(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
     context.user_data.pop("misha_waiting_amount", None)
     effective_rate = rate * Decimal("0.993")
-    rubles_text = f"{rubles:,.2f}".replace(",", " ").replace(".", ",")
+    rubles_text = f"{rubles:,.0f}".replace(",", " ")
+    rate_text = format_decimal(effective_rate).replace(".", ",")
     await update.message.reply_text(
         f"За {format_decimal(amount)} USDT человек получит {rubles_text} руб "
-        f"(курс Rapira: {format_decimal(rate)} руб; с −0,7%: {format_decimal(effective_rate)} руб)."
+        f"(курс: {rate_text} руб/USDT)."
     )
 
 

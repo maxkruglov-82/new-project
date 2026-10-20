@@ -978,10 +978,12 @@ class MishaTests(unittest.IsolatedAsyncioTestCase):
         self.message = SimpleNamespace(text="1000", reply_text=AsyncMock())
         self.update = SimpleNamespace(message=self.message)
 
-    def test_formula_and_kopecks_round_down(self):
-        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1000"), Decimal("87.3")), Decimal("86688.90"))
-        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1.123456"), Decimal("87.345678")), Decimal("97.44"))
-        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1"), Decimal("1.009")), Decimal("1.00"))
+    def test_formula_rounds_to_nearest_whole_ruble(self):
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1000"), Decimal("87.3")), Decimal("86689"))
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1200"), Decimal("87.3")), Decimal("104027"))
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1"), Decimal("499.999")), Decimal("496"))
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1"), Decimal("500")), Decimal("497"))
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1"), Decimal("500.001")), Decimal("497"))
 
     def test_invalid_calculation_inputs(self):
         for value in ("0", "-1", "NaN", "Infinity"):
@@ -1005,7 +1007,7 @@ class MishaTests(unittest.IsolatedAsyncioTestCase):
         mexc.assert_not_awaited()
         binance.assert_not_awaited()
         self.assertEqual(self.message.reply_text.await_args.args[0],
-            "За 1000 USDT человек получит 86 688,90 руб (курс Rapira: 87.3 руб; с −0,7%: 86.6889 руб).")
+            "За 1000 USDT человек получит 86 689 руб (курс: 86,6889 руб/USDT).")
         self.assertNotIn("misha_waiting_amount", self.context.user_data)
 
     async def test_invalid_amount_does_not_fetch_and_allows_correction(self):
@@ -1024,7 +1026,7 @@ class MishaTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.context.user_data["misha_waiting_amount"])
         with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock(return_value=Decimal("87.3"))):
             await bot.handle_text(self.update, self.context)
-        self.assertIn("86 688,90 руб", self.message.reply_text.await_args.args[0])
+        self.assertIn("86 689 руб", self.message.reply_text.await_args.args[0])
         self.assertNotIn("misha_waiting_amount", self.context.user_data)
 
     async def test_switching_modes_and_cancelling(self):
