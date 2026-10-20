@@ -371,10 +371,9 @@ async def handle_misha_text(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data.pop("misha_waiting_amount", None)
     effective_rate = rate * Decimal("0.993")
     rubles_text = f"{rubles:,.0f}".replace(",", " ")
-    rate_text = format_decimal(effective_rate).replace(".", ",")
+    rate_text = f"{effective_rate.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):.2f}"
     await update.message.reply_text(
-        f"За {format_decimal(amount)} USDT человек получит {rubles_text} руб "
-        f"(курс: {rate_text} руб/USDT)."
+        f"За {format_decimal(amount)} USDT получишь {rubles_text} руб по курсу {rate_text} руб."
     )
 
 
