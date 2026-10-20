@@ -1007,7 +1007,7 @@ class MishaTests(unittest.IsolatedAsyncioTestCase):
         mexc.assert_not_awaited()
         binance.assert_not_awaited()
         self.assertEqual(self.message.reply_text.await_args.args[0],
-            "За 1000 USDT получишь 86 689 руб по курсу 86.69 руб.")
+            "1000 USDT = 86 689 руб. (курс USDT: 86.69 руб.)")
         self.assertNotIn("misha_waiting_amount", self.context.user_data)
 
     async def test_rate_display_has_two_decimals_without_changing_ruble_calculation(self):
@@ -1016,7 +1016,7 @@ class MishaTests(unittest.IsolatedAsyncioTestCase):
         with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock(return_value=Decimal("86.6"))):
             await bot.handle_text(self.update, self.context)
         self.assertEqual(self.message.reply_text.await_args.args[0],
-            "За 1200 USDT получишь 103 193 руб по курсу 85.99 руб.")
+            "1200 USDT = 103 193 руб. (курс USDT: 85.99 руб.)")
 
     async def test_invalid_amount_does_not_fetch_and_allows_correction(self):
         await bot.misha_command(self.update, self.context)

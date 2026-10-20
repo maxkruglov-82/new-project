@@ -373,7 +373,7 @@ async def handle_misha_text(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     rubles_text = f"{rubles:,.0f}".replace(",", " ")
     rate_text = f"{effective_rate.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):.2f}"
     await update.message.reply_text(
-        f"За {format_decimal(amount)} USDT получишь {rubles_text} руб по курсу {rate_text} руб."
+        f"{format_decimal(amount)} USDT = {rubles_text} руб. (курс USDT: {rate_text} руб.)"
     )
 
 
