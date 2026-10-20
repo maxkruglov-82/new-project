@@ -1,0 +1,192 @@
+//@version=5
+indicator("SOL — часовой диапазон и SHORT 1:1", overlay=true, max_boxes_count=20, max_labels_count=100)
+
+// График: SOL/USDT, MEXC Futures, 5 минут.
+// Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
+// На истории внутрибарный порядок неизвестен: свеча с новым минимумом
+// не используется одновременно как доказательство последующего ретеста.
+string tz = "Asia/Krasnoyarsk"
+bool showFibo = input.bool(true, "Показывать Фибоначчи")
+bool showLevels = input.bool(true, "Показывать вход, стоп и цель")
+bool showMarks = input.bool(true, "Показывать SHORT")
+
+if barstate.isfirst and timeframe.period != "5"
+    runtime.error("Выберите таймфрейм 5 минут. Часовой диапазон индикатор собирает автоматически.")
+
+// Состояния: 0 нет диапазона; 1 ждём выход; 2 нижний фрактал;
+// 3 верхний фрактал; 4 диапазон M5; 5 ретест; 6 сигнал выдан; 7 отмена.
+// varip сохраняет состояние между обновлениями открытой свечи.
+varip int stage = 0
+varip float h1High = na
+varip float h1Low = na
+varip int validUntil = na
+varip int breakBar = na
+varip float point1 = na
+varip int point1Bar = na
+varip int point1Time = na
+varip float point2 = na
+varip float point3 = na
+varip float entry = na
+varip float stop = na
+varip int lastLowBar = na
+varip int signalBar = na
+varip float previousQuote = na
+varip int lastPivotBar = na
+
+var box h1Box = na
+var box m5Box = na
+
+// Сбор двенадцати закрытых M5-свечей 14:00–15:00.
+// Неполный час не используется: нельзя подменять его частичным диапазоном.
+var float collectedOpen = na
+var float collectedHigh = na
+var float collectedLow = na
+var int collectedCount = 0
+var int collectedDay = na
+var int collectedTime = na
+var int publishedDay = na
+
+int yy = year(time, tz)
+int mm = month(time, tz)
+int dd = dayofmonth(time, tz)
+int hh = hour(time, tz)
+int mi = minute(time, tz)
+int dayKey = yy * 10000 + mm * 100 + dd
+bool shortEvent = false
+float eventEntry = na
+float eventStop = na
+float eventTarget = na
+
+// Старый сетап прекращается при новой опорной H1 в 15:00 следующего дня.
+if stage >= 1 and stage <= 5
+    if time >= validUntil
+        stage := 0
+    else if high > h1High
+        stage := 7
+    else
+        if stage == 1 and low < h1Low
+            stage := 2
+            breakBar := bar_index
+
+        // Верхнюю точку замораживаем именно в момент пробоя первого лоя.
+        if stage == 4 and low < point1
+            stop := point1 + 1.25 * (point2 - point1)
+            if stop > h1High
+                stage := 7
+            else
+                point3 := low
+                entry := (stop + point3) / 2.0
+                lastLowBar := bar_index
+                stage := 5
+
+        if stage == 5
+            if low < point3
+                point3 := low
+                entry := (stop + point3) / 2.0
+                lastLowBar := bar_index
+
+            // В реальном времени используем текущую цену, а не high, который
+            // мог возникнуть раньше нового минимума этой же открытой свечи.
+            bool liveTouch = barstate.isrealtime and not na(previousQuote) and previousQuote < entry and close >= entry
+            // Без тиков на истории пропускаем неоднозначный порядок low/high.
+            bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastLowBar and open <= entry and high >= entry
+            if liveTouch or historyTouch
+                stage := 6
+                signalBar := bar_index
+                shortEvent := true
+                eventEntry := entry
+                eventStop := stop
+                eventTarget := point3
+
+// Строгие трёхсвечные фракталы. Центральная свеча известна только после
+// закрытия правой. Равные экстремумы не образуют новый фрактал.
+bool lowerPivot = barstate.isconfirmed and bar_index >= 2 and low[1] < low[2] and low[1] < low
+bool upperPivot = barstate.isconfirmed and bar_index >= 2 and high[1] > high[2] and high[1] > high
+
+// Обновление фракталов происходит ПОСЛЕ обработки событий текущей свечи.
+// Новый подтверждённый уровень не используется задним числом внутри неё.
+if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
+    lastPivotBar := bar_index
+    if stage == 2 and lowerPivot and bar_index - 1 >= breakBar and low[1] < h1Low
+        point1 := low[1]
+        point1Bar := bar_index - 1
+        point1Time := time[1]
+        stage := 3
+    else if stage == 3 and upperPivot and bar_index - 1 > point1Bar and high[1] > point1
+        point2 := high[1]
+        stage := 4
+    else if stage == 4 and upperPivot and high[1] > point2
+        point2 := high[1]
+
+// Рабочий диапазон M5. Его правый край сопровождает расчёт до сигнала/отмены.
+if stage >= 4 and stage <= 6 and not na(point1) and not na(point2)
+    if na(m5Box)
+        m5Box := box.new(left=point1Time, top=point2, right=time_close, bottom=point1, xloc=xloc.bar_time, border_color=color.gray, border_style=line.style_dotted, bgcolor=na)
+    if stage == 4
+        box.set_top(m5Box, point2)
+    if stage <= 5 or signalBar == bar_index
+        box.set_right(m5Box, time_close)
+
+// Новый диапазон публикуется в конце последней закрытой M5-свечи часа.
+// До этого нельзя использовать high/low часовой свечи для сигналов.
+if barstate.isconfirmed and hh == 14
+    if mi == 0
+        collectedOpen := open
+        collectedHigh := high
+        collectedLow := low
+        collectedCount := 1
+        collectedDay := dayKey
+        collectedTime := time
+    else if collectedDay == dayKey and time - collectedTime == 300000
+        collectedHigh := math.max(collectedHigh, high)
+        collectedLow := math.min(collectedLow, low)
+        collectedCount := collectedCount + 1
+        collectedTime := time
+    else
+        collectedCount := 0
+
+    if mi == 55 and collectedCount == 12 and (na(publishedDay) or publishedDay != dayKey)
+        publishedDay := dayKey
+        h1High := collectedHigh
+        h1Low := collectedLow
+        validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
+        stage := 1
+        breakBar := na
+        point1 := na
+        point1Bar := na
+        point1Time := na
+        point2 := na
+        point3 := na
+        entry := na
+        stop := na
+        lastLowBar := na
+        signalBar := na
+        // Цены события хранятся отдельно: даже на границе смены H1
+        // оповещение должно содержать уровни именно сработавшего плана.
+        if not na(h1Box)
+            box.delete(h1Box)
+        if not na(m5Box)
+            box.delete(m5Box)
+        m5Box := na
+        color border = close < collectedOpen ? color.red : close > collectedOpen ? color.green : color.gray
+        h1Box := box.new(left=timestamp(tz, yy, mm, dd, 13, 0), top=h1High, right=timestamp(tz, yy, mm, dd, 22, 0), bottom=h1Low, xloc=xloc.bar_time, border_color=border, border_width=1, bgcolor=na)
+
+previousQuote := close
+
+bool baseVisible = showFibo and stage >= 4 and stage <= 6 and not na(point2)
+bool planVisible = (stage == 5 or stage == 6) and not na(entry)
+float span = point2 - point1
+plot(baseVisible ? point1 - 0.25 * span : na, "Fibo -0.25", color=color.red, style=plot.style_linebr)
+plot(baseVisible ? point1 : na, "Fibo 0", color=color.gray, style=plot.style_linebr)
+plot(baseVisible ? point1 + 0.5 * span : na, "Fibo 0.5", color=color.gray, style=plot.style_linebr)
+plot(baseVisible ? point2 : na, "Fibo 1", color=color.gray, style=plot.style_linebr)
+plot(baseVisible ? point1 + 1.25 * span : na, "Fibo 1.25", color=color.red, style=plot.style_linebr)
+plot(shortEvent ? eventEntry : planVisible ? entry : na, "SHORT Entry", color=color.blue, linewidth=2, style=plot.style_linebr, display=showLevels ? display.all : display.none)
+plot(shortEvent ? eventStop : planVisible ? stop : na, "SHORT Stop", color=color.red, linewidth=2, style=plot.style_linebr, display=showLevels ? display.all : display.none)
+plot(shortEvent ? eventTarget : planVisible ? point3 : na, "SHORT Target", color=color.teal, linewidth=2, style=plot.style_linebr, display=showLevels ? display.all : display.none)
+plot(stage, "Stage", display=display.data_window)
+plot(h1High, "H1 High", display=display.data_window)
+plot(h1Low, "H1 Low", display=display.data_window)
+
+plotshape(showMarks and (shortEvent or (not na(signalBar) and signalBar == bar_index)), title="SHORT", text="SHORT", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small)
+alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}} | R:R 1:1')
