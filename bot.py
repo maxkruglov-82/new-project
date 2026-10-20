@@ -46,6 +46,7 @@ HELP_MESSAGE = (
     "/price — текущая цена BTC/USDT на MEXC (спот).\n"
     "/change — сколько BTC нужно: сумма в рублях + 8,5%, курсы Binance и MEXC.\n"
     "/sergey — USDT для Сергея X: рубли ÷ (текущий курс Rapira × 1,005).\n"
+    "/misha — USDT для Миши: сумма USDT × курс Rapira × 0,993, результат в рублях.\n"
     "Отправь обычный текст, и я отвечу: «Ты написал: …», повторив сообщение."
 )
 
@@ -53,7 +54,7 @@ HELP_MESSAGE = (
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is not None:
         if context is not None and context.user_data is not None:
-            for key in ("change_waiting_amount", "change_amount_rub", "sergey_stage", "sergey_amount_rub"):
+            for key in ("change_waiting_amount", "change_amount_rub", "sergey_stage", "sergey_amount_rub", "misha_waiting_amount"):
                 context.user_data.pop(key, None)
         await update.message.reply_text(START_MESSAGE)
 
@@ -289,6 +290,7 @@ async def fetch_rapira_usdt_rub_rate() -> Decimal:
 
 async def change_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is not None:
+        context.user_data.pop("misha_waiting_amount", None)
         context.user_data.pop("sergey_stage", None)
         context.user_data.pop("sergey_amount_rub", None)
         context.user_data["change_waiting_amount"] = True
@@ -302,6 +304,7 @@ async def change_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def sergey_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
+    context.user_data.pop("misha_waiting_amount", None)
     context.user_data.pop("change_waiting_amount", None)
     context.user_data.pop("change_amount_rub", None)
     context.user_data.pop("sergey_amount_rub", None)
@@ -310,6 +313,67 @@ async def sergey_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "USDT для Сергея X. Введи сумму в рублях, например: 100000 или 100 тысяч.\n"
         "Текущий курс USDT/RUB получу с Rapira автоматически.\n"
         "Расчёт: рубли ÷ (курс Rapira × 1,005). Для отмены — /start."
+    )
+
+
+async def misha_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
+    for key in ("change_waiting_amount", "change_amount_rub", "sergey_stage", "sergey_amount_rub"):
+        context.user_data.pop(key, None)
+    context.user_data["misha_waiting_amount"] = True
+    await update.message.reply_text(
+        "USDT для Миши. Введи сумму в USDT, например: 1000 или 1500,50.\n"
+        "Курс USDT/RUB получу с Rapira автоматически и уменьшу на 0,7%.\n"
+        "Расчёт: USDT × курс Rapira × 0,993. Для отмены — /start."
+    )
+
+
+def parse_usdt_amount(text: str) -> Decimal:
+    normalized = re.sub(r"\s+", "", text.lower())
+    match = re.fullmatch(r"([0-9]+(?:[.,][0-9]{1,6})?)(?:usdt)?", normalized)
+    if match is None:
+        raise ValueError("Некорректная сумма USDT")
+    amount = Decimal(match.group(1).replace(",", "."))
+    if amount <= 0:
+        raise ValueError("Сумма должна быть положительной")
+    return amount
+
+
+def calculate_misha_rub_amount(amount_usdt: Decimal, rapira_rate: Decimal) -> Decimal:
+    """Рубли к получению: USDT × RUB за USDT Rapira × (1 − 0,007)."""
+    if any(not value.is_finite() or value <= 0 for value in (amount_usdt, rapira_rate)):
+        raise ValueError("Сумма и курс должны быть положительными")
+    return (amount_usdt * rapira_rate * Decimal("0.993")).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+
+
+async def handle_misha_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None or update.message.text is None:
+        return
+    try:
+        amount = parse_usdt_amount(update.message.text)
+    except (ValueError, InvalidOperation):
+        await update.message.reply_text("Введи положительную сумму USDT, например: 1000 или 1500,50. Для отмены — /start.")
+        return
+    try:
+        rate = await fetch_rapira_usdt_rub_rate()
+    except (httpx.HTTPError, ValueError, InvalidOperation):
+        await update.message.reply_text(
+            "Не удалось получить текущий курс Rapira.\n"
+            "Для повтора отправь сумму USDT ещё раз. Для отмены — /start."
+        )
+        return
+    try:
+        rubles = calculate_misha_rub_amount(amount, rate)
+    except (ValueError, InvalidOperation):
+        await update.message.reply_text("Не удалось рассчитать такую сумму. Введи другую сумму USDT или /start.")
+        return
+    context.user_data.pop("misha_waiting_amount", None)
+    effective_rate = rate * Decimal("0.993")
+    rubles_text = f"{rubles:,.2f}".replace(",", " ").replace(".", ",")
+    await update.message.reply_text(
+        f"За {format_decimal(amount)} USDT человек получит {rubles_text} руб "
+        f"(курс Rapira: {format_decimal(rate)} руб; с −0,7%: {format_decimal(effective_rate)} руб)."
     )
 
 
@@ -398,6 +462,9 @@ async def handle_sergey_text(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.message.text is None:
+        return
+    if context.user_data.get("misha_waiting_amount"):
+        await handle_misha_text(update, context)
         return
     if context.user_data.get("sergey_stage") == "amount":
         await handle_sergey_text(update, context)
@@ -488,6 +555,7 @@ async def setup_menu(application: Application) -> None:
             BotCommand("price", "Цена BTC/USDT на MEXC"),
             BotCommand("change", "BTC для Федерико Феллини"),
             BotCommand("sergey", "USDT для Сергея X"),
+            BotCommand("misha", "USDT для Миши"),
         ],
         scope=BotCommandScopeChat(owner_id),
     )
@@ -528,6 +596,7 @@ def build_application(token: str, allowed_user_id: int | None = None) -> Applica
     application.add_handler(CommandHandler("price", price_command))
     application.add_handler(CommandHandler("change", change_command))
     application.add_handler(CommandHandler("sergey", sergey_command))
+    application.add_handler(CommandHandler("misha", misha_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     return application
 

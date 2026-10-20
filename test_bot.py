@@ -86,7 +86,7 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_updates_without_message_are_ignored(self):
         update = SimpleNamespace(message=None)
-        for callback in (bot.start, bot.help_command, bot.price_command, bot.change_command, bot.sergey_command, bot.handle_sergey_text, bot.handle_text, bot.echo):
+        for callback in (bot.start, bot.help_command, bot.price_command, bot.change_command, bot.sergey_command, bot.misha_command, bot.handle_sergey_text, bot.handle_misha_text, bot.handle_text, bot.echo):
             await callback(update, None)
 
     async def test_non_text_is_ignored(self):
@@ -796,6 +796,7 @@ class MenuTests(unittest.IsolatedAsyncioTestCase):
                 ("price", "Цена BTC/USDT на MEXC"),
                 ("change", "BTC для Федерико Феллини"),
                 ("sergey", "USDT для Сергея X"),
+                ("misha", "USDT для Миши"),
             ],
         )
         self.assertEqual(telegram_bot.delete_my_commands.await_count, 12)
@@ -925,7 +926,7 @@ class ApplicationTests(unittest.TestCase):
     def test_command_and_text_routing(self):
         application = bot.build_application(OFFLINE_TOKEN)
         self.assertIs(application.post_init, bot.setup_menu)
-        start_handler, help_handler, price_handler, change_handler, sergey_handler, echo_handler = application.handlers[0]
+        start_handler, help_handler, price_handler, change_handler, sergey_handler, misha_handler, echo_handler = application.handlers[0]
         self.assertIsInstance(start_handler, CommandHandler)
         self.assertIsInstance(help_handler, CommandHandler)
         self.assertIsInstance(price_handler, CommandHandler)
@@ -937,8 +938,9 @@ class ApplicationTests(unittest.TestCase):
         self.assertIs(price_handler.callback, bot.price_command)
         self.assertIs(change_handler.callback, bot.change_command)
         self.assertIs(sergey_handler.callback, bot.sergey_command)
+        self.assertIs(misha_handler.callback, bot.misha_command)
         self.assertIs(echo_handler.callback, bot.handle_text)
-        for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler), ("/change", change_handler), ("/sergey", sergey_handler)):
+        for command, handler in (("/start", start_handler), ("/help", help_handler), ("/price", price_handler), ("/change", change_handler), ("/sergey", sergey_handler), ("/misha", misha_handler)):
             update = self.make_update(command, is_command=True)
             match = handler.check_update(update)
             self.assertIsNotNone(match)
@@ -970,6 +972,82 @@ class ApplicationTests(unittest.TestCase):
                 build.return_value.run_polling.assert_called_once_with()
 
 
+class MishaTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.context = SimpleNamespace(user_data={})
+        self.message = SimpleNamespace(text="1000", reply_text=AsyncMock())
+        self.update = SimpleNamespace(message=self.message)
+
+    def test_formula_and_kopecks_round_down(self):
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1000"), Decimal("87.3")), Decimal("86688.90"))
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1.123456"), Decimal("87.345678")), Decimal("97.44"))
+        self.assertEqual(bot.calculate_misha_rub_amount(Decimal("1"), Decimal("1.009")), Decimal("1.00"))
+
+    def test_invalid_calculation_inputs(self):
+        for value in ("0", "-1", "NaN", "Infinity"):
+            for args in ((Decimal(value), Decimal("87.3")), (Decimal("1000"), Decimal(value))):
+                with self.subTest(args=args), self.assertRaises(ValueError):
+                    bot.calculate_misha_rub_amount(*args)
+
+    def test_usdt_parser(self):
+        for text, expected in (("1000", "1000"), ("1 500,50", "1500.50"), ("1.123456 USDT", "1.123456")):
+            self.assertEqual(bot.parse_usdt_amount(text), Decimal(expected))
+        for text in ("0", "-1", "NaN", "Infinity", "1.1234567", "100 руб", "100 тысяч", "1e3", "abc"):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                bot.parse_usdt_amount(text)
+
+    async def test_single_input_uses_rapira_and_returns_rubles(self):
+        await bot.misha_command(self.update, self.context)
+        with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock(return_value=Decimal("87.3"))) as rapira:
+            with patch("bot.fetch_btc_price", new=AsyncMock()) as mexc, patch("bot.fetch_usdt_rub_quote", new=AsyncMock()) as binance:
+                await bot.handle_text(self.update, self.context)
+        rapira.assert_awaited_once()
+        mexc.assert_not_awaited()
+        binance.assert_not_awaited()
+        self.assertEqual(self.message.reply_text.await_args.args[0],
+            "За 1000 USDT человек получит 86 688,90 руб (курс Rapira: 87.3 руб; с −0,7%: 86.6889 руб).")
+        self.assertNotIn("misha_waiting_amount", self.context.user_data)
+
+    async def test_invalid_amount_does_not_fetch_and_allows_correction(self):
+        await bot.misha_command(self.update, self.context)
+        self.message.text = "100 рублей"
+        with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock()) as rapira:
+            await bot.handle_text(self.update, self.context)
+        rapira.assert_not_awaited()
+        self.assertTrue(self.context.user_data["misha_waiting_amount"])
+
+    async def test_source_failure_then_retry(self):
+        await bot.misha_command(self.update, self.context)
+        with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock(side_effect=httpx.ReadTimeout("test"))):
+            await bot.handle_text(self.update, self.context)
+        self.assertIn("отправь сумму USDT", self.message.reply_text.await_args.args[0])
+        self.assertTrue(self.context.user_data["misha_waiting_amount"])
+        with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock(return_value=Decimal("87.3"))):
+            await bot.handle_text(self.update, self.context)
+        self.assertIn("86 688,90 руб", self.message.reply_text.await_args.args[0])
+        self.assertNotIn("misha_waiting_amount", self.context.user_data)
+
+    async def test_switching_modes_and_cancelling(self):
+        for other in (bot.start, bot.change_command, bot.sergey_command):
+            await bot.misha_command(self.update, self.context)
+            await other(self.update, self.context)
+            self.assertNotIn("misha_waiting_amount", self.context.user_data)
+        for other in (bot.change_command, bot.sergey_command):
+            await other(self.update, self.context)
+            await bot.misha_command(self.update, self.context)
+            self.assertTrue(self.context.user_data["misha_waiting_amount"])
+            self.assertNotIn("change_waiting_amount", self.context.user_data)
+            self.assertNotIn("sergey_stage", self.context.user_data)
+
+    async def test_huge_amount_returns_error_without_losing_mode(self):
+        await bot.misha_command(self.update, self.context)
+        self.message.text = "9" * 40
+        with patch("bot.fetch_rapira_usdt_rub_rate", new=AsyncMock(return_value=Decimal("87.3"))):
+            await bot.handle_text(self.update, self.context)
+        self.assertIn("Не удалось рассчитать", self.message.reply_text.await_args.args[0])
+        self.assertTrue(self.context.user_data["misha_waiting_amount"])
+
+
 class OwnerAccessTests(unittest.IsolatedAsyncioTestCase):
     async def run_update(self, sender, chat_id, chat_type="private", text="/start", owner=12345):
         application = bot.build_application(OFFLINE_TOKEN, owner)
@@ -992,13 +1070,13 @@ class OwnerAccessTests(unittest.IsolatedAsyncioTestCase):
         return callback
 
     async def test_owner_private_messages_pass_dispatcher(self):
-        for text in ("/start", "/price", "/change", "/sergey", "100000", "Привет"):
+        for text in ("/start", "/price", "/change", "/sergey", "/misha", "100000", "Привет"):
             with self.subTest(text=text):
                 callback = await self.run_update(12345, 12345, text=text)
                 callback.assert_awaited_once()
 
     async def test_other_accounts_are_silently_blocked_before_handlers(self):
-        for text in ("/start", "/help", "/price", "/change", "/sergey", "100000", "Привет"):
+        for text in ("/start", "/help", "/price", "/change", "/sergey", "/misha", "100000", "Привет"):
             with self.subTest(text=text):
                 callback = await self.run_update(99999, 99999, text=text)
                 callback.assert_not_awaited()
