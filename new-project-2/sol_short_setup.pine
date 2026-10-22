@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v23", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v24", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -81,6 +81,7 @@ varip int direction = 0
 // Первая смена фиксирует второй приоритет до следующей опорной H1.
 varip int lockedDirection = 0
 varip int firstDirection = 0
+varip bool referenceHadEntry = false
 varip bool drawReference = false
 varip float h1High = na
 varip float h1Low = na
@@ -420,6 +421,13 @@ if stage == 4 and barstate.isconfirmed and ((direction == -1 and low < point1) o
         stage := 5
         seededPoint3 := true
 
+// Подпись относится ко всему опорному дню, включая повторные попытки.
+if shortEvent or longEvent
+    referenceHadEntry := true
+if drawReference and not na(h1Box) and not na(validUntil)
+    box.set_text(h1Box, not referenceHadEntry and time >= validUntil - 54000000 ? "входа не было" : "")
+    box.set_text_color(h1Box, color.gray)
+
 // Смена кандидата не двигает старые объекты. Обычный var откатывается
 // на каждом тике; сравнение с varip epoch повторяет этот шаг после отката.
 bool hideUnentered = stage != 6 and not na(validUntil) and time >= validUntil - 54000000
@@ -581,6 +589,10 @@ if barstate.isconfirmed and hh == 14
         // а ссылки переключаем на новый день, не удаляя прежние объекты.
         if drawReference and stage >= 1 and stage <= 5 and not na(entryPriceLabel)
             label.set_text(entryPriceLabel, "Без входа · Вход: " + str.tostring(entry, "#.##"))
+        if drawReference and not na(h1Box) and not referenceHadEntry
+            box.set_text(h1Box, "входа не было")
+            box.set_text_color(h1Box, color.gray)
+        referenceHadEntry := false
         publishedDay := dayKey
         h1High := collectedHigh
         h1Low := collectedLow

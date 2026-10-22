@@ -1798,4 +1798,29 @@ test('MEXC14 октября: без входа, после полуночи не
   assert.equal(lines(ctx).length, 0);
   assert.equal(priceLabels(ctx).length, 0);
   assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
+  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.text === 'входа не было').length, 1);
+});
+
+test('день со состоявшимся входом не получает подпись без входов', async () => {
+  const ctx = await run([...complete(), candle(120, 100, 101, 99, 100)]);
+  assert.equal(signalCount(ctx), 1);
+  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.text === 'входа не было').length, 0);
+});
+
+test('MEXC9 октября: без входа, после полуночи нет разметки сетапа', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-10-09T14:00:00+07:00');
+  const until = Date.parse('2026-10-10T01:00:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const before = await runDefault(data.filter(b => b.openTime < Date.parse('2026-10-10T00:00:00+07:00') - step));
+  assert.equal(signalCount(before, 'LONG') + signalCount(before, 'SHORT'), 0);
+  const ctx = await runDefault(data);
+  assert.equal(signalCount(ctx, 'LONG') + signalCount(ctx, 'SHORT'), 0);
+  assert.equal(positionZones(ctx).length, 0);
+  assert.equal(lines(ctx).length, 0);
+  assert.equal(priceLabels(ctx).length, 0);
+  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
+  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.text === 'входа не было').length, 1);
 });
