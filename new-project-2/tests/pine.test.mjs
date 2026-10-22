@@ -48,6 +48,13 @@ function mirror(data) {
   return data.map(b => ({ ...b, open: 207 - b.open, high: 207 - b.low,
     low: 207 - b.high, close: 207 - b.close }));
 }
+function historyData(days) {
+  return Array.from({ length: days }, (_, i) => {
+    const data = i % 2 ? mirror(complete()) : complete();
+    const delta = (i - days + 1) * 86_400_000;
+    return data.map(b => ({ ...b, openTime: b.openTime + delta, closeTime: b.closeTime + delta }));
+  }).flat();
+}
 async function run(data, timeframe = '5', inputs = {}) {
   // PineTS помечает последний бар isrealtime даже в завершённом массиве.
   // Отдельный хвост оставляет все проверяемые свечи историческими.
@@ -86,13 +93,16 @@ test('новый минимум переносит весь отрезок це�
   assert.deepEqual(plan.map(l => [l.y1, l.y2]), [[101.75, 101.75], [105, 105], [98.5, 98.5]]);
 });
 
-test('смена опорного часа удаляет прежние отрезки, новый день не соединяется со старым', async () => {
+test('смена опорного часа сохраняет прежние отрезки и создаёт отдельные для нового дня', async () => {
   const next = complete().map(b => ({ ...b, openTime: b.openTime + 86_400_000, closeTime: b.closeTime + 86_400_000 }));
   const reset = await run([...complete(), ...next.slice(0, 12)]);
-  assert.equal(lines(reset).length, 0);
+  const original = await run(complete());
+  const geometry = ctx => lines(ctx).map(l => [l.x1, l.y1, l.x2, l.y2]);
+  assert.deepEqual(geometry(reset), geometry(original));
   const ctx = await run([...complete(), ...next]);
-  assert.equal(lines(ctx).length, 8);
-  for (const line of lines(ctx)) {
+  assert.equal(lines(ctx).length, 16);
+  assert.deepEqual(geometry(ctx).slice(0, 8), geometry(original));
+  for (const line of lines(ctx).slice(8)) {
     assert.equal(line.x1, start + 86_400_000 + 13 * step);
     assert.equal(line.y1, line.y2);
   }
@@ -458,13 +468,15 @@ for (const side of ['SHORT', 'LONG']) {
     assert.deepEqual(priceLabels(after).map(l => [l.y, l.text]), priceLabels(waiting).map(l => [l.y, l.text]));
   });
 
-  test(`${side}: отмена до входа удаляет зоны и подписи`, async () => {
+  test(`${side}: отмена сохраняет разметку с пометкой Без входа, сигнала нет`, async () => {
     const data = complete();
     data[18] = candle(18, 100, 106.1, 99.4, 101);
     const ctx = await run(transform(data));
     assert.equal(values(ctx, 'Stage')[18], 7);
-    assert.equal(positionZones(ctx).length, 0);
-    assert.equal(priceLabels(ctx).length, 0);
+    assert.equal(positionZones(ctx).length, 2);
+    assert.equal(priceLabels(ctx).length, 3);
+    assert.ok(priceLabels(ctx).some(l => l.text.includes('Отмена · Без входа')));
+    assert.equal(signalCount(ctx, side), 0);
   });
 }
 
@@ -496,22 +508,25 @@ test('ожидание дольше ширины рисунка продлева
   assert.equal(signalCount(ctx), 0);
 });
 
-test('новая H1 удаляет старые зоны; следующий план создаёт только две зоны и три подписи', async () => {
+test('новая H1 сохраняет старые зоны и подписи, следующий план получает собственные', async () => {
   const next = complete().map(b => ({ ...b, openTime: b.openTime + 86_400_000, closeTime: b.closeTime + 86_400_000 }));
   const reset = await run([...complete(), ...next.slice(0, 12)]);
-  assert.equal(positionZones(reset).length, 0);
-  assert.equal(priceLabels(reset).length, 0);
+  assert.equal(positionZones(reset).length, 2);
+  assert.equal(priceLabels(reset).length, 3);
   const ctx = await run([...complete(), ...mirror(next)]);
-  assert.equal(positionZones(ctx).length, 2);
-  assert.equal(priceLabels(ctx).length, 3);
-  assert.ok(positionZones(ctx).every(z => z.left >= start + 86_400_000));
+  assert.equal(positionZones(ctx).length, 4);
+  assert.equal(priceLabels(ctx).length, 6);
+  assert.equal(positionZones(ctx).filter(z => z.left < start + 86_400_000).length, 2);
+  assert.equal(positionZones(ctx).filter(z => z.left >= start + 86_400_000).length, 2);
 });
 
-test('истечение ожидающего плана без новой H1 убирает зоны и подписи', async () => {
+test('истечение ожидающего плана сохраняет историю с пометкой Без входа', async () => {
   const ctx = await run([...complete().slice(0, 18), candle(12, 100, 101.5, 99.1, 100.5, 1)]);
   assert.equal(values(ctx, 'Stage').at(-1), 0);
-  assert.equal(positionZones(ctx).length, 0);
-  assert.equal(priceLabels(ctx).length, 0);
+  assert.equal(positionZones(ctx).length, 2);
+  assert.equal(priceLabels(ctx).length, 3);
+  assert.ok(priceLabels(ctx).some(l => l.text.includes('Истёк · Без входа')));
+  assert.equal(signalCount(ctx), 0);
 });
 
 test('разметка LONG по примеру пользователя делит зону на равные риск и прибыль', async () => {
@@ -533,8 +548,8 @@ test('новый день может сменить LONG на SHORT, прежн�
   assert.equal(values(ctx, 'Direction').at(-1), -1);
   assert.equal(values(ctx, 'SHORT Entry').at(-1), 102);
   assert.ok(Number.isNaN(values(ctx, 'LONG Entry').at(-1)));
-  assert.equal(lines(ctx).length, 8);
-  assert.deepEqual(lines(ctx).filter(l => l.width === 2).map(l => l.y1), [102, 105, 99]);
+  assert.equal(lines(ctx).length, 16);
+  assert.deepEqual(lines(ctx).filter(l => l.width === 2 && l.x1 >= start + 86_400_000).map(l => l.y1), [102, 105, 99]);
 });
 
 test('LONG на границе новой H1 сохраняет цены и метку после сброса направления', async () => {
@@ -548,6 +563,77 @@ test('LONG на границе новой H1 сохраняет цены и ме
   assert.equal(values(ctx, 'LONG Target').at(-1), 108);
   assert.equal(signalCount(ctx, 'LONG'), 1);
   assert.equal(signalCount(ctx), 0);
+});
+
+test('65 дней данных: 60 полных дней разметки без обрезания Фибо лимитом объектов', async () => {
+  const ctx = await run(historyData(65));
+  assert.equal(lines(ctx).length, 480);
+  assert.equal(new Set(lines(ctx).map(l => l.x1)).size, 60);
+  assert.equal(ctx.plots.__boxes__.data[0].value.length, 240);
+  assert.equal(positionZones(ctx).length, 120);
+  assert.equal(priceLabels(ctx).length, 180);
+  assert.equal(signalCount(ctx), 30);
+  assert.equal(signalCount(ctx, 'LONG'), 30);
+  assert.ok(lines(ctx).every(l => l.y1 === l.y2 && l.x2 - l.x1 < 86_400_000));
+});
+
+test('конечная дата позволяет восстановить старое окно, не меняя расчёт текущего дня', async () => {
+  const end = start - 40 * 86_400_000 + 9 * 3_600_000;
+  const ctx = await run(historyData(65), '5', {
+    'История: опорных дней': 3,
+    'История до (0 — правый край экрана)': end,
+  });
+  assert.equal(lines(ctx).length, 24);
+  const dates = [...new Set(lines(ctx).map(l => l.x1))].sort((a, b) => a - b);
+  assert.deepEqual(dates, [-42, -41, -40].map(day => start + day * 86_400_000 + 13 * step));
+  assert.equal(signalCount(ctx) + signalCount(ctx, 'LONG'), 3);
+  assert.equal(values(ctx, 'Stage').at(-1), 6);
+  assert.equal(values(ctx, 'SHORT Entry').at(-1), 102);
+});
+
+test('прокрутка окна перерисовывает старые дни без повторных оповещений', async () => {
+  const data = historyData(20);
+  const last = data.at(-1);
+  const guard = { ...last, openTime: last.openTime + step, closeTime: last.closeTime + step };
+  const engine = new PineTS([...data, guard], 'SOLUSDT', '5');
+  const script = new Indicator(source, { 'История: опорных дней': 2 });
+  const recent = await engine.update(script);
+  engine.setVisibleRange(start - 11 * 86_400_000, start - 10 * 86_400_000 + 9 * 3_600_000);
+  const old = await engine.update();
+  assert.equal(lines(old).length, 16);
+  assert.deepEqual([...new Set(lines(old).map(l => l.x1))].sort((a, b) => a - b),
+    [-11, -10].map(day => start + day * 86_400_000 + 13 * step));
+  assert.notDeepEqual(lines(recent).map(l => l.x1), lines(old).map(l => l.x1));
+  assert.deepEqual(values(old, 'Stage'), values(recent, 'Stage'));
+  assert.equal(old.alerts.length, 0);
+  assert.equal(recent.alerts.length, 0);
+});
+
+test('заменённый без входа план остаётся для разбора и не получает метку сделки', async () => {
+  const data = [...complete().slice(0, 18),
+    ...Array.from({ length: 12 }, (_, i) => candle(i, 100.5, 101.5, 100, 101, 1))];
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Stage').at(-1), 1);
+  assert.equal(positionZones(ctx).length, 2);
+  assert.equal(lines(ctx).length, 8);
+  assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Без входа')));
+  assert.equal(signalCount(ctx), 0);
+  assert.equal(signalCount(ctx, 'LONG'), 0);
+});
+
+test('каждый полный час без сетапа оставляет H1 диапазон, без вымышленных Фибо и позиций', async () => {
+  const data = Array.from({ length: 3 }, (_, day) => [...hour(), candle(12, 103, 105, 102, 104)]
+    .map(b => ({ ...b, openTime: b.openTime + (day - 2) * 86_400_000, closeTime: b.closeTime + (day - 2) * 86_400_000 }))).flat();
+  const ctx = await run(data);
+  assert.equal(ctx.plots.__boxes__.data[0].value.length, 3);
+  assert.equal(lines(ctx).length, 0);
+  assert.equal(positionZones(ctx).length, 0);
+  assert.equal(signalCount(ctx) + signalCount(ctx, 'LONG'), 0);
+});
+
+test('публикация H1 на последней закрытой 14:55 свече включается в окно истории', async () => {
+  const ctx = await new PineTS(hour(), 'SOLUSDT', '5').run(new Indicator(source, { 'История: опорных дней': 1 }));
+  assert.equal(ctx.plots.__boxes__.data[0].value.length, 1);
 });
 
 for (const side of ['SHORT', 'LONG']) {
