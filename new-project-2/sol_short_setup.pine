@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v20", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v21", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -344,31 +344,7 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     lastPivotBar := bar_index
     bool firstPivot = direction == -1 ? lowerPivot and low[1] < h1Low : upperPivot and high[1] > h1High
     bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 and highRunLow >= point1 : lowerPivot and low[1] < point1 and lowRunHigh <= point1
-    // До входа подтверждённый новый экстремум начинает новую структуру.
-    // Сначала обработан возможный ретест внутри текущей M5: уже выданный
-    // вход не отменяем задним числом при подтверждении свинга на её закрытии.
-    bool renewFirst = stage == 5 and firstPivot and firstPivotTime > point1Time and (direction == -1 ? low[1] <= point3 and low[1] < point1 : high[1] >= point3 and high[1] > point1)
-    if renewFirst
-        candidateEpoch := candidateEpoch + 1
-        retiredStatus := "Новая точка 1 · Без входа"
-        point1 := direction == -1 ? low[1] : high[1]
-        point1Bar := firstPivotBar
-        point1Time := firstPivotTime
-        point2 := na
-        point2Time := na
-        point3 := na
-        partialRetest := false
-        fibReanchored := false
-        skippedSecond := na
-        entry := na
-        stop := na
-        stopFibo := na
-        signalBar := na
-        lastExtremeBar := na
-        drawingRight := na
-        positionLeft := na
-        stage := 3
-    else if stage == 2 and firstPivot and firstPivotBar >= breakBar
+    if stage == 2 and firstPivot and firstPivotBar >= breakBar
         point1 := direction == -1 ? low[1] : high[1]
         point1Bar := firstPivotBar
         point1Time := firstPivotTime

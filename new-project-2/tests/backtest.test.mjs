@@ -10,7 +10,7 @@ function entered() {
   return [...Array.from({ length: 12 }, (_, i) => c(i, 104, 106, 101, 103)),
     c(12, 102, 103, 100.5, 101.5), c(13, 101, 102, 100, 101), c(14, 101, 102.5, 100.6, 102),
     c(15, 102, 104, 101, 103), c(16, 103, 103.5, 101.5, 102), c(17, 102, 103, 99, 100),
-    c(18, 100, 101.8, 99, 101), c(19, 101, 102.2, 100, 102)];
+    c(18, 100, 101.8, 99.4, 101), c(19, 101, 102.2, 100, 102)];
 }
 function raw(candles) { return { interval: 'Min5', symbol: 'SOL_USDT', candles }; }
 const run = bars => execute(source, raw(bars), start, start + bars.length * step);
