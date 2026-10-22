@@ -993,3 +993,62 @@ test('MEXC 24 августа: пара 15:00/15:05 исключена, нова�
   assert.equal(m5[0].bottom, 93.21);
   assert.equal(m5[0].top, 94.08);
 });
+
+for (const side of ['SHORT', 'LONG']) {
+  const reflect = p => side === 'SHORT' ? p : 207 - p;
+  for (const [name, rawHigh, rawLow, expectedOutcome] of [
+    ['цель в тени после входа, текущая цена уже отскочила', 103, 98.8, 1],
+    ['стоп в тени после входа, текущая цена уже вернулась', 105.2, 100, -1],
+    ['обе границы в пропущенных обновлениях дают неизвестный порядок', 105.2, 98.8, 2],
+  ]) {
+    test(`${side}: ${name} на следующей открытой M5`, async () => {
+      const raw = [...complete().slice(0, 20), candle(20, 102, 103, 100, 102)];
+      const data = side === 'SHORT' ? raw : mirror(raw);
+      let tail = { ...data.at(-1) };
+      const provider = {
+        getMarketData: async (_ticker, _tf, _limit, since) =>
+          since !== undefined && since >= tail.openTime ? [{ ...tail }] : data.map(b => ({ ...b })),
+        getSymbolInfo: async () => null,
+      };
+      const engine = new PineTS(provider, 'SOLUSDT', '5');
+      const ctx = await engine.run(source);
+      assert.equal(ctx.plots.Stage.data.at(-1).value, 6);
+      assert.equal(ctx.plots.Outcome.data.at(-1).value, 0);
+      // Цена касания не была передана отдельным обновлением: известны
+      // итоговые high/low и цена после возврата, строго после бара входа.
+      tail = { ...tail, high: side === 'SHORT' ? rawHigh : reflect(rawLow),
+        low: side === 'SHORT' ? rawLow : reflect(rawHigh), close: reflect(102), closeTime: Date.now() + step };
+      await engine.updateTail(ctx);
+      assert.equal(ctx.plots.Outcome.data.at(-1).value, expectedOutcome);
+      assert.equal(priceLabels(ctx).filter(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')).length, expectedOutcome === 1 ? 1 : 0);
+      assert.equal(priceLabels(ctx).filter(l => l.text.startsWith('Стоп:') && l.text.endsWith(' +')).length, expectedOutcome === -1 ? 1 : 0);
+      assert.equal(ctx.alerts.length, 0); // Уже выданный исторический вход не дублируется.
+      // Более поздние котировки не меняют первый определённый исход.
+      tail = { ...tail, high: Math.max(tail.high, reflect(106)), low: Math.min(tail.low, reflect(98)) };
+      await engine.updateTail(ctx);
+      assert.equal(ctx.plots.Outcome.data.at(-1).value, expectedOutcome);
+    });
+  }
+
+  test(`${side}: тень до входа на той же M5 не становится ложным тейком после входа`, async () => {
+    const raw = [...hour(), ...structure(), candle(17, 102, 103, 99, 100)];
+    const data = side === 'SHORT' ? raw : mirror(raw);
+    let tail = { ...data.at(-1) };
+    const provider = {
+      getMarketData: async (_ticker, _tf, _limit, since) =>
+        since !== undefined && since >= tail.openTime ? [{ ...tail }] : data.map(b => ({ ...b })),
+      getSymbolInfo: async () => null,
+    };
+    const engine = new PineTS(provider, 'SOLUSDT', '5');
+    const ctx = await engine.run(source);
+    for (const quote of [102, 101.5, 102.5]) {
+      const p = reflect(quote);
+      tail = { ...tail, high: Math.max(tail.high, p), low: Math.min(tail.low, p), close: p, closeTime: Date.now() + step };
+      await engine.updateTail(ctx);
+      assert.equal(ctx.plots.Stage.data.at(-1).value, 6);
+      assert.equal(ctx.plots.Outcome.data.at(-1).value, 0);
+      assert.equal(priceLabels(ctx).filter(l => l.text.endsWith(' +')).length, 0);
+    }
+    assert.equal(ctx.alerts.length, 1);
+  });
+}

@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v9", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v10", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -137,8 +137,13 @@ float eventTarget = na
 // Пока вход активен, противоположный выход H1 не создаёт вторую сделку.
 // Исторический бар входа не доказывает последующий TP/SL: порядок неизвестен.
 if stage == 6 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar)
-    bool stopHit = direction == -1 ? (barstate.isrealtime ? close >= stop : high >= stop) : (barstate.isrealtime ? close <= stop : low <= stop)
-    bool targetHit = direction == -1 ? (barstate.isrealtime ? close <= point3 : low <= point3) : (barstate.isrealtime ? close >= point3 : high >= point3)
+    // На следующих M5 вся тень уже относится к периоду после входа.
+    // Даже без котировки самого касания high/low доказывает достигнутый
+    // уровень. На свече входа старую тень не приписываем новой позиции.
+    float reachedHigh = bar_index > signalBar ? high : close
+    float reachedLow = bar_index > signalBar ? low : close
+    bool stopHit = direction == -1 ? reachedHigh >= stop : reachedLow <= stop
+    bool targetHit = direction == -1 ? reachedLow <= point3 : reachedHigh >= point3
     if stopHit or targetHit
         outcome := stopHit and targetHit ? 2 : targetHit ? 1 : -1
         outcomeBar := bar_index
