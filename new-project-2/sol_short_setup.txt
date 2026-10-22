@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v8", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v9", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -256,9 +256,26 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
         point1Bar := bar_index - 1
         point1Time := time[1]
         stage := 3
-    else if stage == 3 and secondPivot and bar_index - 1 > point1Bar
-        point2 := direction == -1 ? high[1] : low[1]
-        stage := 4
+    else if stage == 3
+        // Пока нет второй точки, первая следует за более глубоким
+        // подтверждённым свингом (для LONG — за более высоким).
+        if firstPivot and ((direction == -1 and low[1] < point1) or (direction == 1 and high[1] > point1))
+            point1 := direction == -1 ? low[1] : high[1]
+            point1Bar := bar_index - 1
+            point1Time := time[1]
+        else if secondPivot and bar_index - 1 > point1Bar
+            if bar_index - 1 == point1Bar + 1
+                // Соседние центральные свечи не образуют диапазон 1–2.
+                // Отбрасываем обе точки и ищем новый первый свинг.
+                stage := 2
+                breakBar := bar_index
+                point1 := na
+                point1Bar := na
+                point1Time := na
+                point2 := na
+            else
+                point2 := direction == -1 ? high[1] : low[1]
+                stage := 4
     else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
         point2 := direction == -1 ? high[1] : low[1]
 

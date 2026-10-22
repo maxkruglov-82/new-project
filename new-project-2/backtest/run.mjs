@@ -78,7 +78,7 @@ export async function execute(source, raw, start, end) {
     if (result === 1 && currentDay) currentDay.won = true;
     const nextReference = value('BT Reference', i);
     if (Number.isFinite(nextReference)) {
-      // Reference publication cancels the old state in v7. Do not manufacture
+      // Reference publication cancels the old state in the indicator. Do not manufacture
       // a market close, profit, or loss for an unresolved trade at that boundary.
       if (active) {
         active.status = 'unresolved_at_new_h1';
@@ -132,13 +132,15 @@ async function main() {
   const report = await execute(source, raw, start, end);
   if (report.summary.referenceDays !== Math.round((end - start - 3_600_000) / DAY)) throw new Error('Missing reference H1 periods');
   const version = source.match(/indicator\("([^"]+)"/)?.[1];
+  const scriptVersion = version?.match(/v\d+$/)?.[0] || 'current';
   const result = { strategy: version, sourceSha256: sha256(source), inputSha256: sha256(bytes),
     generatedAt: new Date().toISOString(), market: 'MEXC SOL_USDT USDT perpetual futures',
     period: { candlesStart: raw.start, endExclusive: raw.endExclusive, timezone: 'Asia/Krasnoyarsk',
       firstReference: report.days[0].date, lastReference: report.days.at(-1).date },
     dataQuality: { candles: raw.count, missing: 0, incompleteReferenceHours: 0 },
-    method: { execution: 'Actual v7 Pine source in PineTS 0.12.0, observation plots only',
-      resolution: '5 minute OHLC; intrabar order unknown', entry: 'v7 retest touch; skip new-extreme historical bar',
+    method: { execution: `Actual ${scriptVersion} Pine source in PineTS 0.12.0, observation plots only`,
+      resolution: '5 minute OHLC; intrabar order unknown', entry: `${scriptVersion} retest touch; skip new-extreme historical bar`,
+      swingPair: 'At least one candle between central P1/P2 bars; reject adjacent pair and restart; trail P1 until P2',
       exits: 'Check from the next M5 after entry; simultaneous TP/SL is ambiguous',
       referenceRollover: 'Unresolved trade is recorded separately, without a fabricated exit',
       costs: 'Not included', rUnits: '1R risk per trade, constant-risk comparison; no compounding' }, ...report };
@@ -160,7 +162,7 @@ async function main() {
     'Незавершённых': d.unresolved,
   }))));
   const n = result.summary;
-  const body = `# Бэктест SOL/USDT MEXC — v7\n\nОпорные дни: **${result.period.firstReference} — ${result.period.lastReference}** (${n.referenceDays} дней).\nНаблюдение до **${raw.endExclusive}**, время Красноярска.\n\n| Показатель | Результат |\n|---|---:|\n| Входов | ${n.enteredTrades} |\n| Достигнута цель | ${n.targets} |\n| Стоп | ${n.stops} |\n| TP и SL в одной M5, порядок неизвестен | ${n.ambiguous} |\n| Не завершились до смены H1 / конца данных | ${n.unresolved} |\n| Успешных среди определённых исходов | ${n.winRateKnown === null ? '—' : (n.winRateKnown * 100).toFixed(2) + '%'} |\n| Дней с входом | ${n.daysWithEntry} |\n| Дней без входа | ${n.daysWithoutEntry} |\n| Дней, когда достигнута цель | ${n.daysWithTarget} |\n| Дней со стопами и без цели | ${n.daysWithStopsAndNoTarget} |\n| Сумма известных исходов до расходов, R | ${n.netRKnownBeforeCosts} |\n\nИсполнялся сам исходник ${version} в PineTS 0.12.0. Сигнал — касание входа\nпо правилам v7; стоп ровно на расширении Фибо, цель — третья точка, RR 1:1.\nПосле стопа со следующей M5 разрешён новый поиск. После цели новых входов\nпод этой H1 нет. Поэтому 60 дней не обязательно равны 60 сделкам.\n\nЭто **консервативный бэктест по M5 OHLC**, без тиков. Бар с новым экстремумом\nне используется как доказательство последующего ретеста. На самой свече\nвхода исход TP/SL не приписывается движению после входа. Если следующая\nсвеча содержит оба уровня, исход неизвестен и v7 блокирует новые входы\nпод этой H1. Такие сделки не включены в долю успешных определённых исходов.\nКомиссии, проскальзывание, финансирование и реальные исполнения не учтены.\nСумма R включает только известные TP/SL, не является итогом всего портфеля.\n\nИсточник — [публичный API фьючерсов MEXC](${BASE_URL_PLACEHOLDER}).\nПолучено ${raw.count} непрерывных M5 свечей, пропусков и неполных опорных часов нет.\nДень в отчёте — дата опорного H1; вход может произойти после полуночи.\nИсходные данные и полный журнал приложены рядом. Время входа и выхода\nв CSV задано интервалом M5: точный момент внутри свечи неизвестен.\n\nSHA-256 исходника: \`${result.sourceSha256}\`.\nSHA-256 файла свечей: \`${result.inputSha256}\`.\n`;
+  const body = `# Бэктест SOL/USDT MEXC — ${scriptVersion}\n\nОпорные дни: **${result.period.firstReference} — ${result.period.lastReference}** (${n.referenceDays} дней).\nНаблюдение до **${raw.endExclusive}**, время Красноярска.\n\n| Показатель | Результат |\n|---|---:|\n| Входов | ${n.enteredTrades} |\n| Достигнута цель | ${n.targets} |\n| Стоп | ${n.stops} |\n| TP и SL в одной M5, порядок неизвестен | ${n.ambiguous} |\n| Не завершились до смены H1 / конца данных | ${n.unresolved} |\n| Успешных среди определённых исходов | ${n.winRateKnown === null ? '—' : (n.winRateKnown * 100).toFixed(2) + '%'} |\n| Дней с входом | ${n.daysWithEntry} |\n| Дней без входа | ${n.daysWithoutEntry} |\n| Дней, когда достигнута цель | ${n.daysWithTarget} |\n| Дней со стопами и без цели | ${n.daysWithStopsAndNoTarget} |\n| Сумма известных исходов до расходов, R | ${n.netRKnownBeforeCosts} |\n\nИсполнялся сам исходник ${version} в PineTS 0.12.0. Сигнал — касание входа\nпо правилам ${scriptVersion}; стоп ровно на расширении Фибо, цель — третья точка, RR 1:1.\nСоседние центральные свечи P1/P2 не образуют диапазон: пару отбрасываем.\nМежду ними нужна хотя бы одна свеча. До подходящей P2 первая точка\nсопровождает новые подтверждённые экстремумы.\nПосле стопа со следующей M5 разрешён новый поиск. После цели новых входов\nпод этой H1 нет. Поэтому 60 дней не обязательно равны 60 сделкам.\n\nЭто **консервативный бэктест по M5 OHLC**, без тиков. Бар с новым экстремумом\nне используется как доказательство последующего ретеста. На самой свече\nвхода исход TP/SL не приписывается движению после входа. Если следующая\nсвеча содержит оба уровня, исход неизвестен и ${scriptVersion} блокирует новые входы\nпод этой H1. Такие сделки не включены в долю успешных определённых исходов.\nКомиссии, проскальзывание, финансирование и реальные исполнения не учтены.\nСумма R включает только известные TP/SL, не является итогом всего портфеля.\n\nИсточник — [публичный API фьючерсов MEXC](${BASE_URL_PLACEHOLDER}).\nПолучено ${raw.count} непрерывных M5 свечей, пропусков и неполных опорных часов нет.\nДень в отчёте — дата опорного H1; вход может произойти после полуночи.\nИсходные данные и полный журнал приложены рядом. Время входа и выхода\nв CSV задано интервалом M5: точный момент внутри свечи неизвестен.\n\nSHA-256 исходника: \`${result.sourceSha256}\`.\nSHA-256 файла свечей: \`${result.inputSha256}\`.\n`;
   writeFileSync(prefix + '.md', body);
   process.stdout.write(JSON.stringify(result.summary, null, 2) + '\n');
 }

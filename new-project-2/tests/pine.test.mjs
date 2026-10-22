@@ -922,3 +922,74 @@ test('полное окно из 60 старых дней сохраняется
   assert.equal(positionZones(ctx).length, 120);
   assert.equal(labels(ctx).filter(l => ['SHORT', 'LONG'].includes(l.text)).length, 60);
 });
+
+function adjacentPairPrefix() {
+  return [...hour(), candle(12, 102, 103, 100.5, 101.5),
+    candle(13, 101, 102, 100, 101), // Кандидат P1.
+    candle(14, 101, 104, 100.6, 103), // Соседняя центральная свеча P2.
+    candle(15, 103, 103, 100.8, 102)]; // P2 подтвердился: пару отбрасываем.
+}
+for (const side of ['SHORT', 'LONG']) {
+  const transform = data => side === 'SHORT' ? data : mirror(data);
+  const reflect = price => side === 'SHORT' ? price : 207 - price;
+  test(`${side}: соседние P1/P2 отбрасываются целиком, новый первый свинг создаёт новый диапазон`, async () => {
+    const prefix = await run(transform(adjacentPairPrefix()));
+    assert.equal(values(prefix, 'Stage')[15], 2);
+    assert.equal(lines(prefix).length, 0);
+    assert.equal(prefix.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
+    const data = [...adjacentPairPrefix(),
+      candle(16, 101, 102, 99, 100), candle(17, 100, 102.5, 99.5, 102),
+      candle(18, 102, 104, 100, 103), candle(19, 103, 103.5, 100.5, 102),
+      candle(20, 102, 103, 98, 99), candle(21, 99, 101.5, 98.5, 100),
+      candle(22, 100, 101.8, 99, 101.7)];
+    const ctx = await run(transform(data));
+    assert.equal(values(ctx, 'Stage')[17], 3);
+    assert.equal(values(ctx, 'Stage')[19], 4); // Между P1 и P2 ровно одна свеча — допустимо.
+    assert.equal(values(ctx, side).slice(0, 22).filter(Boolean).length, 0);
+    assert.equal(values(ctx, side)[22], 1);
+    assert.equal(signalCount(ctx, side), 1);
+    assert.equal(values(ctx, `${side} Entry`)[22], reflect(101.625));
+    assert.equal(lines(ctx).length, 8);
+    const m5 = ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted');
+    assert.equal(m5.length, 1);
+    assert.equal(m5[0].left, start + 16 * step);
+  });
+
+  test(`${side}: до подходящей P2 первая точка переносится на более глубокий подтверждённый свинг`, async () => {
+    const data = [...adjacentPairPrefix(),
+      candle(16, 101, 102, 99, 100), candle(17, 100, 102.5, 99.5, 102),
+      candle(18, 102, 103, 98.5, 99), candle(19, 99, 103.5, 99, 103),
+      candle(20, 103, 104, 99.5, 103), candle(21, 103, 103.5, 100, 102),
+      candle(22, 102, 103, 98, 99), candle(23, 99, 100.5, 98.1, 100),
+      candle(24, 100, 101.75, 98.2, 101.5)];
+    const ctx = await run(transform(data));
+    assert.equal(values(ctx, 'Stage')[19], 3);
+    assert.equal(values(ctx, 'Stage')[21], 4);
+    assert.equal(signalCount(ctx, side), 1);
+    assert.equal(values(ctx, `${side} Entry`)[24], reflect(101.6875));
+    const m5 = ctx.plots.__boxes__.data[0].value.find(b => b.border_style === 'style_dotted');
+    assert.equal(m5.left, start + 18 * step);
+    assert.equal(m5.top, Math.max(reflect(98.5), reflect(104)));
+    assert.equal(m5.bottom, Math.min(reflect(98.5), reflect(104)));
+  });
+}
+
+test('MEXC 24 августа: пара 15:00/15:05 исключена, новая P1 в 15:25, прежнего входа 15:35 нет', async () => {
+  // Реальные сохранённые MEXC свечи. Скриншот пользователя с Binance:
+  // сопоставляется структура, небольшие различия биржевых цен ожидаемы.
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-08-24T14:00:00+07:00');
+  const until = Date.parse('2026-08-24T16:00:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Stage')[14], 2); // 15:10 — подтверждение соседней P2 и отказ.
+  assert.equal(signalCount(ctx), 0);
+  assert.equal(signalCount(ctx, 'LONG'), 0);
+  const m5 = ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted');
+  assert.equal(m5.length, 1);
+  assert.equal(m5[0].left, Date.parse('2026-08-24T15:25:00+07:00'));
+  assert.equal(m5[0].bottom, 93.21);
+  assert.equal(m5[0].top, 94.08);
+});
