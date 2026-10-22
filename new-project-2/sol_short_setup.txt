@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон и SHORT 1:1", overlay=true, max_boxes_count=20, max_labels_count=100)
+indicator("SOL — часовой диапазон и SHORT 1:1 v2", overlay=true, max_boxes_count=20, max_labels_count=100, max_lines_count=20)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -9,6 +9,17 @@ string tz = "Asia/Krasnoyarsk"
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
 bool showLevels = input.bool(true, "Показывать вход, стоп и цель")
 bool showMarks = input.bool(true, "Показывать SHORT")
+
+// Отдельные горизонтальные объекты не соединяют уровни разных дней.
+// Не полагаемся на поддержку plot.style_linebr рендерером терминала.
+updateLevel(line id, int leftTime, int rightTime, float price, color ink, int thickness) =>
+    line result = id
+    if na(result)
+        result := line.new(leftTime, price, rightTime, price, xloc=xloc.bar_time, color=ink, width=thickness)
+    else
+        line.set_xy1(result, leftTime, price)
+        line.set_xy2(result, rightTime, price)
+    result
 
 if barstate.isfirst and timeframe.period != "5"
     runtime.error("Выберите таймфрейм 5 минут. Часовой диапазон индикатор собирает автоматически.")
@@ -35,6 +46,15 @@ varip int lastPivotBar = na
 
 var box h1Box = na
 var box m5Box = na
+var line fibMinus = na
+var line fibZero = na
+var line fibHalf = na
+var line fibOne = na
+var line fibStop = na
+var line entryLine = na
+var line stopLine = na
+var line targetLine = na
+varip int drawingRight = na
 
 // Сбор двенадцати закрытых M5-свечей 14:00–15:00.
 // Неполный час не используется: нельзя подменять его частичным диапазоном.
@@ -161,6 +181,7 @@ if barstate.isconfirmed and hh == 14
         stop := na
         lastLowBar := na
         signalBar := na
+        drawingRight := na
         // Цены события хранятся отдельно: даже на границе смены H1
         // оповещение должно содержать уровни именно сработавшего плана.
         if not na(h1Box)
@@ -168,6 +189,30 @@ if barstate.isconfirmed and hh == 14
         if not na(m5Box)
             box.delete(m5Box)
         m5Box := na
+        if not na(fibMinus)
+            line.delete(fibMinus)
+        if not na(fibZero)
+            line.delete(fibZero)
+        if not na(fibHalf)
+            line.delete(fibHalf)
+        if not na(fibOne)
+            line.delete(fibOne)
+        if not na(fibStop)
+            line.delete(fibStop)
+        if not na(entryLine)
+            line.delete(entryLine)
+        if not na(stopLine)
+            line.delete(stopLine)
+        if not na(targetLine)
+            line.delete(targetLine)
+        fibMinus := na
+        fibZero := na
+        fibHalf := na
+        fibOne := na
+        fibStop := na
+        entryLine := na
+        stopLine := na
+        targetLine := na
         color border = close < collectedOpen ? color.red : close > collectedOpen ? color.green : color.gray
         h1Box := box.new(left=timestamp(tz, yy, mm, dd, 13, 0), top=h1High, right=timestamp(tz, yy, mm, dd, 22, 0), bottom=h1Low, xloc=xloc.bar_time, border_color=border, border_width=1, bgcolor=na)
 
@@ -176,17 +221,29 @@ previousQuote := close
 bool baseVisible = showFibo and stage >= 4 and stage <= 6 and not na(point2)
 bool planVisible = (stage == 5 or stage == 6) and not na(entry)
 float span = point2 - point1
-plot(baseVisible ? point1 - 0.25 * span : na, "Fibo -0.25", color=color.red, style=plot.style_linebr)
-plot(baseVisible ? point1 : na, "Fibo 0", color=color.gray, style=plot.style_linebr)
-plot(baseVisible ? point1 + 0.5 * span : na, "Fibo 0.5", color=color.gray, style=plot.style_linebr)
-plot(baseVisible ? point2 : na, "Fibo 1", color=color.gray, style=plot.style_linebr)
-plot(baseVisible ? point1 + 1.25 * span : na, "Fibo 1.25", color=color.red, style=plot.style_linebr)
-plot(shortEvent ? eventEntry : planVisible ? entry : na, "SHORT Entry", color=color.blue, linewidth=2, style=plot.style_linebr, display=showLevels ? display.all : display.none)
-plot(shortEvent ? eventStop : planVisible ? stop : na, "SHORT Stop", color=color.red, linewidth=2, style=plot.style_linebr, display=showLevels ? display.all : display.none)
-plot(shortEvent ? eventTarget : planVisible ? point3 : na, "SHORT Target", color=color.teal, linewidth=2, style=plot.style_linebr, display=showLevels ? display.all : display.none)
-plot(stage, "Stage", display=display.data_window)
-plot(h1High, "H1 High", display=display.data_window)
-plot(h1Low, "H1 Low", display=display.data_window)
+if stage >= 4 and stage <= 6
+    if stage <= 5 or signalBar == bar_index
+        drawingRight := time_close
+    if baseVisible
+        fibMinus := updateLevel(fibMinus, point1Time, drawingRight, point1 - 0.25 * span, color.red, 1)
+        fibZero := updateLevel(fibZero, point1Time, drawingRight, point1, color.gray, 1)
+        fibHalf := updateLevel(fibHalf, point1Time, drawingRight, point1 + 0.5 * span, color.gray, 1)
+        fibOne := updateLevel(fibOne, point1Time, drawingRight, point2, color.gray, 1)
+        fibStop := updateLevel(fibStop, point1Time, drawingRight, point1 + 1.25 * span, color.red, 1)
+    if showLevels and planVisible
+        entryLine := updateLevel(entryLine, point1Time, drawingRight, entry, color.blue, 2)
+        stopLine := updateLevel(stopLine, point1Time, drawingRight, stop, color.red, 2)
+        targetLine := updateLevel(targetLine, point1Time, drawingRight, point3, color.teal, 2)
+
+// Невидимые серии нужны для цен в оповещении и автоматических проверок.
+// Помимо display.none задана полная прозрачность — даже если терминал
+// игнорирует режим отображения, эти серии не нарисуют диагонали.
+plot(shortEvent ? eventEntry : planVisible ? entry : na, "SHORT Entry", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventStop : planVisible ? stop : na, "SHORT Stop", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventTarget : planVisible ? point3 : na, "SHORT Target", color=color.new(color.white, 100), display=display.none)
+plot(stage, "Stage", color=color.new(color.white, 100), display=display.data_window)
+plot(h1High, "H1 High", color=color.new(color.white, 100), display=display.data_window)
+plot(h1Low, "H1 Low", color=color.new(color.white, 100), display=display.data_window)
 
 plotshape(showMarks and (shortEvent or (not na(signalBar) and signalBar == bar_index)), title="SHORT", text="SHORT", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small)
 alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}} | R:R 1:1')

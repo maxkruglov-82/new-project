@@ -50,6 +50,48 @@ async function run(data, timeframe = '5') {
 }
 function values(ctx, name) { return ctx.plots[name].data.slice(0, -1).map(p => p.value); }
 function signalCount(ctx) { return values(ctx, 'SHORT').filter(Boolean).length; }
+function lines(ctx) { return ctx.plots.__lines__?.data[0]?.value || []; }
+
+test('уровни — восемь горизонтальных отрезков, после сигнала правый край не движется', async () => {
+  const ctx = await run(complete());
+  const segments = lines(ctx);
+  assert.equal(segments.length, 8);
+  for (const line of segments) {
+    assert.equal(line.y1, line.y2);
+    assert.equal(line.x1, start + 13 * step);
+    assert.equal(line.x2, complete()[19].closeTime);
+  }
+  assert.deepEqual(segments.filter(l => l.width === 2).map(l => l.y1), [102, 105, 99]);
+});
+
+test('новый минимум переносит весь отрезок цели и входа без наклонного следа', async () => {
+  const data = complete().slice(0, 19);
+  data[18] = candle(18, 100, 102, 98.5, 101);
+  const ctx = await run(data);
+  const plan = lines(ctx).filter(l => l.width === 2);
+  assert.equal(plan.length, 3);
+  assert.deepEqual(plan.map(l => [l.y1, l.y2]), [[101.75, 101.75], [105, 105], [98.5, 98.5]]);
+});
+
+test('смена опорного часа удаляет прежние отрезки, новый день не соединяется со старым', async () => {
+  const next = complete().map(b => ({ ...b, openTime: b.openTime + 86_400_000, closeTime: b.closeTime + 86_400_000 }));
+  const reset = await run([...complete(), ...next.slice(0, 12)]);
+  assert.equal(lines(reset).length, 0);
+  const ctx = await run([...complete(), ...next]);
+  assert.equal(lines(ctx).length, 8);
+  for (const line of lines(ctx)) {
+    assert.equal(line.x1, start + 86_400_000 + 13 * step);
+    assert.equal(line.y1, line.y2);
+  }
+});
+
+test('числовые серии для уведомления полностью прозрачны и скрыты', async () => {
+  const ctx = await run(complete());
+  for (const name of ['SHORT Entry', 'SHORT Stop', 'SHORT Target']) {
+    assert.match(ctx.plots[name].options.color, /00$/i);
+    assert.equal(ctx.plots[name].options.display, 'none');
+  }
+});
 
 test('законченный H1 появляется только после 12 закрытых M5', async () => {
   const ctx = await run(hour());
