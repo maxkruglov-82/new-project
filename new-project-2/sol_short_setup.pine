@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v21", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v22", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -9,6 +9,7 @@ string tz = "Asia/Krasnoyarsk"
 bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
 float stopOffset = input.float(0.03, "Отступ стопа за Фибо (USDT)", minval=0.0, step=0.01)
 float takeOffset = input.float(0.03, "Отступ тейка перед целью (USDT)", minval=0.0, step=0.01)
+float h1BreakOffset = input.float(0.02, "Минимальный пробой H1 (USDT)", minval=0.0, step=0.01)
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
 bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
 bool showMarks = input.bool(true, "Показывать SHORT и LONG")
@@ -26,6 +27,14 @@ int anchorMoment = historyUntil != 0 ? historyUntil : math.min(historyAnchor + 3
 int anchorDate = dayofmonth(anchorMoment, tz) - (hour(anchorMoment, tz) < 15 ? 1 : 0)
 int historyEnd = timestamp(tz, year(anchorMoment, tz), month(anchorMoment, tz), anchorDate, 15, 0)
 int historyStart = historyEnd - (historyDays - 1) * 86400000
+
+// Порог относится только к границам H1. Допуск защищает сравнение
+// десятичных цен от машинного округления, не добавляет торговый отступ.
+aboveH1(float price, float boundary) =>
+    price > boundary and price - boundary + 0.000000001 >= h1BreakOffset
+
+belowH1(float price, float boundary) =>
+    price < boundary and boundary - price + 0.000000001 >= h1BreakOffset
 
 // Отдельные горизонтальные объекты не соединяют уровни разных дней.
 // Не полагаемся на поддержку plot.style_linebr рендерером терминала.
@@ -218,8 +227,8 @@ if stage >= 1 and stage <= 5
         longFloorTime := na
         skippedSecond := na
     else
-        bool below = barstate.isrealtime ? close < h1Low : low < h1Low
-        bool above = barstate.isrealtime ? close > h1High : high > h1High
+        bool below = barstate.isrealtime ? belowH1(close, h1Low) : belowH1(low, h1Low)
+        bool above = barstate.isrealtime ? aboveH1(close, h1High) : aboveH1(high, h1High)
         if stage == 1
             // У исторической свечи с обоими пробоями нет известного порядка.
             if below and above
@@ -342,7 +351,7 @@ int secondPivotTime = time[1]
 // Новый подтверждённый уровень не используется задним числом внутри неё.
 if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     lastPivotBar := bar_index
-    bool firstPivot = direction == -1 ? lowerPivot and low[1] < h1Low : upperPivot and high[1] > h1High
+    bool firstPivot = direction == -1 ? lowerPivot and belowH1(low[1], h1Low) : upperPivot and aboveH1(high[1], h1High)
     bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 and highRunLow >= point1 : lowerPivot and low[1] < point1 and lowRunHigh <= point1
     if stage == 2 and firstPivot and firstPivotBar >= breakBar
         point1 := direction == -1 ? low[1] : high[1]

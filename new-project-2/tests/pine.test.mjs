@@ -399,9 +399,9 @@ test('пример пользователя: две точки 2, Фибо по�
   assert.ok(redFibo.some(y => Math.abs(y - 107.575) < 1e-9));
 });
 
-test('обновление точки 2 отменяет LONG только при фактическом пробое нижней H1', async () => {
+test('обновление точки 2 отменяет LONG при выходе на 0.02 за нижнюю H1', async () => {
   const data = annotatedLongExample();
-  data[17] = { ...data[17], low: 105.89 };
+  data[17] = { ...data[17], low: 105.88 };
   const ctx = await run(data);
   assert.equal(values(ctx, 'Stage')[17], 2);
   assert.equal(values(ctx, 'Direction')[17], -1);
@@ -1603,7 +1603,7 @@ test('MEXC 22 октября: новый P1 в 16:10, общая вершина 
 });
 
 for (const side of ['SHORT']) {
-  test(`${side}: MEXC 16 октября — второй приоритет, P1 105.71, P2 107.36; вход только после P3`, async () => {
+  test(`${side}: MEXC 16 октября — только SHORT, без LONG; P1 105.71, P2 107.36`, async () => {
     const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
     const from=Date.parse('2026-10-16T14:00:00+07:00');
     const until=Date.parse('2026-10-16T23:00:00+07:00');
@@ -1612,8 +1612,15 @@ for (const side of ['SHORT']) {
     if(side==='LONG') data=mirror(data);
     const ctx=await runDefault(data);
     const at=t=>(Date.parse(`2026-10-16T${t}:00+07:00`)-from)/step;
+    assert.equal(signalCount(ctx,'LONG'),0,'16 октября LONG не допускается');
+    assert.equal(signalCount(ctx,'SHORT'),1,'Сохраняем согласованный SHORT');
     const direction=side==='SHORT'?-1:1;
-    assert.equal(values(ctx,'Direction')[at('15:05')],-direction);
+    assert.equal(values(ctx,'Direction')[at('15:05')],0);
+    assert.equal(values(ctx,'Stage')[at('15:05')],1);
+    assert.equal(values(ctx,'Direction')[at('15:55')],1);
+    const longRange=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted'&&b.left===Date.parse('2026-10-16T15:50:00+07:00'));
+    assert.ok(longRange);
+    assert.equal(longRange.top,106.95);
     for(const t of ['17:15','18:15','19:40','19:45','21:20']) assert.equal(values(ctx,'Direction')[at(t)],direction);
     assert.equal(values(ctx,'Stage')[at('19:40')],4);
     assert.equal(values(ctx,'Stage')[at('19:45')],5);
@@ -1667,5 +1674,51 @@ for(const side of ['SHORT','LONG']) {
     assert.equal(signalCount(ctx,side),1);
     assert.ok(priceLabels(ctx).some(l=>l.text.startsWith('Цель:')&&l.text.endsWith(' +')&&Math.abs(l.y-price(99.03))<1e-9));
     assert.ok(lines(ctx).some(l=>l.width===2&&Math.abs(l.y1-price(99.03))<1e-9));
+  });
+}
+
+for(const side of ['SHORT','LONG']) {
+  const transform=d=>side==='SHORT'?d:mirror(d);
+  const direction=side==='SHORT'?-1:1;
+  test(`${side}: H1 меньше 0.02 не пробит; ровно 0.02 пробит`,async()=>{
+    const data=transform([...hour(),candle(12,102,103,100.99,101.3),
+      candle(13,101.3,103,100.98,101.2),candle(14,101.2,103,101.1,102)]);
+    const ctx=await runDefault(data);
+    assert.equal(values(ctx,'Stage')[12],1);
+    assert.equal(values(ctx,'Direction')[12],0);
+    assert.equal(values(ctx,'Stage')[13],2);
+    assert.equal(values(ctx,'Direction')[13],direction);
+    assert.equal(values(ctx,'Stage')[14],3);
+    assert.equal(signalCount(ctx,side),0);
+  });
+  test(`${side}: H1 больше 0.02 пробит; касание границы не пробой`,async()=>{
+    const ctx=await runDefault(transform([...hour(),candle(12,102,103,101,102),candle(13,102,103,100.97,101.1)]));
+    assert.equal(values(ctx,'Stage')[12],1);
+    assert.equal(values(ctx,'Stage')[13],2);
+    assert.equal(values(ctx,'Direction')[13],direction);
+  });
+  test(`${side}: смена приоритета требует 0.02 за противоположной H1`,async()=>{
+    const ctx=await runDefault(transform([...hour(),...structure(),candle(17,103,106.01,102,105.9),
+      candle(18,105.9,106.02,104,106)]));
+    assert.equal(values(ctx,'Direction')[17],direction);
+    assert.equal(values(ctx,'Direction')[18],-direction);
+    assert.equal(signalCount(ctx,side),0);
+  });
+}
+
+for(const side of ['SHORT','LONG']) {
+  test(`${side}: открытая M5 учитывает ровно 0.02, малый прокол не задаёт приоритет`,async()=>{
+    const data=side==='SHORT'?[...hour(),candle(12,102,103,100.99,101.3)]:mirror([...hour(),candle(12,102,103,100.99,101.3)]);
+    let tail={...data.at(-1)};
+    const provider={getMarketData:async(_t,_tf,_l,since)=>since!==undefined&&since>=tail.openTime?[{...tail}]:data.map(b=>({...b})),getSymbolInfo:async()=>null};
+    const engine=new PineTS(provider,'SOLUSDT','5');
+    const ctx=await engine.run(new Indicator(source));
+    for(const [rawQuote,expectedDirection] of [[100.99,0],[100.98,side==='SHORT'?-1:1],[101.3,side==='SHORT'?-1:1]]){
+      const quote=side==='SHORT'?rawQuote:207-rawQuote;
+      tail={...tail,close:quote,low:Math.min(tail.low,quote),high:Math.max(tail.high,quote),closeTime:Date.now()+step};
+      await engine.updateTail(ctx);
+      assert.equal(ctx.plots.Direction.data.at(-1).value,expectedDirection);
+      assert.equal(ctx.alerts.length,0);
+    }
   });
 }
