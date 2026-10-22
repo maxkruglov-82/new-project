@@ -1,11 +1,12 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v13", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v14", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
 // На истории внутрибарный порядок неизвестен: свеча с новым экстремумом
 // не используется одновременно как доказательство последующего ретеста.
 string tz = "Asia/Krasnoyarsk"
+float stopOffset = input.float(0.03, "Отступ стопа за Фибо (USDT)", minval=0.0, step=0.01)
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
 bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
 bool showMarks = input.bool(true, "Показывать SHORT и LONG")
@@ -88,6 +89,8 @@ varip float longFloor0 = na
 varip float skippedLongLow = na
 varip float entry = na
 varip float stop = na
+// Базовая красная линия нужна для прежнего входа; отступ меняет только SL.
+varip float stopFibo = na
 varip int lastExtremeBar = na
 varip int signalBar = na
 varip float previousQuote = na
@@ -182,6 +185,7 @@ if retry
     skippedLongLow := na
     entry := na
     stop := na
+    stopFibo := na
     signalBar := na
     lastExtremeBar := na
     drawingRight := na
@@ -227,6 +231,7 @@ if stage >= 1 and stage <= 5
             fibReanchored := false
             entry := na
             stop := na
+            stopFibo := na
             signalBar := na
             lastExtremeBar := na
             drawingRight := na
@@ -234,15 +239,16 @@ if stage >= 1 and stage <= 5
 
         // Вторую точку замораживаем в момент обновления первой.
         if stage == 4 and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
-            stop := point1 + 1.25 * (point2 - point1)
+            stopFibo := point1 + 1.25 * (point2 - point1)
+            stop := stopFibo - direction * stopOffset
             // Для LONG стоп может лежать ниже low H1 (пример пользователя).
             // Отменяет LONG фактический пробой low H1 ценой, а не сам стоп.
             // Прежний отдельно согласованный фильтр SHORT сохраняется.
-            if direction == -1 and stop > h1High
+            if direction == -1 and stopFibo > h1High
                 stage := 7
             else
                 point3 := direction == -1 ? low : high
-                entry := (stop + point3) / 2.0
+                entry := (stopFibo + point3) / 2.0
                 lastExtremeBar := bar_index
                 positionLeft := time
                 stage := 5
@@ -257,11 +263,12 @@ if stage >= 1 and stage <= 5
                 partialRetest := false
                 point3 := direction == -1 ? low : high
                 if fibReanchored
-                    stop := point2 - 0.25 * (point3 - point2)
-                entry := (stop + point3) / 2.0
+                    stopFibo := point2 - 0.25 * (point3 - point2)
+                    stop := stopFibo - direction * stopOffset
+                entry := (stopFibo + point3) / 2.0
                 lastExtremeBar := bar_index
                 // Прежний отдельный фильтр стопа SHORT сохраняется.
-                if direction == -1 and stop > h1High
+                if direction == -1 and stopFibo > h1High
                     stage := 7
 
             // Текущая цена позволяет отличить ретест от high/low,
@@ -342,12 +349,13 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
 // Вход на этой свече задним числом не создаём: ретест проверяется выше,
 // а новый план становится доступен только после закрытия подтверждающей M5.
 if stage == 4 and barstate.isconfirmed and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
-    stop := point1 + 1.25 * (point2 - point1)
-    if direction == -1 and stop > h1High
+    stopFibo := point1 + 1.25 * (point2 - point1)
+    stop := stopFibo - direction * stopOffset
+    if direction == -1 and stopFibo > h1High
         stage := 7
     else
         point3 := direction == -1 ? low : high
-        entry := (stop + point3) / 2.0
+        entry := (stopFibo + point3) / 2.0
         lastExtremeBar := bar_index
         positionLeft := time
         stage := 5
@@ -426,7 +434,8 @@ if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
 // Ширина — только размер рисунка, не срок действия сценария.
 int positionRight = not na(positionLeft) ? math.max(positionLeft + positionBars * 300000, drawingRight) : na
 if drawReference and showPosition and planVisible and not na(positionLeft)
-    rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, point3, color.teal, "R:R 1:1")
+    string rrCaption = stopOffset == 0 ? "R:R 1:1" : "R:R 1:" + str.tostring(math.abs(point3 - entry) / math.abs(stop - entry), "#.###")
+    rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, point3, color.teal, rrCaption)
     riskZone := updateZone(riskZone, positionLeft, positionRight, entry, stop, color.red, "")
     entryPriceLabel := updatePriceLabel(entryPriceLabel, positionRight, entry, "Вход: " + str.tostring(entry, "#.##"), color.blue)
     // Плюс отмечает только подтверждённый исход после входа. Неизвестный
@@ -495,6 +504,7 @@ if barstate.isconfirmed and hh == 14
         skippedLongLow := na
         entry := na
         stop := na
+        stopFibo := na
         lastExtremeBar := na
         signalBar := na
         drawingRight := na

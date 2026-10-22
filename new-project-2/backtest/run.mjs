@@ -19,7 +19,7 @@ export function observe(source) {
   insert('float eventTarget = na', '\nbool btResolved = false\nfloat btResult = na\nint btReference = na\nint btEndingStage = na');
   insert('        outcomeBar := bar_index', '\n        btResolved := true\n        btResult := outcome');
   insert('        publishedDay := dayKey', '\n        btReference := timestamp(tz, yy, mm, dd, 15, 0)\n        btEndingStage := stage');
-  source += `\n// Backtest observation only.\nplot(shortEvent ? -1 : longEvent ? 1 : 0, "BT Signal", display=display.none)\nplot(btResolved ? btResult : na, "BT Result", display=display.none)\nplot(btReference, "BT Reference", display=display.none)\nplot(btEndingStage, "BT Ending Stage", display=display.none)\n`;
+  source += `\n// Backtest observation only.\nplot(shortEvent ? -1 : longEvent ? 1 : 0, "BT Signal", display=display.none)\nplot(btResolved ? btResult : na, "BT Result", display=display.none)\nplot(btReference, "BT Reference", display=display.none)\nplot(btEndingStage, "BT Ending Stage", display=display.none)\nplot(stopFibo, "BT Fibo Stop", display=display.none)\n`;
   return source;
 }
 
@@ -58,7 +58,7 @@ export async function execute(source, raw, start, end) {
       active.exitBarStart = iso(bar.openTime);
       active.exitBarEnd = iso(bar.closeTime + 1);
       active.exitPrice = result === 1 ? active.target : result === -1 ? active.stop : null;
-      active.r = result === 1 ? 1 : result === -1 ? -1 : null;
+      active.r = result === 1 ? active.rewardRisk : result === -1 ? -1 : null;
       active = null;
     }
     const signal = value('BT Signal', i);
@@ -68,10 +68,11 @@ export async function execute(source, raw, start, end) {
       const side = signal === -1 ? 'SHORT' : 'LONG';
       active = { id: trades.length + 1, referenceDate: currentDay.date, side,
         entryBarStart: iso(bar.openTime), entryBarEnd: iso(bar.closeTime + 1),
-        entry: value(`${side} Entry`, i), stop: value(`${side} Stop`, i), target: value(`${side} Target`, i),
+        fiboStop: value('BT Fibo Stop', i), entry: value(`${side} Entry`, i), stop: value(`${side} Stop`, i), target: value(`${side} Target`, i),
         status: 'open', exitBarStart: null, exitBarEnd: null, exitPrice: null, r: null };
       if (![active.entry, active.stop, active.target].every(Number.isFinite)) throw new Error('Missing signal prices');
-      if (Math.abs((active.stop + active.target) / 2 - active.entry) > 1e-8) throw new Error('RR is not 1:1');
+      if (!Number.isFinite(active.fiboStop) || Math.abs((active.fiboStop + active.target) / 2 - active.entry) > 1e-8) throw new Error('Base Fibo RR is not 1:1');
+      active.rewardRisk = Math.abs(active.target - active.entry) / Math.abs(active.stop - active.entry);
       if (currentDay.won) throw new Error('New entry after successful target under the same H1');
       trades.push(active);
     }
@@ -113,7 +114,7 @@ export async function execute(source, raw, start, end) {
     daysWithEntry: days.filter(d => d.trades > 0).length, daysWithoutEntry: days.filter(d => d.trades === 0).length,
     daysWithTarget: days.filter(d => d.targets > 0).length,
     daysWithStopsAndNoTarget: days.filter(d => d.stops > 0 && d.targets === 0).length,
-    netRKnownBeforeCosts: targets - stops }, days, trades };
+    netRKnownBeforeCosts: trades.reduce((sum, t) => sum + (t.r ?? 0), 0) }, days, trades };
 }
 
 const escapeCsv = v => v === null || v === undefined ? '' : /[,"\n]/.test(String(v)) ? '"' + String(v).replaceAll('"', '""') + '"' : String(v);
@@ -146,7 +147,8 @@ async function main() {
       fiboReanchor: 'After a separate partial retest without entry and a new P3 extreme, use Fibo P2 to P3: S=P2-0.25*(P3-P2); retain initial anchors without partial retest; freeze on entry',
       exits: 'Check from the next M5 after entry; simultaneous TP/SL is ambiguous',
       referenceRollover: 'Unresolved trade is recorded separately, without a fabricated exit',
-      costs: 'Not included', rUnits: '1R risk per trade, constant-risk comparison; no compounding' }, ...report };
+      stopOffset: 'Default 0.03 USDT beyond the Fibo line; entry remains the unbuffered Fibo midpoint',
+      costs: 'Not included', rUnits: '1R is actual buffered stop risk; target R is actual reward/risk, not fixed +1; no compounding' }, ...report };
   mkdirSync(resolve(prefix, '..'), { recursive: true });
   writeFileSync(prefix + '.json', JSON.stringify(result, null, 2) + '\n');
   const statusRu = { target: 'Цель', stop: 'Стоп', ambiguous: 'Неизвестный порядок TP/SL',
@@ -155,6 +157,7 @@ async function main() {
     'Номер': t.id, 'Дата опорного H1': t.referenceDate, 'Направление': t.side,
     'Свеча входа с (UTC+7)': t.entryBarStart, 'Свеча входа до (UTC+7)': t.entryBarEnd,
     'Вход USDT': t.entry, 'Стоп USDT': t.stop, 'Цель USDT': t.target,
+    'Базовая линия стопа Фибо': t.fiboStop, 'Фактический RR': t.rewardRisk,
     'Исход': statusRu[t.status], 'Свеча исхода с (UTC+7)': t.exitBarStart,
     'Свеча исхода до (UTC+7)': t.exitBarEnd, 'Цена исхода USDT': t.exitPrice, 'Результат R': t.r,
   }))));
@@ -165,7 +168,7 @@ async function main() {
     'Незавершённых': d.unresolved,
   }))));
   const n = result.summary;
-  const body = `# Бэктест SOL/USDT MEXC — ${scriptVersion}\n\nОпорные дни: **${result.period.firstReference} — ${result.period.lastReference}** (${n.referenceDays} дней).\nНаблюдение до **${raw.endExclusive}**, время Красноярска.\n\n| Показатель | Результат |\n|---|---:|\n| Входов | ${n.enteredTrades} |\n| Достигнута цель | ${n.targets} |\n| Стоп | ${n.stops} |\n| TP и SL в одной M5, порядок неизвестен | ${n.ambiguous} |\n| Не завершились до смены H1 / конца данных | ${n.unresolved} |\n| Успешных среди определённых исходов | ${n.winRateKnown === null ? '—' : (n.winRateKnown * 100).toFixed(2) + '%'} |\n| Дней с входом | ${n.daysWithEntry} |\n| Дней без входа | ${n.daysWithoutEntry} |\n| Дней, когда достигнута цель | ${n.daysWithTarget} |\n| Дней со стопами и без цели | ${n.daysWithStopsAndNoTarget} |\n| Сумма известных исходов до расходов, R | ${n.netRKnownBeforeCosts} |\n\nИсполнялся сам исходник ${version} в PineTS 0.12.0. Сигнал — касание входа\nпо правилам ${scriptVersion}; стоп ровно на расширении Фибо, цель — третья точка, RR 1:1.\nВ обычном сценарии соседние центральные свечи P1/P2 не образуют диапазон: пару отбрасываем.\nМежду ними нужна хотя бы одна свеча. До подходящей P2 первая точка\nсопровождает новые подтверждённые экстремумы.\nРазворотный LONG после SHORT без обновления первого low сохраняет этот low\nкак «0». Откат P2 ниже H1 допустим выше «0»; верхняя P1 сохраняется,\nсоседний нижний свинг пропускается, нужна следующая более низкая P2.\nПробой P1 на свече подтверждения P2 сохраняется как P3, без входа задним числом на ней.\nПосле отдельного ретеста, не достигшего входа, следующий новый экстремум P3\nпереносит Фибо с 1–2 на 2–3. Стоп=P2−0.25×(P3−P2), цель=P3,\nвход=(стоп+цель)/2. Без такого ретеста первоначальная сетка сохраняется.\nВ режиме 2–3 до входа сопровождаются все три цены; после входа они заморожены.\nПосле стопа со следующей M5 разрешён новый поиск. После цели новых входов\nпод этой H1 нет. Поэтому 60 дней не обязательно равны 60 сделкам.\n\nЭто **консервативный бэктест по M5 OHLC**, без тиков. Бар с новым экстремумом\nне используется как доказательство последующего ретеста. На самой свече\nвхода исход TP/SL не приписывается движению после входа. Если следующая\nсвеча содержит оба уровня, исход неизвестен и ${scriptVersion} блокирует новые входы\nпод этой H1. Такие сделки не включены в долю успешных определённых исходов.\nКомиссии, проскальзывание, финансирование и реальные исполнения не учтены.\nСумма R включает только известные TP/SL, не является итогом всего портфеля.\n\nИсточник — [публичный API фьючерсов MEXC](${BASE_URL_PLACEHOLDER}).\nПолучено ${raw.count} непрерывных M5 свечей, пропусков и неполных опорных часов нет.\nДень в отчёте — дата опорного H1; вход может произойти после полуночи.\nИсходные данные и полный журнал приложены рядом. Время входа и выхода\nв CSV задано интервалом M5: точный момент внутри свечи неизвестен.\n\nSHA-256 исходника: \`${result.sourceSha256}\`.\nSHA-256 файла свечей: \`${result.inputSha256}\`.\n`;
+  const body = `# Бэктест SOL/USDT MEXC — ${scriptVersion}\n\nОпорные дни: **${result.period.firstReference} — ${result.period.lastReference}** (${n.referenceDays} дней).\nНаблюдение до **${raw.endExclusive}**, время Красноярска.\n\n| Показатель | Результат |\n|---|---:|\n| Входов | ${n.enteredTrades} |\n| Достигнута цель | ${n.targets} |\n| Стоп | ${n.stops} |\n| TP и SL в одной M5, порядок неизвестен | ${n.ambiguous} |\n| Не завершились до смены H1 / конца данных | ${n.unresolved} |\n| Успешных среди определённых исходов | ${n.winRateKnown === null ? '—' : (n.winRateKnown * 100).toFixed(2) + '%'} |\n| Дней с входом | ${n.daysWithEntry} |\n| Дней без входа | ${n.daysWithoutEntry} |\n| Дней, когда достигнута цель | ${n.daysWithTarget} |\n| Дней со стопами и без цели | ${n.daysWithStopsAndNoTarget} |\n| Сумма известных исходов до расходов, R | ${n.netRKnownBeforeCosts.toFixed(2)} |\n\nИсполнялся сам исходник ${version} в PineTS 0.12.0. Сигнал — касание входа\nпо правилам ${scriptVersion}; стоп на 0.03 USDT за красной линией Фибо, цель — третья точка.\nВход сохранён как середина между базовой линией Фибо и целью, без сдвига\nиз-за отступа стопа. Фактический reward/risk немного меньше 1:1.\nВ обычном сценарии соседние центральные свечи P1/P2 не образуют диапазон: пару отбрасываем.\nМежду ними нужна хотя бы одна свеча. До подходящей P2 первая точка\nсопровождает новые подтверждённые экстремумы.\nРазворотный LONG после SHORT без обновления первого low сохраняет этот low\nкак «0». Откат P2 ниже H1 допустим выше «0»; верхняя P1 сохраняется,\nсоседний нижний свинг пропускается, нужна следующая более низкая P2.\nПробой P1 на свече подтверждения P2 сохраняется как P3, без входа задним числом на ней.\nПосле отдельного ретеста, не достигшего входа, следующий новый экстремум P3\nпереносит Фибо с 1–2 на 2–3. Базовая линия=P2−0.25×(P3−P2), цель=P3,\nвход=(базовая линия+цель)/2; фактический стоп вынесен за линию на 0.03 USDT. Без такого ретеста первоначальная сетка сохраняется.\nВ режиме 2–3 до входа сопровождаются все три цены; после входа они заморожены.\nПосле стопа со следующей M5 разрешён новый поиск. После цели новых входов\nпод этой H1 нет. Поэтому 60 дней не обязательно равны 60 сделкам.\n\nЭто **консервативный бэктест по M5 OHLC**, без тиков. Бар с новым экстремумом\nне используется как доказательство последующего ретеста. На самой свече\nвхода исход TP/SL не приписывается движению после входа. Если следующая\nсвеча содержит оба уровня, исход неизвестен и ${scriptVersion} блокирует новые входы\nпод этой H1. Такие сделки не включены в долю успешных определённых исходов.\nКомиссии, проскальзывание, финансирование и реальные исполнения не учтены.\nСумма R включает только известные TP/SL, не является итогом всего портфеля.\nНа стопе −1R, на цели — отношение расстояния до цели к расстоянию\nдо фактического стопа с отступом. Комиссии в R не включены.\n\nИсточник — [публичный API фьючерсов MEXC](${BASE_URL_PLACEHOLDER}).\nПолучено ${raw.count} непрерывных M5 свечей, пропусков и неполных опорных часов нет.\nДень в отчёте — дата опорного H1; вход может произойти после полуночи.\nИсходные данные и полный журнал приложены рядом. Время входа и выхода\nв CSV задано интервалом M5: точный момент внутри свечи неизвестен.\n\nSHA-256 исходника: \`${result.sourceSha256}\`.\nSHA-256 файла свечей: \`${result.inputSha256}\`.\n`;
   writeFileSync(prefix + '.md', body);
   process.stdout.write(JSON.stringify(result.summary, null, 2) + '\n');
 }

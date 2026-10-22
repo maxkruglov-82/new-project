@@ -23,14 +23,14 @@ test('наблюдения не меняют исходный файл и кон
   assert.throws(() => observe(source.replace('outcomeBar := bar_index', 'outcomeBar := time')), /anchor changed/);
 });
 
-test('журнал реального Pine: один SHORT, точные E/S/T, цель и 1R', async () => {
+test('журнал реального Pine: один SHORT, точные E/S/T, цель и фактический R', async () => {
   const { summary, trades } = await run([...entered(), c(20, 102, 103, 98, 99)]);
   assert.equal(summary.enteredTrades, 1);
   assert.equal(summary.targets, 1);
   assert.equal(summary.stops, 0);
-  assert.equal(summary.netRKnownBeforeCosts, 1);
+  assert.ok(Math.abs(summary.netRKnownBeforeCosts - 3/3.03) < 1e-9);
   assert.equal(trades[0].entry, 102);
-  assert.equal(trades[0].stop, 105);
+  assert.equal(trades[0].stop, 105.03);
   assert.equal(trades[0].target, 99);
   assert.equal(trades[0].entryBarStart, '2026-10-20T15:35:00.000+07:00');
   assert.equal(trades[0].exitBarStart, '2026-10-20T15:40:00.000+07:00');
@@ -42,7 +42,7 @@ test('после стопа журнал сохраняет обе сделки 
   assert.equal(summary.enteredTrades, 2);
   assert.equal(summary.targets, 1);
   assert.equal(summary.stops, 1);
-  assert.equal(summary.netRKnownBeforeCosts, 0);
+  assert.ok(Math.abs(summary.netRKnownBeforeCosts - (3/3.03 - 1)) < 1e-9);
   assert.deepEqual(trades.map(t => [t.side, t.status]), [['SHORT', 'stop'], ['LONG', 'target']]);
 });
 

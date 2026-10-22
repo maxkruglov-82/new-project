@@ -14,6 +14,10 @@ const source = readFileSync(new URL('../sol_short_setup.pine', import.meta.url),
 test('файл для загрузки совпадает с исполняемым исходником', () => {
   assert.equal(readFileSync(new URL('../sol_short_setup.txt', import.meta.url), 'utf8'), source);
 });
+// Прежние сценарии проверяются при нулевом отступе, чтобы отличать
+// изменение буфера от регрессии структуры. Новые тесты ниже используют
+// настоящий default 0.03 и отдельно проверяют прежние входы и новые исходы.
+const zeroOffset = () => new Indicator(source, { 'Отступ стопа за Фибо (USDT)': 0 });
 const start = Date.parse('2026-10-20T14:00:00+07:00');
 const step = 300_000;
 
@@ -60,7 +64,7 @@ async function run(data, timeframe = '5', inputs = {}) {
   // Отдельный хвост оставляет все проверяемые свечи историческими.
   const last = data.at(-1);
   const guard = { ...last, openTime: last.openTime + step, closeTime: last.closeTime + step };
-  const script = Object.keys(inputs).length ? new Indicator(source, inputs) : source;
+  const script = new Indicator(source, { 'Отступ стопа за Фибо (USDT)': 0, ...inputs });
   return new PineTS([...data, guard], 'SOLUSDT', timeframe).run(script);
 }
 function values(ctx, name) { return ctx.plots[name].data.slice(0, -1).map(p => p.value); }
@@ -654,7 +658,7 @@ test(`${side}: обновления открытой M5, новый экстре
     getSymbolInfo: async () => null,
   };
   const engine = new PineTS(provider, 'SOLUSDT', '5');
-  const ctx = await engine.run(source);
+  const ctx = await engine.run(zeroOffset());
   const last = name => ctx.plots[name].data.at(-1).value;
   assert.equal(last('Stage'), 5);
   for (const [rawQuote, expectedStage] of [[98, 5], [100, 5], [101.5, 6], [97, 6], [103, 6]]) {
@@ -852,7 +856,7 @@ for (const side of ['SHORT', 'LONG']) {
       getSymbolInfo: async () => null,
     };
     const engine = new PineTS(provider, 'SOLUSDT', '5');
-    const ctx = await engine.run(source);
+    const ctx = await engine.run(zeroOffset());
     const last = name => ctx.plots[name].data.at(-1).value;
     for (const [quote, direction] of [[107, 1], [105, 1], [100, -1], [102, -1]]) {
       const p = reflect(quote);
@@ -878,7 +882,7 @@ for (const side of ['SHORT', 'LONG']) {
       getSymbolInfo: async () => null,
     };
     const engine = new PineTS(provider, 'SOLUSDT', '5');
-    const ctx = await engine.run(source);
+    const ctx = await engine.run(zeroOffset());
     for (const [quote, outcome] of [[98, 0], [101.5, 0], [97, 1], [107, 1], [100, 1]]) {
       const p = reflect(quote);
       tail = { ...tail, close: p, high: Math.max(tail.high, p), low: Math.min(tail.low, p), closeTime: Date.now() + step };
@@ -1012,7 +1016,7 @@ for (const side of ['SHORT', 'LONG']) {
         getSymbolInfo: async () => null,
       };
       const engine = new PineTS(provider, 'SOLUSDT', '5');
-      const ctx = await engine.run(source);
+      const ctx = await engine.run(zeroOffset());
       assert.equal(ctx.plots.Stage.data.at(-1).value, 6);
       assert.equal(ctx.plots.Outcome.data.at(-1).value, 0);
       // Цена касания не была передана отдельным обновлением: известны
@@ -1041,7 +1045,7 @@ for (const side of ['SHORT', 'LONG']) {
       getSymbolInfo: async () => null,
     };
     const engine = new PineTS(provider, 'SOLUSDT', '5');
-    const ctx = await engine.run(source);
+    const ctx = await engine.run(zeroOffset());
     for (const quote of [102, 101.5, 102.5]) {
       const p = reflect(quote);
       tail = { ...tail, high: Math.max(tail.high, p), low: Math.min(tail.low, p), close: p, closeTime: Date.now() + step };
@@ -1160,7 +1164,7 @@ test('живой LONG: возврат под H1 сохраняет приори�
     getSymbolInfo: async () => null,
   };
   const engine = new PineTS(provider, 'SOLUSDT', '5');
-  const ctx = await engine.run(source);
+  const ctx = await engine.run(zeroOffset());
   for (const quote of [100.5, 100, 102]) {
     tail = { ...tail, close: quote, low: Math.min(tail.low, quote), closeTime: Date.now() + step };
     await engine.updateTail(ctx);
@@ -1315,7 +1319,7 @@ for (const side of ['SHORT', 'LONG']) {
       getSymbolInfo: async () => null,
     };
     const engine = new PineTS(provider, 'SOLUSDT', '5');
-    const ctx = await engine.run(source);
+    const ctx = await engine.run(zeroOffset());
     const last = name => ctx.plots[name].data.at(-1).value;
     for (const quote of [98, 100]) {
       const p = reflect(quote);
@@ -1356,3 +1360,47 @@ test('перенос 2–3 сохраняет фильтр SHORT: стоп вы�
   assert.equal(values(ctx, 'Stage')[19], 7);
   assert.equal(signalCount(ctx), 0);
 });
+
+// Эти проверки запускают источник с настоящими настройками по умолчанию.
+async function runDefault(data) {
+  const last = data.at(-1);
+  const guard = { ...last, openTime: last.openTime + step, closeTime: last.closeTime + step };
+  return new PineTS([...data, guard], 'SOLUSDT', '5').run(source);
+}
+for (const side of ['SHORT', 'LONG']) {
+  const transform = data => side === 'SHORT' ? data : mirror(data);
+  const price = p => side === 'SHORT' ? p : 207 - p;
+  test(`${side}: default 0.03 USDT за Фибо, прежний вход; касание самой линии не стоп`, async () => {
+    const data = transform([...complete().slice(0, 20), candle(20, 102, 105, 100, 104),
+      candle(21, 104, 105.03, 103, 104.5)]);
+    const ctx = await runDefault(data);
+    assert.ok(Math.abs(values(ctx, `${side} Stop`)[19] - price(105.03)) < 1e-9);
+    assert.ok(Math.abs(values(ctx, `${side} Entry`)[19] - price(102)) < 1e-9);
+    assert.equal(values(ctx, `${side} Target`)[19], price(99));
+    assert.equal(values(ctx, 'Outcome')[20], 0);
+    assert.equal(values(ctx, 'Outcome')[21], -1);
+    const redLines = lines(ctx).filter(l => l.width === 1 && l.color === '#F23645');
+    assert.ok(redLines.some(l => Math.abs(l.y1-price(105))<1e-9)); // Фибо не сдвинута.
+    assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Стоп:') && l.text.endsWith(' +')));
+  });
+  test(`${side}: буфер стопа не переносит прежнюю середину входа`, async () => {
+    const ctx = await runDefault(transform([...complete().slice(0, 19),
+      candle(19, 101, 102, 100, 101.8), candle(20, 101.8, 102.02, 100.5, 102)]));
+    assert.equal(values(ctx, side)[19], 1);
+    assert.equal(values(ctx, side)[20], 0);
+    assert.equal(values(ctx, `${side} Entry`)[19], price(102));
+    assert.equal(signalCount(ctx, side), 1);
+  });
+  test(`${side}: перенос Фибо 2–3 сохраняет ровно 0.03 за новой красной линией`, async () => {
+    const ctx = await runDefault(transform([...hour(108), ...structure(),
+      candle(17, 101, 101.5, 99, 100), candle(18, 100, 101.5, 99.5, 101),
+      candle(19, 101, 101.2, 98, 99), candle(20, 99, 101.8, 98.5, 101.5),
+      candle(21, 101.5, 105.5, 100, 104), candle(22, 104, 105.53, 103, 104.5)]));
+    assert.equal(values(ctx, 'Fibo Reanchored')[20], 1);
+    assert.ok(Math.abs(values(ctx, `${side} Stop`)[20] - price(105.53)) < 1e-9);
+    assert.ok(Math.abs(values(ctx, `${side} Entry`)[20] - price(101.75)) < 1e-9);
+    assert.equal(values(ctx, `${side} Target`)[20], price(98));
+    assert.equal(values(ctx, 'Outcome')[21], 0);
+    assert.equal(values(ctx, 'Outcome')[22], -1);
+  });
+}
