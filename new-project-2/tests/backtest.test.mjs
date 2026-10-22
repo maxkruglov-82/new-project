@@ -10,7 +10,7 @@ function entered() {
   return [...Array.from({ length: 12 }, (_, i) => c(i, 104, 106, 101, 103)),
     c(12, 102, 103, 100.5, 101.5), c(13, 101, 102, 100, 101), c(14, 101, 102.5, 100.6, 102),
     c(15, 102, 104, 101, 103), c(16, 103, 103.5, 101.5, 102), c(17, 102, 103, 99, 100),
-    c(18, 100, 101.8, 99.4, 101), c(19, 101, 102.2, 100, 102)];
+    c(18, 100, 101.8, 99, 101), c(19, 101, 102.2, 100, 102)];
 }
 function raw(candles) { return { interval: 'Min5', symbol: 'SOL_USDT', candles }; }
 const run = bars => execute(source, raw(bars), start, start + bars.length * step);
@@ -29,10 +29,10 @@ test('журнал реального Pine: один SHORT, точные E/S/T, 
   assert.equal(summary.targets, 1);
   assert.equal(summary.totalTrades, 1);
   assert.equal(summary.stops, 0);
-  assert.ok(Math.abs(summary.netRKnownBeforeCosts - 3/3.03) < 1e-9);
+  assert.ok(Math.abs(summary.netRKnownBeforeCosts - 2.97/3.03) < 1e-9);
   assert.equal(trades[0].entry, 102);
   assert.equal(trades[0].stop, 105.03);
-  assert.equal(trades[0].target, 99);
+  assert.equal(trades[0].target, 99.03);
   assert.equal(trades[0].entryBarStart, '2026-10-20T15:35:00.000+07:00');
   assert.equal(trades[0].exitBarStart, '2026-10-20T15:40:00.000+07:00');
 });
@@ -44,7 +44,7 @@ test('после стопа журнал сохраняет обе сделки 
   assert.equal(summary.totalTrades, 2);
   assert.equal(summary.targets, 1);
   assert.equal(summary.stops, 1);
-  assert.ok(Math.abs(summary.netRKnownBeforeCosts - (3/3.03 - 1)) < 1e-9);
+  assert.ok(Math.abs(summary.netRKnownBeforeCosts - (2.97/3.03 - 1)) < 1e-9);
   assert.deepEqual(trades.map(t => [t.side, t.status]), [['SHORT', 'stop'], ['LONG', 'target']]);
 });
 

@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v19", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v20", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -8,6 +8,7 @@ indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v19", over
 string tz = "Asia/Krasnoyarsk"
 bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
 float stopOffset = input.float(0.03, "Отступ стопа за Фибо (USDT)", minval=0.0, step=0.01)
+float takeOffset = input.float(0.03, "Отступ тейка перед целью (USDT)", minval=0.0, step=0.01)
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
 bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
 bool showMarks = input.bool(true, "Показывать SHORT и LONG")
@@ -158,6 +159,7 @@ bool eventDraw = false
 float eventEntry = na
 float eventStop = na
 float eventTarget = na
+float eventSwingTarget = na
 bool seededPoint3 = false
 bool barIsWeekend = dayofweek(time, tz) == dayofweek.saturday or dayofweek(time, tz) == dayofweek.sunday
 bool clockIsWeekend = dayofweek(timenow, tz) == dayofweek.saturday or dayofweek(timenow, tz) == dayofweek.sunday
@@ -173,7 +175,7 @@ if stage == 6 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar
     float reachedHigh = bar_index > signalBar ? high : close
     float reachedLow = bar_index > signalBar ? low : close
     bool stopHit = direction == -1 ? reachedHigh >= stop : reachedLow <= stop
-    bool targetHit = direction == -1 ? reachedLow <= point3 : reachedHigh >= point3
+    bool targetHit = direction == -1 ? reachedLow <= point3 + takeOffset : reachedHigh >= point3 - takeOffset
     if stopHit or targetHit
         outcome := stopHit and targetHit ? 2 : targetHit ? 1 : -1
         outcomeBar := bar_index
@@ -304,7 +306,8 @@ if stage >= 1 and stage <= 5
             bool liveTouch = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? previousQuote < entry and close >= entry : previousQuote > entry and close <= entry)
             // Без тиков на истории пропускаем неоднозначный порядок low/high.
             bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? open <= entry and high >= entry : open >= entry and low <= entry)
-            if stage == 5 and (liveTouch or historyTouch)
+            bool profitableTake = direction == -1 ? point3 + takeOffset < entry : point3 - takeOffset > entry
+            if stage == 5 and profitableTake and (liveTouch or historyTouch)
                 stage := 6
                 outcome := 0
                 outcomeBar := na
@@ -314,7 +317,8 @@ if stage >= 1 and stage <= 5
                 eventDraw := drawReference
                 eventEntry := entry
                 eventStop := stop
-                eventTarget := point3
+                eventTarget := point3 - direction * takeOffset
+                eventSwingTarget := point3
             else if stage == 5 and not seededPoint3 and not extendedExtreme
                 // На истории последовательность доказывает отдельная M5
                 // после экстремума: откат был, но вход не достигнут.
@@ -340,7 +344,31 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     lastPivotBar := bar_index
     bool firstPivot = direction == -1 ? lowerPivot and low[1] < h1Low : upperPivot and high[1] > h1High
     bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 and highRunLow >= point1 : lowerPivot and low[1] < point1 and lowRunHigh <= point1
-    if stage == 2 and firstPivot and firstPivotBar >= breakBar
+    // До входа подтверждённый новый экстремум начинает новую структуру.
+    // Сначала обработан возможный ретест внутри текущей M5: уже выданный
+    // вход не отменяем задним числом при подтверждении свинга на её закрытии.
+    bool renewFirst = stage == 5 and firstPivot and firstPivotTime > point1Time and (direction == -1 ? low[1] <= point3 and low[1] < point1 : high[1] >= point3 and high[1] > point1)
+    if renewFirst
+        candidateEpoch := candidateEpoch + 1
+        retiredStatus := "Новая точка 1 · Без входа"
+        point1 := direction == -1 ? low[1] : high[1]
+        point1Bar := firstPivotBar
+        point1Time := firstPivotTime
+        point2 := na
+        point2Time := na
+        point3 := na
+        partialRetest := false
+        fibReanchored := false
+        skippedSecond := na
+        entry := na
+        stop := na
+        stopFibo := na
+        signalBar := na
+        lastExtremeBar := na
+        drawingRight := na
+        positionLeft := na
+        stage := 3
+    else if stage == 2 and firstPivot and firstPivotBar >= breakBar
         point1 := direction == -1 ? low[1] : high[1]
         point1Bar := firstPivotBar
         point1Time := firstPivotTime
@@ -466,6 +494,7 @@ if drawReference and stage >= 4 and stage <= 6 and not na(point1) and not na(poi
 
 bool baseVisible = showFibo and stage >= 5 and stage <= 6 and not na(point2)
 bool planVisible = (stage == 5 or stage == 6) and not na(entry)
+float takePrice = point3 - direction * takeOffset
 bool originLong = direction == 1 and not na(longFloor0)
 float fibBase = originLong ? longFloor0 : fibReanchored ? point2 : point1
 float fibEnd = originLong ? point1 : fibReanchored ? point3 : point2
@@ -476,14 +505,14 @@ if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
 // Ширина — только размер рисунка, не срок действия сценария.
 int positionRight = not na(positionLeft) ? math.max(positionLeft + positionBars * 300000, drawingRight) : na
 if drawReference and showPosition and planVisible and not na(positionLeft)
-    string rrCaption = stopOffset == 0 ? "R:R 1:1" : "R:R 1:" + str.tostring(math.abs(point3 - entry) / math.abs(stop - entry), "#.###")
-    rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, point3, color.teal, rrCaption)
+    string rrCaption = stopOffset == 0 and takeOffset == 0 ? "R:R 1:1" : "R:R 1:" + str.tostring(math.abs(takePrice - entry) / math.abs(stop - entry), "#.###")
+    rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, takePrice, color.teal, rrCaption)
     riskZone := updateZone(riskZone, positionLeft, positionRight, entry, stop, color.red, "")
     entryPriceLabel := updatePriceLabel(entryPriceLabel, positionRight, entry, "Вход: " + str.tostring(entry, "#.##"), color.blue)
     // Плюс отмечает только подтверждённый исход после входа. Неизвестный
     // порядок TP/SL и незавершённый план не получают отметку результата.
     stopPriceLabel := updatePriceLabel(stopPriceLabel, positionRight, stop, "Стоп: " + str.tostring(stop, "#.##") + (stage == 6 and outcome == -1 ? " +" : ""), color.red)
-    targetPriceLabel := updatePriceLabel(targetPriceLabel, positionRight, point3, "Цель: " + str.tostring(point3, "#.##") + (stage == 6 and outcome == 1 ? " +" : ""), color.teal)
+    targetPriceLabel := updatePriceLabel(targetPriceLabel, positionRight, takePrice, "Цель: " + str.tostring(takePrice, "#.##") + (stage == 6 and outcome == 1 ? " +" : ""), color.teal)
 else if drawReference and (stage == 7 or stage == 0) and not na(entryPriceLabel)
     // Сохраняем неисполненный сетап для разбора, не приписывая ему вход.
     string status = stage == 7 ? "Отмена · Без входа" : not tradingDay ? "Выходной · Без входа" : "Истёк · Без входа"
@@ -500,7 +529,7 @@ if drawReference and stage >= 4 and stage <= 6
         int levelRight = showPosition ? positionRight : drawingRight
         entryLine := updateLevel(entryLine, point1Time, levelRight, entry, color.blue, 2)
         stopLine := updateLevel(stopLine, point1Time, levelRight, stop, color.red, 2)
-        targetLine := updateLevel(targetLine, point1Time, levelRight, point3, color.teal, 2)
+        targetLine := updateLevel(targetLine, point1Time, levelRight, takePrice, color.teal, 2)
 
 // Новый диапазон публикуется в конце последней закрытой M5-свечи часа.
 // До этого нельзя использовать high/low часовой свечи для сигналов.
@@ -571,10 +600,10 @@ previousQuote := close
 // игнорирует режим отображения, эти серии не нарисуют диагонали.
 plot(shortEvent ? eventEntry : planVisible and direction == -1 ? entry : na, "SHORT Entry", color=color.new(color.white, 100), display=display.none)
 plot(shortEvent ? eventStop : planVisible and direction == -1 ? stop : na, "SHORT Stop", color=color.new(color.white, 100), display=display.none)
-plot(shortEvent ? eventTarget : planVisible and direction == -1 ? point3 : na, "SHORT Target", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventTarget : planVisible and direction == -1 ? takePrice : na, "SHORT Target", color=color.new(color.white, 100), display=display.none)
 plot(longEvent ? eventEntry : planVisible and direction == 1 ? entry : na, "LONG Entry", color=color.new(color.white, 100), display=display.none)
 plot(longEvent ? eventStop : planVisible and direction == 1 ? stop : na, "LONG Stop", color=color.new(color.white, 100), display=display.none)
-plot(longEvent ? eventTarget : planVisible and direction == 1 ? point3 : na, "LONG Target", color=color.new(color.white, 100), display=display.none)
+plot(longEvent ? eventTarget : planVisible and direction == 1 ? takePrice : na, "LONG Target", color=color.new(color.white, 100), display=display.none)
 plot(stage, "Stage", color=color.new(color.white, 100), display=display.data_window)
 plot(direction, "Direction", color=color.new(color.white, 100), display=display.data_window)
 plot(h1High, "H1 High", color=color.new(color.white, 100), display=display.data_window)
@@ -585,5 +614,7 @@ plot(longFloor0, "LONG Floor 0", color=color.new(color.white, 100), display=disp
 plot(outcome, "Outcome", color=color.new(color.white, 100), display=display.data_window)
 plot(showMarks and ((shortEvent and eventDraw) or (drawReference and direction == -1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "SHORT", color=color.new(color.white, 100), display=display.none)
 plot(showMarks and ((longEvent and eventDraw) or (drawReference and direction == 1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "LONG", color=color.new(color.white, 100), display=display.none)
-alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}} | R:R 1:1')
-alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}} | R:R 1:1')
+alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}}')
+alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}}')
+
+plot(shortEvent or longEvent ? eventSwingTarget : planVisible ? point3 : na, "Swing Target", color=color.new(color.white, 100), display=display.none)
