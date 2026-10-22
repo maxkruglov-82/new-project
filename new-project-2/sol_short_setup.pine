@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v7", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v8", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -335,8 +335,10 @@ if drawReference and showPosition and planVisible and not na(positionLeft)
     rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, point3, color.teal, "R:R 1:1")
     riskZone := updateZone(riskZone, positionLeft, positionRight, entry, stop, color.red, "")
     entryPriceLabel := updatePriceLabel(entryPriceLabel, positionRight, entry, "Вход: " + str.tostring(entry, "#.##"), color.blue)
-    stopPriceLabel := updatePriceLabel(stopPriceLabel, positionRight, stop, "Стоп: " + str.tostring(stop, "#.##"), color.red)
-    targetPriceLabel := updatePriceLabel(targetPriceLabel, positionRight, point3, "Цель: " + str.tostring(point3, "#.##"), color.teal)
+    // Плюс отмечает только подтверждённый исход после входа. Неизвестный
+    // порядок TP/SL и незавершённый план не получают отметку результата.
+    stopPriceLabel := updatePriceLabel(stopPriceLabel, positionRight, stop, "Стоп: " + str.tostring(stop, "#.##") + (stage == 6 and outcome == -1 ? " +" : ""), color.red)
+    targetPriceLabel := updatePriceLabel(targetPriceLabel, positionRight, point3, "Цель: " + str.tostring(point3, "#.##") + (stage == 6 and outcome == 1 ? " +" : ""), color.teal)
 else if drawReference and (stage == 7 or stage == 0) and not na(entryPriceLabel)
     // Сохраняем неисполненный сетап для разбора, не приписывая ему вход.
     string status = stage == 7 ? "Отмена · Без входа" : "Истёк · Без входа"

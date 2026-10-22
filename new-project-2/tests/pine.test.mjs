@@ -451,11 +451,11 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(risk.left, reward.left);
     assert.equal(risk.right, reward.right);
     assert.deepEqual(priceLabels(ctx).map(l => [l.text, l.y]),
-      [[`Вход: ${entry}`, entry], [`Стоп: ${stop}`, stop], [`Цель: ${target}`, target]]);
+      [[`Вход: ${entry}`, entry], [`Стоп: ${stop}`, stop], [`Цель: ${target} +`, target]]);
     assert.ok(priceLabels(ctx).every(l => l.x === reward.right));
   });
 
-  test(`${side}: зоны и подписи следуют за экстремумом, затем замораживаются`, async () => {
+  test(`${side}: зоны и цены замораживаются, достигнутая цель получает плюс`, async () => {
     const data = complete();
     data[18] = candle(18, 100, 102, 98.5, 101);
     data[19] = candle(19, 101, 102, 99, 101.8);
@@ -467,7 +467,10 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(reward.bottom, Math.min(entry, target));
     assert.deepEqual(positionZones(after).map(z => [z.left, z.top, z.right, z.bottom]),
       positionZones(waiting).map(z => [z.left, z.top, z.right, z.bottom]));
-    assert.deepEqual(priceLabels(after).map(l => [l.y, l.text]), priceLabels(waiting).map(l => [l.y, l.text]));
+    assert.deepEqual(priceLabels(after).map(l => [l.y, l.text.replace(/ \+$/, '')]), priceLabels(waiting).map(l => [l.y, l.text]));
+    assert.equal(priceLabels(waiting).filter(l => l.text.endsWith(' +')).length, 0);
+    assert.ok(priceLabels(after).some(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')));
+    assert.ok(priceLabels(after).filter(l => l.text.startsWith('Стоп:')).every(l => !l.text.endsWith(' +')));
   });
 
   test(`${side}: отмена сохраняет разметку с пометкой Без входа, сигнала нет`, async () => {
@@ -515,6 +518,7 @@ test('новая H1 сохраняет старые зоны и подписи, 
   const reset = await run([...complete(), ...next.slice(0, 12)]);
   assert.equal(positionZones(reset).length, 2);
   assert.equal(priceLabels(reset).length, 3);
+  assert.equal(priceLabels(reset).filter(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')).length, 1);
   const ctx = await run([...complete(), ...mirror(next)]);
   assert.equal(positionZones(ctx).length, 4);
   assert.equal(priceLabels(ctx).length, 6);
@@ -733,6 +737,9 @@ for (const side of ['SHORT', 'LONG']) {
     assert.deepEqual(lines(ctx).filter(l => l.width === 2).map(l => l.y1),
       side === 'SHORT' ? [102, 105, 99, 102, 105, 99] : [105, 102, 108, 105, 102, 108]);
     assert.equal(values(ctx, 'Outcome').at(-1), 1);
+    // Плюс у прежнего стопа переживает сброс состояния и новую попытку.
+    assert.equal(priceLabels(ctx).filter(l => l.text.startsWith('Стоп:') && l.text.endsWith(' +')).length, 1);
+    assert.equal(priceLabels(ctx).filter(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')).length, 1);
   });
 
   test(`${side}: активный вход ждёт своего TP/SL, пробой H1 не создаёт параллельный вход`, async () => {
@@ -767,6 +774,7 @@ for (const side of ['SHORT', 'LONG']) {
     const ctx = await run(transform(data));
     assert.equal(values(ctx, 'Outcome')[20], 2);
     assert.equal(values(ctx, 'Outcome').at(-1), 2);
+    assert.ok(priceLabels(ctx).every(l => !l.text.endsWith(' +')));
     assert.equal(signalCount(ctx, side), 1);
     assert.equal(signalCount(ctx, opposite), 0);
     assert.equal(lines(ctx).length, 8);
@@ -875,6 +883,8 @@ for (const side of ['SHORT', 'LONG']) {
       tail = { ...tail, close: p, high: Math.max(tail.high, p), low: Math.min(tail.low, p), closeTime: Date.now() + step };
       await engine.updateTail(ctx);
       assert.equal(ctx.plots.Outcome.data.at(-1).value, outcome);
+      assert.equal(priceLabels(ctx).filter(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')).length, outcome === 1 ? 1 : 0);
+      assert.ok(priceLabels(ctx).filter(l => l.text.startsWith('Стоп:')).every(l => !l.text.endsWith(' +')));
       assert.equal(lines(ctx).length, 8);
       assert.equal(positionZones(ctx).length, 2);
     }
