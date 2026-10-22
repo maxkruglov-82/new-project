@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v11", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v12", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -303,6 +303,21 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
                 stage := 4
     else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
         point2 := direction == -1 ? high[1] : low[1]
+
+// Свеча подтверждения P2 уже может обновить P1. Сохраняем этот экстремум
+// как P3 после подтверждения, иначе следующий бар потеряет совершённый пробой.
+// Вход на этой свече задним числом не создаём: ретест проверяется выше,
+// а новый план становится доступен только после закрытия подтверждающей M5.
+if stage == 4 and barstate.isconfirmed and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
+    stop := point1 + 1.25 * (point2 - point1)
+    if direction == -1 and stop > h1High
+        stage := 7
+    else
+        point3 := direction == -1 ? low : high
+        entry := (stop + point3) / 2.0
+        lastExtremeBar := bar_index
+        positionLeft := time
+        stage := 5
 
 // Смена кандидата не двигает старые объекты. Обычный var откатывается
 // на каждом тике; сравнение с varip epoch повторяет этот шаг после отката.

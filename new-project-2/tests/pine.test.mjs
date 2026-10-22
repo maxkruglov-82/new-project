@@ -1230,3 +1230,27 @@ test('«0» требует сформированного шортового д�
   assert.equal(values(ctx, 'Direction')[15], 1);
   assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[15]));
 });
+
+for (const side of ['LONG', 'SHORT']) {
+  test(`${side}: пробой P1 на свече подтверждения P2 не теряется (MEXC 27 августа)`, async () => {
+    const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+    const from = Date.parse('2026-08-27T14:00:00+07:00');
+    const until = Date.parse('2026-08-27T17:00:00+07:00');
+    let data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+      .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+        open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+    if (side === 'SHORT') data = mirror(data);
+    const ctx = await run(data);
+    const at = time => (Date.parse(`2026-08-27T${time}:00+07:00`) - from) / step;
+    const price = n => side === 'LONG' ? n : 207 - n;
+    assert.equal(values(ctx, 'Stage')[at('15:45')], 5);
+    assert.equal(values(ctx, side)[at('15:45')], 0); // Не приписываем ретест задним числом.
+    assert.equal(values(ctx, side)[at('16:00')], 1);
+    assert.equal(signalCount(ctx, side), 1);
+    assert.ok(Math.abs(values(ctx, `${side} Entry`)[at('16:00')] - price(104.2875)) < 1e-9);
+    assert.ok(Math.abs(values(ctx, `${side} Stop`)[at('16:00')] - price(103.485)) < 1e-9);
+    assert.ok(Math.abs(values(ctx, `${side} Target`)[at('16:00')] - price(105.09)) < 1e-9);
+    assert.equal(values(ctx, 'Outcome')[at('16:20')], 1);
+    assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')));
+  });
+}
