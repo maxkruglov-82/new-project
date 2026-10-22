@@ -1518,12 +1518,12 @@ for (const side of ['SHORT', 'LONG']) {
     assert.ok(Math.abs(values(ctx, `${side} Stop`)[20]-reflect(105.625))<1e-9);
     assert.ok(Math.abs(values(ctx, `${side} Entry`)[20]-reflect(102.3125))<1e-9);
   });
-  test(`${side}: плато противоположного свинга, начавшееся сразу после P1, остаётся соседним`, async () => {
+  test(`${side}: общая вершина плато относится к последней свече, а не к первой`, async () => {
     const prefix = [...adjacentPairPrefix().slice(0, 15), candle(15, 103, 104, 100.8, 103),
       candle(16, 103, 103, 101, 102)];
     const before = await run(transform(prefix));
-    assert.equal(values(before, 'Stage')[16], 3);
-    assert.equal(before.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
+    assert.equal(values(before, 'Stage')[16], 4);
+    assert.equal(before.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 1);
     const ctx = await run(transform([...prefix, candle(17, 102, 104.5, 101.5, 104),
       candle(18, 104, 104, 101.6, 103), candle(19, 103, 103.5, 99, 100)]));
     const range = ctx.plots.__boxes__.data[0].value.find(b => b.border_style === 'style_dotted');
@@ -1551,4 +1551,52 @@ test('MEXC 1 сентября: сохраняем самый нижний P1 101
   assert.ok(Math.abs(values(ctx,'SHORT Entry')[at('19:45')]-102.1525)<1e-9);
   assert.ok(Math.abs(values(ctx,'SHORT Stop')[at('19:45')]-102.945)<1e-9);
   assert.equal(values(ctx,'SHORT Target')[at('19:45')],101.39);
+});
+
+test('MEXC 22 октября: после пропущенного high более низкий откат не превращает новый P1 в P3', async () => {
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-10-22-case.json',import.meta.url)));
+  const data=raw.candles.map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,
+    open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const ctx=await runDefault(data);
+  assert.equal(signalCount(ctx),0);
+  assert.ok(!labels(ctx).some(l=>l.text==='SHORT'));
+  assert.equal(values(ctx,'Outcome').filter(v=>v===-1).length,0);
+});
+
+for(const side of ['SHORT','LONG']){
+  const transform=d=>side==='SHORT'?d:mirror(d);
+  const price=p=>side==='SHORT'?p:207-p;
+  test(`${side}: после соседнего противоположного свинга более слабая вершина не подтверждает P2`,async()=>{
+    const prefix=[...adjacentPairPrefix(), candle(16,102,102.5,101,102.3),
+      candle(17,102.3,103.5,101.1,103), candle(18,103,103,101.2,102),
+      candle(19,102,102.5,99,100), candle(20,100,103,99.5,102)];
+    const before=await run(transform(prefix));
+    assert.equal(values(before,'Stage')[18],3);
+    assert.equal(values(before,'Stage')[20],3);
+    assert.equal(signalCount(before,side),0);
+    const ctx=await run(transform([...prefix,candle(21,102,104,100,103),
+      candle(22,103,103.5,100.5,102),candle(23,102,103,98,99),candle(24,99,101.8,98.5,101.7)]));
+    assert.equal(values(ctx,'Stage')[22],4);
+    const range=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted');
+    assert.equal(range.left,start+19*step);
+    assert.equal(side==='SHORT'?range.bottom:range.top,price(99));
+  });
+}
+
+test('MEXC 22 октября: новый P1 в 16:10, общая вершина P2 в 16:20, без SHORT',async()=>{
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-10-22-case.json',import.meta.url)));
+  const until=Date.parse('2026-10-22T16:30:00+07:00');
+  const data=raw.candles.filter(b=>b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,
+    open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const ctx=await runDefault(data);
+  const at=t=>(Date.parse(`2026-10-22T${t}:00+07:00`)-data[0].openTime)/step;
+  assert.equal(values(ctx,'Stage')[at('15:55')],3);
+  assert.equal(values(ctx,'Stage')[at('16:15')],3);
+  assert.equal(values(ctx,'Stage')[at('16:20')],3);
+  assert.equal(values(ctx,'Stage')[at('16:25')],4);
+  assert.equal(signalCount(ctx),0);
+  const range=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted');
+  assert.equal(range.left,Date.parse('2026-10-22T16:10:00+07:00'));
+  assert.equal(range.bottom,103.48);
+  assert.equal(range.top,103.99);
 });
