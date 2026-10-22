@@ -788,7 +788,7 @@ for (const side of ['SHORT', 'LONG']) {
   });
 }
 
-test('двойная смена приоритета SHORT → LONG → SHORT до входа', async () => {
+test('SHORT → LONG: третье переключение не меняет второй приоритет', async () => {
   const data = [...hour(), ...structure(),
     candle(17, 103, 107, 102, 106.5), candle(18, 106.5, 108, 104, 107),
     candle(19, 107, 107.5, 103, 104), candle(20, 104, 104.5, 100, 101),
@@ -799,11 +799,11 @@ test('двойная смена приоритета SHORT → LONG → SHORT д
   const ctx = await run(data);
   assert.equal(values(ctx, 'Direction')[17], 1);
   assert.equal(values(ctx, 'Direction')[20], 1); // Low=100 равен «0»: LONG ещё допустим.
-  assert.equal(values(ctx, 'Direction')[21], -1); // Только low=99 пробивает «0».
+  assert.equal(values(ctx, 'Direction')[21], 1); // Пробой «0» сбрасывает структуру, сохраняя второй LONG.
   assert.equal(values(ctx, 'Stage')[21], 2);
-  assert.equal(signalCount(ctx), 1);
+  assert.equal(signalCount(ctx), 0);
   assert.equal(signalCount(ctx, 'LONG'), 0);
-  assert.equal(values(ctx, 'SHORT Entry')[27], 101.625);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[21]));
 });
 
 test('смена стороны архивирует старый ожидающий план целиком, не подменяя его цены', async () => {
@@ -861,7 +861,7 @@ for (const side of ['SHORT', 'LONG']) {
     const engine = new PineTS(provider, 'SOLUSDT', '5');
     const ctx = await engine.run(zeroOffset());
     const last = name => ctx.plots[name].data.at(-1).value;
-    for (const [quote, direction] of [[107, 1], [105, 1], [100, -1], [102, -1]]) {
+    for (const [quote, direction] of [[107, 1], [105, 1], [100, 1], [102, 1]]) {
       const p = reflect(quote);
       tail = { ...tail, close: p, high: Math.max(tail.high, p), low: Math.min(tail.low, p), closeTime: Date.now() + step };
       await engine.updateTail(ctx);
@@ -1090,7 +1090,7 @@ test('разворот не подтвердившегося SHORT: LONG P2 ни
   assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')));
 });
 
-test('LONG: равенство P2 шортовому «0» допустимо, строгое обновление отменяет приоритет', async () => {
+test('LONG: равенство P2 шортовому «0» допустимо, строгое обновление сбрасывает структуру без третьего приоритета', async () => {
   for (const low of [100, 99.9]) {
     const data = unbrokenShortToLong().slice(0, 22);
     data[20] = candle(20, 104, 105, low, 102);
@@ -1100,7 +1100,7 @@ test('LONG: равенство P2 шортовому «0» допустимо, �
       assert.equal(values(ctx, 'Stage')[21], 4);
       assert.equal(values(ctx, 'LONG Floor 0')[21], 100);
     } else {
-      assert.equal(values(ctx, 'Direction')[20], -1);
+      assert.equal(values(ctx, 'Direction')[20], 1);
       assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[20]));
       assert.equal(signalCount(ctx, 'LONG'), 0);
     }
@@ -1123,7 +1123,7 @@ test('LONG: пробой «0» на ретесте отменяет вход, к
   const data = unbrokenShortToLong().slice(0, 24);
   data[23] = candle(23, 105, 105.5, 99.9, 100.5);
   const ctx = await run(data);
-  assert.equal(values(ctx, 'Direction')[23], -1);
+  assert.equal(values(ctx, 'Direction')[23], 1);
   assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[23]));
   assert.equal(signalCount(ctx, 'LONG'), 0);
 });
@@ -1137,7 +1137,8 @@ test('LONG: после входа живёт до TP/SL, после стопа �
   assert.equal(values(ctx, 'Stage')[25], 6);
   assert.equal(values(ctx, 'Outcome')[25], 0);
   assert.equal(values(ctx, 'Outcome')[26], -1);
-  assert.equal(values(ctx, 'Stage')[27], 1);
+  assert.equal(values(ctx, 'Stage')[27], 2);
+  assert.equal(values(ctx, 'Direction')[27], 1);
   assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[27]));
 });
 
@@ -1154,11 +1155,11 @@ test('если SHORT уже сформировал P3, последующий LO
     candle(21, 104, 105, 100.5, 102)];
   const ctx = await run(data);
   assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[18]));
-  assert.equal(values(ctx, 'Direction')[21], -1);
+  assert.equal(values(ctx, 'Direction')[21], 1);
   assert.equal(signalCount(ctx, 'LONG'), 0);
 });
 
-test('живой LONG: возврат под H1 сохраняет приоритет до строгого пробоя «0»', async () => {
+test('живой LONG: возврат под H1 пробой «0» сбрасывает структуру, но сохраняет второй приоритет', async () => {
   const data = [...unbrokenShortToLong().slice(0, 20), candle(20, 104, 105, 102, 103)];
   let tail = { ...data.at(-1) };
   const provider = {
@@ -1179,7 +1180,7 @@ test('живой LONG: возврат под H1 сохраняет приори�
   // Отдельная котировка пробоя не пришла, но новая тень уже нарушила «0».
   tail = { ...tail, close: 102, low: 99.9, closeTime: Date.now() + step };
   await engine.updateTail(ctx);
-  assert.equal(ctx.plots.Direction.data.at(-1).value, -1);
+  assert.equal(ctx.plots.Direction.data.at(-1).value, 1);
   assert.ok(Number.isNaN(ctx.plots['LONG Floor 0'].data.at(-1).value));
   assert.equal(ctx.alerts.length, 0);
 });
@@ -1600,3 +1601,49 @@ test('MEXC 22 октября: новый P1 в 16:10, общая вершина 
   assert.equal(range.bottom,103.48);
   assert.equal(range.top,103.99);
 });
+
+for (const side of ['SHORT']) {
+  test(`${side}: MEXC 16 октября — второй приоритет, P1 105.71, P2 107.36; вход только после P3`, async () => {
+    const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
+    const from=Date.parse('2026-10-16T14:00:00+07:00');
+    const until=Date.parse('2026-10-16T23:00:00+07:00');
+    let data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,
+      open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+    if(side==='LONG') data=mirror(data);
+    const ctx=await runDefault(data);
+    const at=t=>(Date.parse(`2026-10-16T${t}:00+07:00`)-from)/step;
+    const direction=side==='SHORT'?-1:1;
+    assert.equal(values(ctx,'Direction')[at('15:05')],-direction);
+    for(const t of ['17:15','18:15','19:40','19:45','21:20']) assert.equal(values(ctx,'Direction')[at(t)],direction);
+    assert.equal(values(ctx,'Stage')[at('19:40')],4);
+    assert.equal(values(ctx,'Stage')[at('19:45')],5);
+    assert.equal(values(ctx,side)[at('19:45')],0);
+    assert.equal(values(ctx,side)[at('21:20')],1);
+    const reflect=p=>side==='SHORT'?p:207-p;
+    assert.ok(Math.abs(values(ctx,`${side} Stop`)[at('19:45')]-reflect(107.8025))<1e-9);
+    assert.ok(Math.abs(values(ctx,`${side} Target`)[at('19:45')]-reflect(105.67))<1e-9);
+    const range=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted'&&b.left===Date.parse('2026-10-16T17:10:00+07:00'));
+    assert.ok(range);
+    assert.equal(side==='SHORT'?range.bottom:range.top,reflect(105.71));
+    assert.equal(side==='SHORT'?range.top:range.bottom,reflect(107.36));
+  });
+}
+
+for(const side of ['SHORT','LONG']) {
+  test(`${side}: вторая сторона сохраняется после повторных пробоев H1 и сбрасывается новой H1`,async()=>{
+    const data=[...hour(),...structure(),candle(17,103,107,102,106.5),
+      candle(18,106.5,108,104,107),candle(19,107,107.5,103,104),
+      candle(20,104,104.5,100,101),candle(21,101,102,99,100),
+      candle(22,100,109,99.5,108),candle(23,108,108.5,98,100)];
+    const next=complete().map(b=>({...b,openTime:b.openTime+86400000,closeTime:b.closeTime+86400000}));
+    const transform=d=>side==='LONG'?d:mirror(d);
+    const ctx=await run(transform([...data,...next]));
+    const dir=side==='LONG'?1:-1;
+    assert.equal(values(ctx,'Direction')[12],-dir);
+    for(const i of [17,18,20,21,22,23]) assert.equal(values(ctx,'Direction')[i],dir);
+    assert.equal(values(ctx,'Stage')[data.length+11],1);
+    assert.equal(values(ctx,'Direction')[data.length+11],0);
+    assert.equal(values(ctx,'Direction')[data.length+12],-dir);
+    assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),1);
+  });
+}

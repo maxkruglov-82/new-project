@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v18", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v19", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -68,6 +68,9 @@ if barstate.isfirst and timeframe.period != "5"
 varip int stage = 0
 // -1 SHORT, +1 LONG, 0 направление пока не определено.
 varip int direction = 0
+// Первая смена фиксирует второй приоритет до следующей опорной H1.
+varip int lockedDirection = 0
+varip int firstDirection = 0
 varip bool drawReference = false
 varip float h1High = na
 varip float h1Low = na
@@ -181,11 +184,11 @@ bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < 
 if retry
     candidateEpoch := candidateEpoch + 1
     retiredStatus := ""
-    stage := 1
-    direction := 0
+    stage := lockedDirection == 0 ? 1 : 2
+    direction := lockedDirection
     outcome := 0
     outcomeBar := na
-    breakBar := na
+    breakBar := lockedDirection == 0 ? na : bar_index
     point1 := na
     point1Bar := na
     point1Time := na
@@ -221,20 +224,27 @@ if stage >= 1 and stage <= 5
                 stage := 7
             else if below or above
                 direction := below ? -1 : 1
+                if firstDirection == 0
+                    firstDirection := direction
+                else if direction != firstDirection
+                    lockedDirection := direction
                 stage := 2
                 breakBar := bar_index
 
         // В обычном LONG граница отмены — low H1. После разворота SHORT,
         // не обновившего первый low, допускается откат до сохранённого «0».
         bool longInvalid = na(longFloor0) ? below : low < longFloor0
-        if stage >= 2 and stage <= 5 and ((direction == -1 and above) or (direction == 1 and longInvalid))
+        // Пробой сохранённого «0» отменяет структуру LONG, но не второй приоритет.
+        bool brokenLongOrigin = lockedDirection == 1 and not na(longFloor0) and low < longFloor0
+        if stage >= 2 and stage <= 5 and ((lockedDirection == 0 and ((direction == -1 and above) or (direction == 1 and longInvalid))) or brokenLongOrigin)
             bool unbrokenShort = direction == -1 and stage >= 3 and stage <= 4 and not na(point1) and low >= point1
             longFloor0 := unbrokenShort ? point1 : na
             longFloorTime := unbrokenShort ? point1Time : na
             skippedSecond := na
             candidateEpoch := candidateEpoch + 1
             retiredStatus := "Отмена · Без входа"
-            direction := direction == -1 ? 1 : -1
+            direction := lockedDirection == 0 ? -direction : lockedDirection
+            lockedDirection := direction
             stage := below and above and na(longFloor0) ? 7 : 2
             breakBar := bar_index
             point1 := na
@@ -259,8 +269,9 @@ if stage >= 1 and stage <= 5
             stop := stopFibo - direction * stopOffset
             // Для LONG стоп может лежать ниже low H1 (пример пользователя).
             // Отменяет LONG фактический пробой low H1 ценой, а не сам стоп.
-            // Прежний отдельно согласованный фильтр SHORT сохраняется.
-            if direction == -1 and stopFibo > h1High
+            // Для первого приоритета фильтр SHORT сохраняется.
+            // Второй фиксирован: его P2 и стоп могут быть выше H1.
+            if lockedDirection == 0 and direction == -1 and stopFibo > h1High
                 stage := 7
             else
                 point3 := direction == -1 ? low : high
@@ -285,7 +296,7 @@ if stage >= 1 and stage <= 5
                 entry := (stopFibo + point3) / 2.0
                 lastExtremeBar := bar_index
                 // Прежний отдельный фильтр стопа SHORT сохраняется.
-                if direction == -1 and stopFibo > h1High
+                if lockedDirection == 0 and direction == -1 and stopFibo > h1High
                     stage := 7
 
             // Текущая цена позволяет отличить ретест от high/low,
@@ -381,7 +392,7 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
 if stage == 4 and barstate.isconfirmed and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
     stopFibo := direction == 1 and not na(longFloor0) ? longFloor0 - 0.25 * (point1 - longFloor0) : point1 + 1.25 * (point2 - point1)
     stop := stopFibo - direction * stopOffset
-    if direction == -1 and stopFibo > h1High
+    if lockedDirection == 0 and direction == -1 and stopFibo > h1High
         stage := 7
     else
         point3 := direction == -1 ? low : high
@@ -520,6 +531,8 @@ if barstate.isconfirmed and hh == 14
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
         stage := skipWeekends and barIsWeekend ? 0 : 1
         direction := 0
+        lockedDirection := 0
+        firstDirection := 0
         int referenceClose = timestamp(tz, yy, mm, dd, 15, 0)
         drawReference := referenceClose >= historyStart and referenceClose <= historyEnd and (not skipWeekends or not barIsWeekend)
         breakBar := na
