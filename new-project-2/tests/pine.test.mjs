@@ -291,8 +291,6 @@ const longCases = [
     data[18] = candle(18, 100, 106.1, 99.4, 101);
     return data;
   }, 7],
-  ['стоп ниже минимума H1 отбраковывает план', () =>
-    [...hour(104.5), ...complete().slice(12)], 7],
   ['равенство high H1 не является первым выходом', () =>
     [...hour(), candle(12, 102, 103, 101, 102)], 1],
   ['равенство первому high не является точкой 3', () =>
@@ -331,6 +329,79 @@ test('выход вверх и вниз на первой историческо
   assert.equal(values(ctx, 'Direction')[12], 0);
   assert.equal(signalCount(ctx), 0);
   assert.equal(signalCount(ctx, 'LONG'), 0);
+});
+
+test('LONG разрешён со стопом ниже low H1, пока сама цена не пробила low H1', async () => {
+  const ctx = await run(mirror([...hour(104.5), ...complete().slice(12)]));
+  assert.equal(values(ctx, 'H1 Low')[19], 102.5);
+  assert.equal(values(ctx, 'LONG Stop')[19], 102);
+  assert.equal(values(ctx, 'LONG Entry')[19], 105);
+  assert.equal(values(ctx, 'Stage')[19], 6);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+});
+
+function annotatedLongExample() {
+  return [
+    ...Array.from({ length: 12 }, (_, i) => candle(i, 106, 106.95, 105.9, 106.8)),
+    candle(12, 106.8, 107.1, 106.6, 107),
+    candle(13, 107, 107.25, 106.5, 107.1),
+    candle(14, 107.1, 107.1, 106.55, 106.8),
+    candle(15, 106.8, 106.95, 106.45, 106.6),
+    candle(16, 106.6, 106.85, 106.55, 106.7),
+    candle(17, 106.7, 106.9, 105.95, 106.3),
+    candle(18, 106.3, 107, 106.1, 106.7),
+    candle(19, 106.7, 107.71, 106.6, 107.4),
+    candle(20, 107.4, 107.6, 106.9, 107.1),
+    candle(21, 107.1, 107.5, 106.65, 106.9),
+  ];
+}
+
+test('пример пользователя: две точки 2, Фибо после точки 3, вход около 106.67', async () => {
+  // Это синтетические OHLC с приближенными уровнями скриншота, не история биржи.
+  const ctx = await run(annotatedLongExample());
+  assert.equal(values(ctx, 'Stage')[16], 4);
+  assert.equal(values(ctx, 'Stage')[18], 4);
+  assert.equal(values(ctx, 'Stage')[19], 5);
+  assert.equal(values(ctx, 'Stage')[21], 6);
+  assert.equal(values(ctx, 'H1 Low')[21], 105.9);
+  assert.ok(Math.abs(values(ctx, 'LONG Stop')[21] - 105.625) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Entry')[21] - 106.6675) < 1e-9);
+  assert.equal(values(ctx, 'LONG Target')[21], 107.71);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  const box = ctx.plots.__boxes__.data[0].value.find(b => b.border_style === 'style_dotted');
+  assert.equal(box.top, 107.25);
+  assert.equal(box.bottom, 105.95);
+  // При нашей ориентации нижняя красная линия — 1.25, не верхнее −0.25.
+  const redFibo = lines(ctx).filter(l => l.width === 1 && l.color === '#F23645').map(l => l.y1);
+  assert.ok(redFibo.some(y => Math.abs(y - 105.625) < 1e-9));
+  assert.ok(redFibo.some(y => Math.abs(y - 107.575) < 1e-9));
+});
+
+test('обновление точки 2 отменяет LONG только при фактическом пробое нижней H1', async () => {
+  const data = annotatedLongExample();
+  data[17] = { ...data[17], low: 105.89 };
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Stage')[17], 7);
+  assert.equal(signalCount(ctx, 'LONG'), 0);
+  assert.equal(signalCount(ctx), 0);
+});
+
+test('равенство второй точки low H1 не является его обновлением, стоп может лежать ниже', async () => {
+  const data = annotatedLongExample();
+  data[17] = { ...data[17], low: 105.9 };
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Stage').at(-1), 5);
+  assert.ok(values(ctx, 'LONG Stop').at(-1) < 105.9);
+  assert.equal(signalCount(ctx, 'LONG'), 0);
+});
+
+test('после первых двух точек виден только диапазон M5; Фибо и план ждут точки 3', async () => {
+  for (const data of [complete().slice(0, 17), mirror(complete().slice(0, 17))]) {
+    const ctx = await run(data);
+    assert.equal(values(ctx, 'Stage')[16], 4);
+    assert.equal(lines(ctx).length, 0);
+    assert.equal(ctx.plots.__boxes__.data[0].value.length, 2);
+  }
 });
 
 test('направление выхода не зависит от цвета опорной H1', async () => {

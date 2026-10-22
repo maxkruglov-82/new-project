@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v3", overlay=true, max_boxes_count=20, max_labels_count=100, max_lines_count=20)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v4", overlay=true, max_boxes_count=20, max_labels_count=100, max_lines_count=20)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -105,7 +105,10 @@ if stage >= 1 and stage <= 5
         // Вторую точку замораживаем в момент обновления первой.
         if stage == 4 and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
             stop := point1 + 1.25 * (point2 - point1)
-            if (direction == -1 and stop > h1High) or (direction == 1 and stop < h1Low)
+            // Для LONG стоп может лежать ниже low H1 (пример пользователя).
+            // Отменяет LONG фактический пробой low H1 ценой, а не сам стоп.
+            // Прежний отдельно согласованный фильтр SHORT сохраняется.
+            if direction == -1 and stop > h1High
                 stage := 7
             else
                 point3 := direction == -1 ? low : high
@@ -237,7 +240,7 @@ if barstate.isconfirmed and hh == 14
 
 previousQuote := close
 
-bool baseVisible = showFibo and stage >= 4 and stage <= 6 and not na(point2)
+bool baseVisible = showFibo and stage >= 5 and stage <= 6 and not na(point2)
 bool planVisible = (stage == 5 or stage == 6) and not na(entry)
 float span = point2 - point1
 if stage >= 4 and stage <= 6
