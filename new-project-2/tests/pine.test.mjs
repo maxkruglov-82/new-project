@@ -8,6 +8,7 @@ mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-23T00:00:00Z') });
 // Исполняется сам .pine, а не отдельная копия формул/алгоритма.
 const module = await import(process.env.PINETS_MODULE || 'pinets');
 const PineTS = module.PineTS || module.default;
+const Indicator = module.Indicator || (await import(new URL('./Indicator/Indicator.class.ts', process.env.PINETS_MODULE))).Indicator;
 const source = readFileSync(new URL('../sol_short_setup.pine', import.meta.url), 'utf8');
 
 test('файл для загрузки совпадает с исполняемым исходником', () => {
@@ -47,16 +48,22 @@ function mirror(data) {
   return data.map(b => ({ ...b, open: 207 - b.open, high: 207 - b.low,
     low: 207 - b.high, close: 207 - b.close }));
 }
-async function run(data, timeframe = '5') {
+async function run(data, timeframe = '5', inputs = {}) {
   // PineTS помечает последний бар isrealtime даже в завершённом массиве.
   // Отдельный хвост оставляет все проверяемые свечи историческими.
   const last = data.at(-1);
   const guard = { ...last, openTime: last.openTime + step, closeTime: last.closeTime + step };
-  return new PineTS([...data, guard], 'SOLUSDT', timeframe).run(source);
+  const script = Object.keys(inputs).length ? new Indicator(source, inputs) : source;
+  return new PineTS([...data, guard], 'SOLUSDT', timeframe).run(script);
 }
 function values(ctx, name) { return ctx.plots[name].data.slice(0, -1).map(p => p.value); }
 function signalCount(ctx, side = 'SHORT') { return values(ctx, side).filter(Boolean).length; }
 function lines(ctx) { return ctx.plots.__lines__?.data[0]?.value || []; }
+function positionZones(ctx) {
+  return (ctx.plots.__boxes__?.data[0]?.value || []).filter(b =>
+    typeof b.bgcolor === 'string' && /^#[0-9a-f]{8}$/i.test(b.bgcolor));
+}
+function priceLabels(ctx) { return ctx.plots.__labels__?.data[0]?.value || []; }
 
 test('уровни — восемь горизонтальных отрезков, после сигнала правый край не движется', async () => {
   const ctx = await run(complete());
@@ -65,7 +72,7 @@ test('уровни — восемь горизонтальных отрезко�
   for (const line of segments) {
     assert.equal(line.y1, line.y2);
     assert.equal(line.x1, start + 13 * step);
-    assert.equal(line.x2, complete()[19].closeTime);
+    assert.equal(line.x2, line.width === 2 ? start + (17 + 24) * step : complete()[19].closeTime);
   }
   assert.deepEqual(segments.filter(l => l.width === 2).map(l => l.y1), [102, 105, 99]);
 });
@@ -412,6 +419,112 @@ test('направление выхода не зависит от цвета о
   assert.equal(signalCount(ctx, 'LONG'), 1);
 });
 
+for (const side of ['SHORT', 'LONG']) {
+  const transform = data => side === 'SHORT' ? data : mirror(data);
+  const reflect = price => side === 'SHORT' ? price : 207 - price;
+  test(`${side}: зоны риска и прибыли имеют общую границу входа и равную высоту`, async () => {
+    const ctx = await run(transform(complete()));
+    const zones = positionZones(ctx);
+    assert.equal(zones.length, 2);
+    const reward = zones.find(z => z.text === 'R:R 1:1');
+    const risk = zones.find(z => z !== reward);
+    const entry = reflect(102), stop = reflect(105), target = reflect(99);
+    assert.equal(reward.top, Math.max(entry, target));
+    assert.equal(reward.bottom, Math.min(entry, target));
+    assert.equal(risk.top, Math.max(entry, stop));
+    assert.equal(risk.bottom, Math.min(entry, stop));
+    assert.equal(reward.top - reward.bottom, risk.top - risk.bottom);
+    assert.equal(reward.left, start + 17 * step);
+    assert.equal(reward.right, start + 41 * step);
+    assert.equal(risk.left, reward.left);
+    assert.equal(risk.right, reward.right);
+    assert.deepEqual(priceLabels(ctx).map(l => [l.text, l.y]),
+      [[`Вход: ${entry}`, entry], [`Стоп: ${stop}`, stop], [`Цель: ${target}`, target]]);
+    assert.ok(priceLabels(ctx).every(l => l.x === reward.right));
+  });
+
+  test(`${side}: зоны и подписи следуют за экстремумом, затем замораживаются`, async () => {
+    const data = complete();
+    data[18] = candle(18, 100, 102, 98.5, 101);
+    data[19] = candle(19, 101, 102, 99, 101.8);
+    const waiting = await run(transform(data.slice(0, 19)));
+    const after = await run(transform([...data, candle(60, 100, 104, 95, 97)]));
+    const entry = reflect(101.75), target = reflect(98.5);
+    const reward = positionZones(after).find(z => z.text === 'R:R 1:1');
+    assert.equal(reward.top, Math.max(entry, target));
+    assert.equal(reward.bottom, Math.min(entry, target));
+    assert.deepEqual(positionZones(after).map(z => [z.left, z.top, z.right, z.bottom]),
+      positionZones(waiting).map(z => [z.left, z.top, z.right, z.bottom]));
+    assert.deepEqual(priceLabels(after).map(l => [l.y, l.text]), priceLabels(waiting).map(l => [l.y, l.text]));
+  });
+
+  test(`${side}: отмена до входа удаляет зоны и подписи`, async () => {
+    const data = complete();
+    data[18] = candle(18, 100, 106.1, 99.4, 101);
+    const ctx = await run(transform(data));
+    assert.equal(values(ctx, 'Stage')[18], 7);
+    assert.equal(positionZones(ctx).length, 0);
+    assert.equal(priceLabels(ctx).length, 0);
+  });
+}
+
+test('скрытие зон позиции не меняет расчёт, сигнал и обычные линии', async () => {
+  const ctx = await run(complete(), '5', { 'Показывать зоны позиции': false });
+  assert.equal(positionZones(ctx).length, 0);
+  assert.equal(priceLabels(ctx).length, 0);
+  assert.equal(lines(ctx).length, 8);
+  assert.equal(signalCount(ctx), 1);
+  assert.equal(values(ctx, 'SHORT Entry')[19], 102);
+});
+
+test('настройка ширины меняет только рисунок, а не цены и момент сигнала', async () => {
+  const ctx = await run(mirror(complete()), '5', { 'Ширина позиции (свечей M5)': 36 });
+  assert.equal(positionZones(ctx)[0].right, start + (17 + 36) * step);
+  assert.equal(values(ctx, 'LONG Entry')[19], 105);
+  assert.equal(values(ctx, 'LONG Target')[19], 108);
+  assert.equal(values(ctx, 'Stage')[19], 6);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+});
+
+test('ожидание дольше ширины рисунка продлевает зоны, не отменяя план после 22:00', async () => {
+  const late = candle(96, 100, 101.5, 99.1, 100.5);
+  const ctx = await run([...complete().slice(0, 18), late]);
+  assert.equal(values(ctx, 'Stage').at(-1), 5);
+  assert.equal(positionZones(ctx).length, 2);
+  // Геометрия включает ещё и дополнительный текущий бар тестового провайдера.
+  assert.ok(positionZones(ctx).every(z => z.right === late.closeTime + step));
+  assert.equal(signalCount(ctx), 0);
+});
+
+test('новая H1 удаляет старые зоны; следующий план создаёт только две зоны и три подписи', async () => {
+  const next = complete().map(b => ({ ...b, openTime: b.openTime + 86_400_000, closeTime: b.closeTime + 86_400_000 }));
+  const reset = await run([...complete(), ...next.slice(0, 12)]);
+  assert.equal(positionZones(reset).length, 0);
+  assert.equal(priceLabels(reset).length, 0);
+  const ctx = await run([...complete(), ...mirror(next)]);
+  assert.equal(positionZones(ctx).length, 2);
+  assert.equal(priceLabels(ctx).length, 3);
+  assert.ok(positionZones(ctx).every(z => z.left >= start + 86_400_000));
+});
+
+test('истечение ожидающего плана без новой H1 убирает зоны и подписи', async () => {
+  const ctx = await run([...complete().slice(0, 18), candle(12, 100, 101.5, 99.1, 100.5, 1)]);
+  assert.equal(values(ctx, 'Stage').at(-1), 0);
+  assert.equal(positionZones(ctx).length, 0);
+  assert.equal(priceLabels(ctx).length, 0);
+});
+
+test('разметка LONG по примеру пользователя делит зону на равные риск и прибыль', async () => {
+  const ctx = await run(annotatedLongExample());
+  const reward = positionZones(ctx).find(z => z.text === 'R:R 1:1');
+  const risk = positionZones(ctx).find(z => z !== reward);
+  assert.ok(Math.abs(reward.bottom - 106.6675) < 1e-9);
+  assert.ok(Math.abs(risk.bottom - 105.625) < 1e-9);
+  assert.equal(reward.top, 107.71);
+  assert.ok(Math.abs(reward.top - reward.bottom - (risk.top - risk.bottom)) < 1e-9);
+  assert.ok(priceLabels(ctx).some(l => l.text === 'Вход: 106.67'));
+});
+
 test('новый день может сменить LONG на SHORT, прежние уровни не смешиваются', async () => {
   const next = complete().map(b => ({ ...b, openTime: b.openTime + 86_400_000, closeTime: b.closeTime + 86_400_000 }));
   const ctx = await run([...mirror(complete()), ...next]);
@@ -462,6 +575,11 @@ test(`${side}: обновления открытой M5, новый экстре
     assert.equal(last(`${side} Entry`), reflect(101.5));
     assert.equal(last(`${side} Stop`), reflect(105));
     assert.equal(last(`${side} Target`), reflect(98));
+    const reward = positionZones(ctx).find(z => z.text === 'R:R 1:1');
+    assert.equal(positionZones(ctx).length, 2);
+    assert.equal(priceLabels(ctx).length, 3);
+    assert.equal(reward.top, Math.max(reflect(101.5), reflect(98)));
+    assert.equal(reward.bottom, Math.min(reflect(101.5), reflect(98)));
   }
   assert.equal(ctx.alerts.length, 1);
   assert.equal(ctx.alerts[0].title, side);

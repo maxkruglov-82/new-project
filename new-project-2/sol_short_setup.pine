@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v4", overlay=true, max_boxes_count=20, max_labels_count=100, max_lines_count=20)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v5", overlay=true, max_boxes_count=20, max_labels_count=100, max_lines_count=20)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -7,8 +7,10 @@ indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v4", overl
 // не используется одновременно как доказательство последующего ретеста.
 string tz = "Asia/Krasnoyarsk"
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
-bool showLevels = input.bool(true, "Показывать вход, стоп и цель")
+bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
 bool showMarks = input.bool(true, "Показывать SHORT и LONG")
+bool showPosition = input.bool(true, "Показывать зоны позиции")
+int positionBars = input.int(24, "Ширина позиции (свечей M5)", minval=2, maxval=288)
 
 // Отдельные горизонтальные объекты не соединяют уровни разных дней.
 // Не полагаемся на поддержку plot.style_linebr рендерером терминала.
@@ -19,6 +21,26 @@ updateLevel(line id, int leftTime, int rightTime, float price, color ink, int th
     else
         line.set_xy1(result, leftTime, price)
         line.set_xy2(result, rightTime, price)
+    result
+
+updateZone(box id, int leftTime, int rightTime, float firstPrice, float secondPrice, color ink, string caption) =>
+    box result = id
+    if na(result)
+        result := box.new(left=leftTime, top=math.max(firstPrice, secondPrice), right=rightTime, bottom=math.min(firstPrice, secondPrice), xloc=xloc.bar_time, border_color=ink, bgcolor=color.new(ink, 85), text=caption, text_color=color.white, text_size=size.small)
+    else
+        box.set_left(result, leftTime)
+        box.set_right(result, rightTime)
+        box.set_top(result, math.max(firstPrice, secondPrice))
+        box.set_bottom(result, math.min(firstPrice, secondPrice))
+    result
+
+updatePriceLabel(label id, int atTime, float price, string caption, color ink) =>
+    label result = id
+    if na(result)
+        result := label.new(atTime, price, caption, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 100), textcolor=ink, size=size.small)
+    else
+        label.set_xy(result, atTime, price)
+        label.set_text(result, caption)
     result
 
 if barstate.isfirst and timeframe.period != "5"
@@ -57,6 +79,12 @@ var line entryLine = na
 var line stopLine = na
 var line targetLine = na
 varip int drawingRight = na
+varip int positionLeft = na
+var box rewardZone = na
+var box riskZone = na
+var label entryPriceLabel = na
+var label stopPriceLabel = na
+var label targetPriceLabel = na
 
 // Сбор двенадцати закрытых M5-свечей 14:00–15:00.
 // Неполный час не используется: нельзя подменять его частичным диапазоном.
@@ -114,6 +142,7 @@ if stage >= 1 and stage <= 5
                 point3 := direction == -1 ? low : high
                 entry := (stop + point3) / 2.0
                 lastExtremeBar := bar_index
+                positionLeft := time
                 stage := 5
 
         if stage == 5
@@ -204,6 +233,7 @@ if barstate.isconfirmed and hh == 14
         lastExtremeBar := na
         signalBar := na
         drawingRight := na
+        positionLeft := na
         // Цены события хранятся отдельно: даже на границе смены H1
         // оповещение должно содержать уровни именно сработавшего плана.
         if not na(h1Box)
@@ -243,9 +273,35 @@ previousQuote := close
 bool baseVisible = showFibo and stage >= 5 and stage <= 6 and not na(point2)
 bool planVisible = (stage == 5 or stage == 6) and not na(entry)
 float span = point2 - point1
+if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
+    drawingRight := time_close
+// Ширина — только размер рисунка, не срок действия сценария.
+int positionRight = not na(positionLeft) ? math.max(positionLeft + positionBars * 300000, drawingRight) : na
+if showPosition and planVisible and not na(positionLeft)
+    rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, point3, color.teal, "R:R 1:1")
+    riskZone := updateZone(riskZone, positionLeft, positionRight, entry, stop, color.red, "")
+    entryPriceLabel := updatePriceLabel(entryPriceLabel, positionRight, entry, "Вход: " + str.tostring(entry, "#.##"), color.blue)
+    stopPriceLabel := updatePriceLabel(stopPriceLabel, positionRight, stop, "Стоп: " + str.tostring(stop, "#.##"), color.red)
+    targetPriceLabel := updatePriceLabel(targetPriceLabel, positionRight, point3, "Цель: " + str.tostring(point3, "#.##"), color.teal)
+else
+    // Отменённый/истёкший план не должен выглядеть как ожидающая позиция.
+    if not na(rewardZone)
+        box.delete(rewardZone)
+    if not na(riskZone)
+        box.delete(riskZone)
+    if not na(entryPriceLabel)
+        label.delete(entryPriceLabel)
+    if not na(stopPriceLabel)
+        label.delete(stopPriceLabel)
+    if not na(targetPriceLabel)
+        label.delete(targetPriceLabel)
+    rewardZone := na
+    riskZone := na
+    entryPriceLabel := na
+    stopPriceLabel := na
+    targetPriceLabel := na
+
 if stage >= 4 and stage <= 6
-    if stage <= 5 or signalBar == bar_index
-        drawingRight := time_close
     if baseVisible
         fibMinus := updateLevel(fibMinus, point1Time, drawingRight, point1 - 0.25 * span, color.red, 1)
         fibZero := updateLevel(fibZero, point1Time, drawingRight, point1, color.gray, 1)
@@ -253,9 +309,10 @@ if stage >= 4 and stage <= 6
         fibOne := updateLevel(fibOne, point1Time, drawingRight, point2, color.gray, 1)
         fibStop := updateLevel(fibStop, point1Time, drawingRight, point1 + 1.25 * span, color.red, 1)
     if showLevels and planVisible
-        entryLine := updateLevel(entryLine, point1Time, drawingRight, entry, color.blue, 2)
-        stopLine := updateLevel(stopLine, point1Time, drawingRight, stop, color.red, 2)
-        targetLine := updateLevel(targetLine, point1Time, drawingRight, point3, color.teal, 2)
+        int levelRight = showPosition ? positionRight : drawingRight
+        entryLine := updateLevel(entryLine, point1Time, levelRight, entry, color.blue, 2)
+        stopLine := updateLevel(stopLine, point1Time, levelRight, stop, color.red, 2)
+        targetLine := updateLevel(targetLine, point1Time, levelRight, point3, color.teal, 2)
 
 // Невидимые серии нужны для цен в оповещении и автоматических проверок.
 // Помимо display.none задана полная прозрачность — даже если терминал
