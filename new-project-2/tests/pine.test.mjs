@@ -145,7 +145,7 @@ for (const [label, close, color] of [['красный', 103, '#F23645'], ['зе�
 
 test('переходы 1–2–3, стоп 105, цель 99, вход 102, один сигнал', async () => {
   const ctx = await run(complete());
-  assert.deepEqual(values(ctx, 'Stage').slice(12), [2, 2, 3, 3, 4, 5, 5, 6, 6, 6]);
+  assert.deepEqual(values(ctx, 'Stage').slice(12), [1, 2, 3, 3, 4, 5, 5, 6, 6, 6]);
   assert.equal(values(ctx, 'SHORT Entry')[19], 102);
   assert.equal(values(ctx, 'SHORT Stop')[19], 105);
   assert.equal(values(ctx, 'SHORT Target')[19], 99);
@@ -272,8 +272,8 @@ test('неправильный таймфрейм вызывает понятн�
 
 test('LONG: верхний свинг 107, нижний 103, цель 108, стоп 102 и вход 105', async () => {
   const ctx = await run(mirror(complete()));
-  assert.deepEqual(values(ctx, 'Stage').slice(12), [2, 2, 3, 3, 4, 5, 5, 6, 6, 6]);
-  assert.equal(values(ctx, 'Direction')[12], 1);
+  assert.deepEqual(values(ctx, 'Stage').slice(12), [1, 2, 3, 3, 4, 5, 5, 6, 6, 6]);
+  assert.equal(values(ctx, 'Direction')[12], 0);
   assert.equal(values(ctx, 'LONG Entry')[19], 105);
   assert.equal(values(ctx, 'LONG Stop')[19], 102);
   assert.equal(values(ctx, 'LONG Target')[19], 108);
@@ -345,12 +345,12 @@ for (const [name, makeData, expectedStage] of longCases) {
   });
 }
 
-test('выход вверх и вниз на первой исторической M5 не позволяет угадать приоритет', async () => {
-  const ctx = await run([...hour(), candle(12, 103, 107, 100, 104), ...complete().slice(13)]);
-  assert.equal(values(ctx, 'Stage')[12], 7);
-  assert.equal(values(ctx, 'Direction')[12], 0);
-  assert.equal(signalCount(ctx), 0);
-  assert.equal(signalCount(ctx, 'LONG'), 0);
+test('выход вверх и вниз на первой учитываемой M5 не позволяет угадать приоритет', async () => {
+  const ctx=await run([...hour(),candle(12,103,105,102,103),candle(13,103,107,100,104),...complete().slice(14)]);
+  assert.equal(values(ctx,'Stage')[13],7);
+  assert.equal(values(ctx,'Direction')[13],0);
+  assert.equal(signalCount(ctx),0);
+  assert.equal(signalCount(ctx,'LONG'),0);
 });
 
 test('LONG разрешён со стопом ниже low H1, пока сама цена не пробила low H1', async () => {
@@ -431,7 +431,7 @@ test('направление выхода не зависит от цвета о
   const data = mirror(complete());
   data[0] = { ...data[0], open: 105 };
   const ctx = await run(data);
-  assert.equal(values(ctx, 'Direction')[12], 1);
+  assert.equal(values(ctx, 'Direction')[12], 0);
   assert.equal(signalCount(ctx, 'LONG'), 1);
 });
 
@@ -530,12 +530,12 @@ test('новая H1 сохраняет старые зоны и подписи, 
   assert.equal(positionZones(ctx).filter(z => z.left >= start + 86_400_000).length, 2);
 });
 
-test('истечение ожидающего плана сохраняет историю с пометкой Без входа', async () => {
+test('после конца дня план без входа удаляется с графика', async () => {
   const ctx = await run([...complete().slice(0, 18), candle(12, 100, 101.5, 99.1, 100.5, 1)]);
   assert.equal(values(ctx, 'Stage').at(-1), 0);
-  assert.equal(positionZones(ctx).length, 2);
-  assert.equal(priceLabels(ctx).length, 3);
-  assert.ok(priceLabels(ctx).some(l => l.text.includes('Истёк · Без входа')));
+  assert.equal(positionZones(ctx).length, 0);
+  assert.equal(priceLabels(ctx).length, 0);
+  assert.equal(lines(ctx).length, 0);
   assert.equal(signalCount(ctx), 0);
 });
 
@@ -619,14 +619,14 @@ test('прокрутка окна перерисовывает старые дн
   assert.equal(recent.alerts.length, 0);
 });
 
-test('заменённый без входа план остаётся для разбора и не получает метку сделки', async () => {
+test('старый план без входа удаляется к новой H1 и не получает метку сделки', async () => {
   const data = [...complete().slice(0, 18),
     ...Array.from({ length: 12 }, (_, i) => candle(i, 100.5, 101.5, 100, 101, 1))];
   const ctx = await run(data);
   assert.equal(values(ctx, 'Stage').at(-1), 1);
-  assert.equal(positionZones(ctx).length, 2);
-  assert.equal(lines(ctx).length, 8);
-  assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Без входа')));
+  assert.equal(positionZones(ctx).length, 0);
+  assert.equal(lines(ctx).length, 0);
+  assert.equal(priceLabels(ctx).length, 0);
   assert.equal(signalCount(ctx), 0);
   assert.equal(signalCount(ctx, 'LONG'), 0);
 });
@@ -992,7 +992,8 @@ test('MEXC 24 августа: пара 15:00/15:05 исключена, нова�
     .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
       open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
   const ctx = await run(data);
-  assert.equal(values(ctx, 'Stage')[14], 3); // 15:10 — соседняя P2 пропущена, P1 сохраняется.
+  assert.equal(values(ctx, 'Stage')[14], 1); // 15:00 пропущена; следующего достаточного пробоя ещё нет.
+  assert.equal(values(ctx,'Stage')[16],3);
   assert.equal(signalCount(ctx), 0);
   assert.equal(signalCount(ctx, 'LONG'), 0);
   const m5 = ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted');
@@ -1434,7 +1435,8 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(values(ctx, 'Stage')[18], 5);
     assert.equal(values(ctx, 'Stage')[19], 0);
     assert.equal(signalCount(ctx, side), 0);
-    assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Выходной · Без входа')));
+    assert.equal(priceLabels(ctx).length, 0);
+    assert.equal(positionZones(ctx).length, 0);
   });
   test(`${side}: пятничный вход продолжает ждать исход в субботу`, async () => {
     const ctx = await runDefault(transform(shift([...complete().slice(0, 20), candle(120, 102, 103, 98, 99)], -4)));
@@ -1498,10 +1500,9 @@ test('MEXC 31 августа: LONG после SHORT строит Фибо от �
 });
 
 test('разворот до подтверждения первого нижнего свинга не создаёт вымышленный минимум «0»', async () => {
-  const ctx = await run([...hour(), candle(12, 102, 103, 100.5, 101.5),
-    candle(13, 103, 107, 100.8, 106.5)]);
-  assert.equal(values(ctx, 'Direction')[13], 1);
-  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[13]));
+  const ctx=await run([...hour(),candle(12,103,105,102,103),candle(13,102,103,100.5,101.5),candle(14,103,107,101.2,106.5)]);
+  assert.equal(values(ctx,'Direction')[14],1);
+  assert.ok(Number.isNaN(values(ctx,'LONG Floor 0')[14]));
 });
 
 for (const side of ['SHORT', 'LONG']) {
@@ -1652,11 +1653,13 @@ for(const side of ['SHORT','LONG']) {
     const transform=d=>side==='LONG'?d:mirror(d);
     const ctx=await run(transform([...data,...next]));
     const dir=side==='LONG'?1:-1;
-    assert.equal(values(ctx,'Direction')[12],-dir);
+    assert.equal(values(ctx,'Direction')[12],0);
+    assert.equal(values(ctx,'Direction')[13],-dir);
     for(const i of [17,18,20,21,22,23]) assert.equal(values(ctx,'Direction')[i],dir);
     assert.equal(values(ctx,'Stage')[data.length+11],1);
     assert.equal(values(ctx,'Direction')[data.length+11],0);
-    assert.equal(values(ctx,'Direction')[data.length+12],-dir);
+    assert.equal(values(ctx,'Direction')[data.length+12],0);
+    assert.equal(values(ctx,'Direction')[data.length+13],-dir);
     assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),1);
   });
 }
@@ -1708,7 +1711,8 @@ for(const side of ['SHORT','LONG']) {
 
 for(const side of ['SHORT','LONG']) {
   test(`${side}: открытая M5 учитывает ровно 0.02, малый прокол не задаёт приоритет`,async()=>{
-    const data=side==='SHORT'?[...hour(),candle(12,102,103,100.99,101.3)]:mirror([...hour(),candle(12,102,103,100.99,101.3)]);
+    const raw=[...hour(),candle(12,103,107,100,103),candle(13,102,103,100.99,101.3)];
+    const data=side==='SHORT'?raw:mirror(raw);
     let tail={...data.at(-1)};
     const provider={getMarketData:async(_t,_tf,_l,since)=>since!==undefined&&since>=tail.openTime?[{...tail}]:data.map(b=>({...b})),getSymbolInfo:async()=>null};
     const engine=new PineTS(provider,'SOLUSDT','5');
@@ -1722,3 +1726,76 @@ for(const side of ['SHORT','LONG']) {
     }
   });
 }
+
+for(const side of ['SHORT','LONG']) {
+  test(`${side}: первая M5 с обоими пробоями игнорируется; выбор с15:05 без старой P1`,async()=>{
+    const raw=[...hour(),candle(12,103,107,100,103),candle(13,102,104,100.5,101),candle(14,103,107,102,106)];
+    const ctx=await runDefault(side==='SHORT'?raw:mirror(raw));
+    const dir=side==='SHORT'?-1:1;
+    assert.equal(values(ctx,'Stage')[12],1);
+    assert.equal(values(ctx,'Direction')[12],0);
+    assert.equal(values(ctx,'Stage')[13],2);
+    assert.equal(values(ctx,'Direction')[13],dir);
+    assert.equal(values(ctx,'Direction')[14],-dir);
+    assert.equal(signalCount(ctx,side),0);
+    assert.equal(signalCount(ctx,side==='SHORT'?'LONG':'SHORT'),0);
+  });
+  test(`${side}: все котировки первой M5 игнорируются, включая выход за обе H1`,async()=>{
+    const raw=[...hour(),candle(12,102,103,100.5,100.8)];
+    const data=side==='SHORT'?raw:mirror(raw);
+    let tail={...data.at(-1)};
+    const provider={getMarketData:async(_t,_tf,_l,since)=>since!==undefined&&since>=tail.openTime?[{...tail}]:data.map(b=>({...b})),getSymbolInfo:async()=>null};
+    const engine=new PineTS(provider,'SOLUSDT','5');
+    const ctx=await engine.run(new Indicator(source));
+    for(const p of [100,107,100.2]){
+      const q=side==='SHORT'?p:207-p;
+      tail={...tail,close:q,low:Math.min(tail.low,q),high:Math.max(tail.high,q),closeTime:Date.now()+step};
+      await engine.updateTail(ctx);
+      assert.equal(ctx.plots.Stage.data.at(-1).value,1);
+      assert.equal(ctx.plots.Direction.data.at(-1).value,0);
+      assert.equal(ctx.alerts.length,0);
+    }
+  });
+}
+
+test('MEXC15 октября: high первой M5 не задаёт LONG; одинаковые последующие high не образуют P3',async()=>{
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
+  const from=Date.parse('2026-10-15T14:00:00+07:00'),until=Date.parse('2026-10-15T19:00:00+07:00');
+  const data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const ctx=await runDefault(data);
+  const at=t=>(Date.parse(`2026-10-15T${t}:00+07:00`)-from)/step;
+  assert.equal(values(ctx,'Stage')[at('15:00')],1);
+  assert.equal(values(ctx,'Direction')[at('15:00')],0);
+  assert.equal(values(ctx,'Direction')[at('15:30')],1);
+  assert.equal(values(ctx,'Stage')[at('16:15')],4);
+  assert.equal(signalCount(ctx,'LONG'),0);
+});
+
+for (const side of ['SHORT', 'LONG']) {
+  test(`${side}: полночь очищает план без входа, расчёт остаётся активным`, async () => {
+    const data = [...complete().slice(0, 18), candle(120, 100, 101.5, 99.1, 100.5)];
+    const ctx = await run(side === 'SHORT' ? data : mirror(data));
+    assert.equal(values(ctx, 'Stage').at(-1), 5);
+    assert.equal(signalCount(ctx, side), 0);
+    assert.equal(positionZones(ctx).length, 0);
+    assert.equal(priceLabels(ctx).length, 0);
+    assert.equal(lines(ctx).length, 0);
+  });
+}
+
+test('MEXC14 октября: без входа, после полуночи нет разметки сетапа', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-10-14T14:00:00+07:00');
+  const until = Date.parse('2026-10-15T01:00:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const before = await runDefault(data.filter(b => b.openTime < Date.parse('2026-10-15T00:00:00+07:00') - step));
+  assert.ok(positionZones(before).length > 0);
+  const ctx = await runDefault(data);
+  assert.equal(signalCount(ctx, 'LONG') + signalCount(ctx, 'SHORT'), 0);
+  assert.equal(positionZones(ctx).length, 0);
+  assert.equal(lines(ctx).length, 0);
+  assert.equal(priceLabels(ctx).length, 0);
+  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
+});

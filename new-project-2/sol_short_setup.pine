@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v22", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v23", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -122,10 +122,13 @@ varip int outcomeBar = na
 varip int candidateEpoch = 0
 varip string retiredStatus = ""
 var int drawingEpoch = 0
+var bool drawingHadEntry = false
+var int drawingExpiry = na
 // Очереди полных групп: 8 линий, 3 прямоугольника, 4 метки на кандидат.
 var array<line> archivedLines = array.new_line()
 var array<box> archivedBoxes = array.new_box()
 var array<label> archivedLabels = array.new_label()
+var array<int> archivedExpiry = array.new_int()
 
 var box h1Box = na
 var box m5Box = na
@@ -229,7 +232,9 @@ if stage >= 1 and stage <= 5
     else
         bool below = barstate.isrealtime ? belowH1(close, h1Low) : belowH1(low, h1Low)
         bool above = barstate.isrealtime ? aboveH1(close, h1High) : aboveH1(high, h1High)
-        if stage == 1
+        // 15:00–15:05 не задаёт приоритет и не блокирует его при двух выходах.
+        // validUntil — следующая опорная H1 в15:00; UTC+7 без переходов DST.
+        if stage == 1 and time >= validUntil - 86400000 + 300000
             // У исторической свечи с обоими пробоями нет известного порядка.
             if below and above
                 stage := 7
@@ -417,8 +422,10 @@ if stage == 4 and barstate.isconfirmed and ((direction == -1 and low < point1) o
 
 // Смена кандидата не двигает старые объекты. Обычный var откатывается
 // на каждом тике; сравнение с varip epoch повторяет этот шаг после отката.
-if drawingEpoch != candidateEpoch
-    if not na(m5Box)
+bool hideUnentered = stage != 6 and not na(validUntil) and time >= validUntil - 54000000
+if drawingEpoch != candidateEpoch or hideUnentered
+    if not na(m5Box) and (drawingHadEntry or time < drawingExpiry)
+        array.push(archivedExpiry, drawingHadEntry ? 0 : drawingExpiry)
         if retiredStatus != "" and not na(entryPriceLabel)
             label.set_text(entryPriceLabel, retiredStatus + " · Вход: " + str.tostring(label.get_y(entryPriceLabel), "#.##"))
         array.push(archivedLines, fibMinus)
@@ -436,6 +443,23 @@ if drawingEpoch != candidateEpoch
         array.push(archivedLabels, stopPriceLabel)
         array.push(archivedLabels, targetPriceLabel)
         array.push(archivedLabels, signalMark)
+    if not drawingHadEntry and (hideUnentered or time >= drawingExpiry)
+        line.delete(fibMinus)
+        line.delete(fibZero)
+        line.delete(fibHalf)
+        line.delete(fibOne)
+        line.delete(fibStop)
+        line.delete(entryLine)
+        line.delete(stopLine)
+        line.delete(targetLine)
+        box.delete(m5Box)
+        box.delete(rewardZone)
+        box.delete(riskZone)
+        label.delete(entryPriceLabel)
+        label.delete(stopPriceLabel)
+        label.delete(targetPriceLabel)
+        label.delete(signalMark)
+    drawingHadEntry := false
     m5Box := na
     fibMinus := na
     fibZero := na
@@ -453,23 +477,41 @@ if drawingEpoch != candidateEpoch
     signalMark := na
     drawingEpoch := candidateEpoch
 
+if stage == 6
+    drawingHadEntry := true
+
+// Удаляем истёкшие рисунки без входа целыми группами; сделки остаются.
+if array.size(archivedExpiry) > 0
+    for group = array.size(archivedExpiry) - 1 to 0
+        int expiry = array.get(archivedExpiry, group)
+        if expiry > 0 and time >= expiry
+            for item = 0 to 7
+                line.delete(array.remove(archivedLines, group * 8))
+            for item = 0 to 2
+                box.delete(array.remove(archivedBoxes, group * 3))
+            for item = 0 to 3
+                label.delete(array.remove(archivedLabels, group * 4))
+            array.remove(archivedExpiry, group)
+
 // Метка входит в ту же группу, что Фибо и позиция: при лимите истории
 // удаляется вместе с ней, не оставляя одиночного SHORT/LONG без разметки.
 if drawReference and showMarks and stage == 6 and not na(signalBar) and na(signalMark)
     signalMark := label.new(time, direction == -1 ? high : low, direction == -1 ? "SHORT" : "LONG", xloc=xloc.bar_time, yloc=direction == -1 ? yloc.abovebar : yloc.belowbar, style=direction == -1 ? label.style_label_down : label.style_label_up, color=direction == -1 ? color.red : color.green, textcolor=color.white, size=size.small)
 
 // Рабочий диапазон M5. Его правый край сопровождает расчёт до сигнала/отмены.
-if drawReference and stage >= 4 and stage <= 6 and not na(point1) and not na(point2)
+if drawReference and not hideUnentered and stage >= 4 and stage <= 6 and not na(point1) and not na(point2)
     if na(m5Box)
         // Освобождаем место только перед новым видимым рисунком.
         // Если выбранное окно уже закончилось, все 60 архивных групп остаются.
         if array.size(archivedLines) >= 60 * 8
+            array.shift(archivedExpiry)
             for i = 0 to 7
                 line.delete(array.shift(archivedLines))
             for i = 0 to 2
                 box.delete(array.shift(archivedBoxes))
             for i = 0 to 3
                 label.delete(array.shift(archivedLabels))
+        drawingExpiry := validUntil - 54000000
         m5Box := box.new(left=point1Time, top=math.max(point1, point2), right=time_close, bottom=math.min(point1, point2), xloc=xloc.bar_time, border_color=color.gray, border_style=line.style_dotted, bgcolor=na)
     if stage == 4
         box.set_top(m5Box, math.max(point1, point2))
@@ -489,7 +531,7 @@ if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
     drawingRight := time_close
 // Ширина — только размер рисунка, не срок действия сценария.
 int positionRight = not na(positionLeft) ? math.max(positionLeft + positionBars * 300000, drawingRight) : na
-if drawReference and showPosition and planVisible and not na(positionLeft)
+if drawReference and not hideUnentered and showPosition and planVisible and not na(positionLeft)
     string rrCaption = stopOffset == 0 and takeOffset == 0 ? "R:R 1:1" : "R:R 1:" + str.tostring(math.abs(takePrice - entry) / math.abs(stop - entry), "#.###")
     rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, takePrice, color.teal, rrCaption)
     riskZone := updateZone(riskZone, positionLeft, positionRight, entry, stop, color.red, "")
@@ -503,7 +545,7 @@ else if drawReference and (stage == 7 or stage == 0) and not na(entryPriceLabel)
     string status = stage == 7 ? "Отмена · Без входа" : not tradingDay ? "Выходной · Без входа" : "Истёк · Без входа"
     label.set_text(entryPriceLabel, status + " · Вход: " + str.tostring(entry, "#.##"))
 
-if drawReference and stage >= 4 and stage <= 6
+if drawReference and not hideUnentered and stage >= 4 and stage <= 6
     if baseVisible
         fibMinus := updateLevel(fibMinus, fibLeft, drawingRight, fibBase - 0.25 * span, color.red, 1)
         fibZero := updateLevel(fibZero, fibLeft, drawingRight, fibBase, color.gray, 1)
