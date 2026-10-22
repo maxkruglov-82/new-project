@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v6", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v7", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -14,7 +14,8 @@ int positionBars = input.int(24, "Ширина позиции (свечей M5)"
 int historyDays = input.int(60, "История: опорных дней", minval=1, maxval=60)
 int historyUntil = input.time(0, "История до (0 — правый край экрана)")
 
-// Восемь линий на полный сетап: 60 дней оставляют запас до лимита 500.
+// Восемь линий на сетап. Храним до 60 полных разметок в выбранном окне;
+// при повторных попытках в один день самые старые группы удаляем целиком.
 // Расчёт стратегии идёт по всем свечам; окно ограничивает только рисунки.
 int historyAnchor = historyUntil != 0 ? historyUntil : nz(chart.right_visible_bar_time, last_bar_time)
 // Видимый бар 14:55 заканчивается в 15:00; открытый бар не считаем закрытым.
@@ -58,7 +59,9 @@ if barstate.isfirst and timeframe.period != "5"
     runtime.error("Выберите таймфрейм 5 минут. Часовой диапазон индикатор собирает автоматически.")
 
 // Состояния: 0 нет диапазона; 1 ждём выход; 2 первый фрактал;
-// 3 второй фрактал; 4 диапазон M5; 5 ретест; 6 сигнал выдан; 7 отмена.
+// 3 второй фрактал; 4 диапазон M5; 5 ретест; 6 вход/исход; 7 отмена.
+// outcome: 0 ждём исход; 1 цель (блокировка H1); -1 стоп (новая попытка);
+// 2 обе границы сделки на одной исторической свече (порядок неизвестен).
 // varip сохраняет состояние между обновлениями открытой свечи.
 varip int stage = 0
 // -1 SHORT, +1 LONG, 0 направление пока не определено.
@@ -79,6 +82,15 @@ varip int lastExtremeBar = na
 varip int signalBar = na
 varip float previousQuote = na
 varip int lastPivotBar = na
+varip int outcome = 0
+varip int outcomeBar = na
+varip int candidateEpoch = 0
+varip string retiredStatus = ""
+var int drawingEpoch = 0
+// Очереди полных групп: 8 линий, 3 прямоугольника, 4 метки на кандидат.
+var array<line> archivedLines = array.new_line()
+var array<box> archivedBoxes = array.new_box()
+var array<label> archivedLabels = array.new_label()
 
 var box h1Box = na
 var box m5Box = na
@@ -97,6 +109,7 @@ var box riskZone = na
 var label entryPriceLabel = na
 var label stopPriceLabel = na
 var label targetPriceLabel = na
+var label signalMark = na
 
 // Сбор двенадцати закрытых M5-свечей 14:00–15:00.
 // Неполный час не используется: нельзя подменять его частичным диапазоном.
@@ -121,16 +134,47 @@ float eventEntry = na
 float eventStop = na
 float eventTarget = na
 
-// Старый сетап прекращается при новой опорной H1 в 15:00 следующего дня.
+// Пока вход активен, противоположный выход H1 не создаёт вторую сделку.
+// Исторический бар входа не доказывает последующий TP/SL: порядок неизвестен.
+if stage == 6 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar)
+    bool stopHit = direction == -1 ? (barstate.isrealtime ? close >= stop : high >= stop) : (barstate.isrealtime ? close <= stop : low <= stop)
+    bool targetHit = direction == -1 ? (barstate.isrealtime ? close <= point3 : low <= point3) : (barstate.isrealtime ? close >= point3 : high >= point3)
+    if stopHit or targetHit
+        outcome := stopHit and targetHit ? 2 : targetHit ? 1 : -1
+        outcomeBar := bar_index
+
+// После стопа начинаем новую попытку со следующей M5. Не используем
+// её предшественника задним числом как уже известный фрактал нового плана.
+bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < validUntil
+if retry
+    candidateEpoch := candidateEpoch + 1
+    retiredStatus := ""
+    stage := 1
+    direction := 0
+    outcome := 0
+    outcomeBar := na
+    breakBar := na
+    point1 := na
+    point1Bar := na
+    point1Time := na
+    point2 := na
+    point3 := na
+    entry := na
+    stop := na
+    signalBar := na
+    lastExtremeBar := na
+    drawingRight := na
+    positionLeft := na
+
+// Старый ожидающий сетап прекращается при новой опорной H1.
 if stage >= 1 and stage <= 5
     if time >= validUntil
         stage := 0
     else
+        bool below = barstate.isrealtime ? close < h1Low : low < h1Low
+        bool above = barstate.isrealtime ? close > h1High : high > h1High
         if stage == 1
-            bool below = low < h1Low
-            bool above = high > h1High
-            // Если при первой обработке свеча уже пересекла обе границы,
-            // порядок неизвестен. Направление задним числом не угадываем.
+            // У исторической свечи с обоими пробоями нет известного порядка.
             if below and above
                 stage := 7
             else if below or above
@@ -138,10 +182,25 @@ if stage >= 1 and stage <= 5
                 stage := 2
                 breakBar := bar_index
 
-        // Противоположная граница H1 отменяет выбранную сторону.
-        // Не запускаем противоположный сетап задним числом в том же дне.
-        if stage >= 2 and stage <= 5 and ((direction == -1 and high > h1High) or (direction == 1 and low < h1Low))
-            stage := 7
+        // До входа противоположная граница меняет приоритет под той же H1.
+        // Новый P1 — первый подтверждённый свинг на ноге нового пробоя.
+        if stage >= 2 and stage <= 5 and ((direction == -1 and above) or (direction == 1 and below))
+            candidateEpoch := candidateEpoch + 1
+            retiredStatus := "Отмена · Без входа"
+            direction := direction == -1 ? 1 : -1
+            stage := below and above ? 7 : 2
+            breakBar := bar_index
+            point1 := na
+            point1Bar := na
+            point1Time := na
+            point2 := na
+            point3 := na
+            entry := na
+            stop := na
+            signalBar := na
+            lastExtremeBar := na
+            drawingRight := na
+            positionLeft := na
 
         // Вторую точку замораживаем в момент обновления первой.
         if stage == 4 and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
@@ -171,6 +230,8 @@ if stage >= 1 and stage <= 5
             bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? open <= entry and high >= entry : open >= entry and low <= entry)
             if liveTouch or historyTouch
                 stage := 6
+                outcome := 0
+                outcomeBar := na
                 signalBar := bar_index
                 shortEvent := direction == -1
                 longEvent := direction == 1
@@ -201,9 +262,61 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
         point2 := direction == -1 ? high[1] : low[1]
 
+// Смена кандидата не двигает старые объекты. Обычный var откатывается
+// на каждом тике; сравнение с varip epoch повторяет этот шаг после отката.
+if drawingEpoch != candidateEpoch
+    if not na(m5Box)
+        if retiredStatus != "" and not na(entryPriceLabel)
+            label.set_text(entryPriceLabel, retiredStatus + " · Вход: " + str.tostring(label.get_y(entryPriceLabel), "#.##"))
+        array.push(archivedLines, fibMinus)
+        array.push(archivedLines, fibZero)
+        array.push(archivedLines, fibHalf)
+        array.push(archivedLines, fibOne)
+        array.push(archivedLines, fibStop)
+        array.push(archivedLines, entryLine)
+        array.push(archivedLines, stopLine)
+        array.push(archivedLines, targetLine)
+        array.push(archivedBoxes, m5Box)
+        array.push(archivedBoxes, rewardZone)
+        array.push(archivedBoxes, riskZone)
+        array.push(archivedLabels, entryPriceLabel)
+        array.push(archivedLabels, stopPriceLabel)
+        array.push(archivedLabels, targetPriceLabel)
+        array.push(archivedLabels, signalMark)
+    m5Box := na
+    fibMinus := na
+    fibZero := na
+    fibHalf := na
+    fibOne := na
+    fibStop := na
+    entryLine := na
+    stopLine := na
+    targetLine := na
+    rewardZone := na
+    riskZone := na
+    entryPriceLabel := na
+    stopPriceLabel := na
+    targetPriceLabel := na
+    signalMark := na
+    drawingEpoch := candidateEpoch
+
+// Метка входит в ту же группу, что Фибо и позиция: при лимите истории
+// удаляется вместе с ней, не оставляя одиночного SHORT/LONG без разметки.
+if drawReference and showMarks and stage == 6 and not na(signalBar) and na(signalMark)
+    signalMark := label.new(time, direction == -1 ? high : low, direction == -1 ? "SHORT" : "LONG", xloc=xloc.bar_time, yloc=direction == -1 ? yloc.abovebar : yloc.belowbar, style=direction == -1 ? label.style_label_down : label.style_label_up, color=direction == -1 ? color.red : color.green, textcolor=color.white, size=size.small)
+
 // Рабочий диапазон M5. Его правый край сопровождает расчёт до сигнала/отмены.
 if drawReference and stage >= 4 and stage <= 6 and not na(point1) and not na(point2)
     if na(m5Box)
+        // Освобождаем место только перед новым видимым рисунком.
+        // Если выбранное окно уже закончилось, все 60 архивных групп остаются.
+        if array.size(archivedLines) >= 60 * 8
+            for i = 0 to 7
+                line.delete(array.shift(archivedLines))
+            for i = 0 to 2
+                box.delete(array.shift(archivedBoxes))
+            for i = 0 to 3
+                label.delete(array.shift(archivedLabels))
         m5Box := box.new(left=point1Time, top=math.max(point1, point2), right=time_close, bottom=math.min(point1, point2), xloc=xloc.bar_time, border_color=color.gray, border_style=line.style_dotted, bgcolor=na)
     if stage == 4
         box.set_top(m5Box, math.max(point1, point2))
@@ -287,21 +400,10 @@ if barstate.isconfirmed and hh == 14
         positionLeft := na
         // Цены события хранятся отдельно: даже на границе смены H1
         // оповещение должно содержать уровни именно сработавшего плана.
-        h1Box := na
-        m5Box := na
-        fibMinus := na
-        fibZero := na
-        fibHalf := na
-        fibOne := na
-        fibStop := na
-        entryLine := na
-        stopLine := na
-        targetLine := na
-        rewardZone := na
-        riskZone := na
-        entryPriceLabel := na
-        stopPriceLabel := na
-        targetPriceLabel := na
+        outcome := 0
+        outcomeBar := na
+        candidateEpoch := candidateEpoch + 1
+        retiredStatus := ""
         color border = close < collectedOpen ? color.red : close > collectedOpen ? color.green : color.gray
         if drawReference
             h1Box := box.new(left=timestamp(tz, yy, mm, dd, 13, 0), top=h1High, right=timestamp(tz, yy, mm, dd, 22, 0), bottom=h1Low, xloc=xloc.bar_time, border_color=border, border_width=1, bgcolor=na)
@@ -322,7 +424,8 @@ plot(direction, "Direction", color=color.new(color.white, 100), display=display.
 plot(h1High, "H1 High", color=color.new(color.white, 100), display=display.data_window)
 plot(h1Low, "H1 Low", color=color.new(color.white, 100), display=display.data_window)
 
-plotshape(showMarks and ((shortEvent and eventDraw) or (drawReference and direction == -1 and not na(signalBar) and signalBar == bar_index)), title="SHORT", text="SHORT", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small)
-plotshape(showMarks and ((longEvent and eventDraw) or (drawReference and direction == 1 and not na(signalBar) and signalBar == bar_index)), title="LONG", text="LONG", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small)
+plot(outcome, "Outcome", color=color.new(color.white, 100), display=display.data_window)
+plot(showMarks and ((shortEvent and eventDraw) or (drawReference and direction == -1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "SHORT", color=color.new(color.white, 100), display=display.none)
+plot(showMarks and ((longEvent and eventDraw) or (drawReference and direction == 1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "LONG", color=color.new(color.white, 100), display=display.none)
 alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}} | R:R 1:1')
 alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}} | R:R 1:1')
