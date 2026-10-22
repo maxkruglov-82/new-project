@@ -144,6 +144,7 @@ async function main() {
       firstReference: report.days[0]?.date ?? null, lastReference: report.days.at(-1)?.date ?? null },
     dataQuality: { candles: raw.count, missing: 0, incompleteReferenceHours: 0 },
     method: { execution: `Actual ${scriptVersion} Pine source in PineTS 0.12.0, observation plots only`,
+      equalShortLows: 'After a distinct confirmed return to P1 at the same low, its next strict break resets the SHORT structure. Wait for a new confirmed lower P1 and a new P2; do not seed P3 from the old pair.',
       firstM5: 'Ignore the 15:00–15:05 bar entirely for H1 priority selection (including large or dual-edge exits); choose priority from 15:05 onward. It cannot seed P1 retroactively. The inclusive 0.02 H1 threshold is unchanged.',
       h1BreakThreshold: 'Price must exceed the H1 edge by at least 0.02 USDT (inclusive); applies to initial priority, first H1 reversal and P1 qualification. P3/M5 breaks and saved LONG origin retain strict prior rules.',
       takeBuffer: 'Take profit is 0.03 USDT before raw swing P3 (SHORT above, LONG below); entry stays the midpoint of base Fibo stop and raw swing target. Only profitable take levels permit entry.',

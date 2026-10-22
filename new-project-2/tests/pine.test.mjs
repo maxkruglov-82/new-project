@@ -1824,3 +1824,26 @@ test('MEXC9 октября: без входа, после полуночи не�
   assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
   assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.text === 'входа не было').length, 1);
 });
+
+test('MEXC5 октября: равные минимумы сбрасывают структуру; новая P1 17:10 и тейк', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-10-05T14:00:00+07:00');
+  const until = Date.parse('2026-10-05T19:00:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const ctx = await runDefault(data);
+  const at = t => (Date.parse(`2026-10-05T${t}:00+07:00`) - from) / step;
+  assert.equal(values(ctx, 'Stage')[at('17:10')], 2);
+  assert.equal(values(ctx, 'Stage')[at('17:15')], 3);
+  const range = ctx.plots.__boxes__.data[0].value.find(b => b.border_style === 'style_dotted' && b.left === Date.parse('2026-10-05T17:10:00+07:00'));
+  assert.ok(range);
+  assert.equal(range.bottom, 120.46);
+  assert.equal(range.top, 120.88);
+  assert.equal(signalCount(ctx, 'SHORT'), 1);
+  assert.equal(values(ctx, 'SHORT')[at('17:50')], 1);
+  assert.ok(Math.abs(values(ctx, 'SHORT Entry')[at('17:50')] - 120.6975) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'SHORT Stop')[at('17:50')] - 121.015) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'SHORT Target')[at('17:50')] - 120.44) < 1e-9);
+  assert.equal(values(ctx, 'Outcome')[at('18:00')], 1);
+});
