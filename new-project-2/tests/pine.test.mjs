@@ -1483,7 +1483,7 @@ for (const side of ['SHORT', 'LONG']) {
   });
 }
 
-test('MEXC 31 августа: LONG после SHORT строит Фибо от «0» к выбранной «1», вход около 103.13', async () => {
+test('MEXC 31 августа: после переноса LONG P1 используем новую Фибо с переносом2–3, вход около103.15', async () => {
   const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
   const from = Date.parse('2026-08-31T14:00:00+07:00');
   const until = Date.parse('2026-08-31T20:00:00+07:00');
@@ -1492,15 +1492,15 @@ test('MEXC 31 августа: LONG после SHORT строит Фибо от �
       open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
   const ctx = await runDefault(data);
   const at = time => (Date.parse(`2026-08-31T${time}:00+07:00`) - from) / step;
-  assert.equal(values(ctx, 'LONG Floor 0')[at('17:10')], 102.4);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[at('17:10')]));
   assert.equal(values(ctx, 'LONG')[at('19:25')], 1);
   assert.equal(signalCount(ctx, 'LONG'), 1);
-  assert.ok(Math.abs(values(ctx, 'LONG Entry')[at('19:25')] - 103.12625) < 1e-9);
-  assert.ok(Math.abs(values(ctx, 'LONG Stop')[at('19:25')] - 102.1025) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Entry')[at('19:25')] - 103.15125) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Stop')[at('19:25')] - 102.1525) < 1e-9);
   assert.equal(values(ctx, 'LONG Target')[at('19:25')], 104.09);
-  assert.equal(values(ctx, 'Fibo Reanchored')[at('19:25')], 0);
+  assert.equal(values(ctx, 'Fibo Reanchored')[at('19:25')], 1);
   const fibs = lines(ctx).filter(l => l.width === 1).map(l => l.y1);
-  for (const n of [102.1325, 102.4, 102.935, 103.47, 103.7375]) assert.ok(fibs.some(v => Math.abs(v-n)<1e-9));
+  for (const n of [102.1825, 102.57, 103.345, 104.12, 104.5075]) assert.ok(fibs.some(v => Math.abs(v-n)<1e-9));
 });
 
 test('разворот до подтверждения первого нижнего свинга не создаёт вымышленный минимум «0»', async () => {
@@ -1905,3 +1905,23 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(values(ctx, 'Stage')[14], 3);
   });
 }
+
+test('MEXC8 сентября: перенос P1 убирает старую Фибо0–1; LONG на раннем ретесте, затем стоп', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-04-01_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-09-08T14:00:00+07:00');
+  const until = Date.parse('2026-09-08T18:30:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const ctx = await runDefault(data);
+  const at = t => (Date.parse(`2026-09-08T${t}:00+07:00`) - from) / step;
+  assert.equal(values(ctx, 'LONG Floor 0')[at('15:50')], 102.44);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[at('16:50')]));
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  assert.equal(signalCount(ctx, 'SHORT'), 0);
+  assert.equal(values(ctx, 'LONG')[at('17:25')], 1);
+  assert.ok(Math.abs(values(ctx, 'LONG Entry')[at('17:25')] - 103.73125) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Stop')[at('17:25')] - 103.3825) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Target')[at('17:25')] - 104.02) < 1e-9);
+  assert.equal(values(ctx, 'Outcome')[at('17:40')], -1);
+});

@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v26", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v27", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -418,6 +418,10 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
         // Пока нет второй точки, первая следует за более глубоким
         // подтверждённым свингом (для LONG — за более высоким).
         if firstPivot and ((direction == -1 and low[1] < point1) or (direction == 1 and high[1] > point1))
+            // Перенос LONG P1 до входа снимает прежнюю привязку Фибо0–1.
+            if direction == 1 and not na(longFloor0)
+                longFloor0 := na
+                longFloorTime := na
             point1 := direction == -1 ? low[1] : high[1]
             point1Bar := firstPivotBar
             point1Time := firstPivotTime
