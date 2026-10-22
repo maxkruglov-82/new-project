@@ -1,11 +1,12 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v14", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v15", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
 // На истории внутрибарный порядок неизвестен: свеча с новым экстремумом
 // не используется одновременно как доказательство последующего ретеста.
 string tz = "Asia/Krasnoyarsk"
+bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
 float stopOffset = input.float(0.03, "Отступ стопа за Фибо (USDT)", minval=0.0, step=0.01)
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
 bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
@@ -147,6 +148,10 @@ float eventEntry = na
 float eventStop = na
 float eventTarget = na
 bool seededPoint3 = false
+bool barIsWeekend = dayofweek(time, tz) == dayofweek.saturday or dayofweek(time, tz) == dayofweek.sunday
+bool clockIsWeekend = dayofweek(timenow, tz) == dayofweek.saturday or dayofweek(timenow, tz) == dayofweek.sunday
+// В потоке учитываем переход в субботу даже внутри пятничной M5 23:55.
+bool tradingDay = not skipWeekends or (not barIsWeekend and (not barstate.isrealtime or not clockIsWeekend))
 
 // Пока вход активен, противоположный выход H1 не создаёт вторую сделку.
 // Исторический бар входа не доказывает последующий TP/SL: порядок неизвестен.
@@ -164,7 +169,7 @@ if stage == 6 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar
 
 // После стопа начинаем новую попытку со следующей M5. Не используем
 // её предшественника задним числом как уже известный фрактал нового плана.
-bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < validUntil
+bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < validUntil and tradingDay
 if retry
     candidateEpoch := candidateEpoch + 1
     retiredStatus := ""
@@ -193,7 +198,7 @@ if retry
 
 // Старый ожидающий сетап прекращается при новой опорной H1.
 if stage >= 1 and stage <= 5
-    if time >= validUntil
+    if time >= validUntil or not tradingDay
         stage := 0
         longFloor0 := na
         skippedLongLow := na
@@ -444,7 +449,7 @@ if drawReference and showPosition and planVisible and not na(positionLeft)
     targetPriceLabel := updatePriceLabel(targetPriceLabel, positionRight, point3, "Цель: " + str.tostring(point3, "#.##") + (stage == 6 and outcome == 1 ? " +" : ""), color.teal)
 else if drawReference and (stage == 7 or stage == 0) and not na(entryPriceLabel)
     // Сохраняем неисполненный сетап для разбора, не приписывая ему вход.
-    string status = stage == 7 ? "Отмена · Без входа" : "Истёк · Без входа"
+    string status = stage == 7 ? "Отмена · Без входа" : not tradingDay ? "Выходной · Без входа" : "Истёк · Без входа"
     label.set_text(entryPriceLabel, status + " · Вход: " + str.tostring(entry, "#.##"))
 
 if drawReference and stage >= 4 and stage <= 6
@@ -487,10 +492,10 @@ if barstate.isconfirmed and hh == 14
         h1High := collectedHigh
         h1Low := collectedLow
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
-        stage := 1
+        stage := skipWeekends and barIsWeekend ? 0 : 1
         direction := 0
         int referenceClose = timestamp(tz, yy, mm, dd, 15, 0)
-        drawReference := referenceClose >= historyStart and referenceClose <= historyEnd
+        drawReference := referenceClose >= historyStart and referenceClose <= historyEnd and (not skipWeekends or not barIsWeekend)
         breakBar := na
         point1 := na
         point1Bar := na

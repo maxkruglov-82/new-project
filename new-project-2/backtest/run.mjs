@@ -8,6 +8,7 @@ const DAY = 86_400_000;
 export const sha256 = data => createHash('sha256').update(data).digest('hex');
 const iso = ms => new Date(ms + 7 * 3_600_000).toISOString().replace('Z', '+07:00');
 const referenceDate = ms => iso(ms).slice(0, 10);
+const isWeekend = ms => [0, 6].includes(new Date(ms + 7 * 3_600_000).getUTCDay());
 
 // Only observation is inserted. No strategy decision, price, or state assignment
 // is changed; the exact original file and SHA-256 are recorded in the report.
@@ -48,7 +49,7 @@ export async function execute(source, raw, start, end) {
   const ctx = await new PineTS([...candles, guard], 'SOLUSDT', '5').run(script);
   const value = (name, i) => ctx.plots[name].data[i].value;
   const trades = [], days = [];
-  let active = null, currentDay = null;
+  let active = null, currentDay = null, calendarReferenceDays = 0;
   for (let i = 0; i < candles.length; i++) {
     const bar = candles[i];
     const result = value('BT Result', i);
@@ -63,6 +64,7 @@ export async function execute(source, raw, start, end) {
     }
     const signal = value('BT Signal', i);
     if (signal !== 0) {
+      if (isWeekend(bar.openTime)) throw new Error('Weekend entry is forbidden');
       if (!currentDay) throw new Error('Entry without a reference H1');
       if (active) throw new Error('Parallel entries are not permitted');
       const side = signal === -1 ? 'SHORT' : 'LONG';
@@ -88,7 +90,8 @@ export async function execute(source, raw, start, end) {
       }
       if (currentDay) currentDay.endingStage = value('BT Ending Stage', i);
       currentDay = null;
-      if (nextReference < end) {
+      if (nextReference < end) calendarReferenceDays++;
+      if (nextReference < end && !isWeekend(nextReference)) {
         currentDay = { date: referenceDate(nextReference), referenceClose: iso(nextReference),
           high: value('H1 High', i), low: value('H1 Low', i), won: false, endingStage: null };
         days.push(currentDay);
@@ -109,7 +112,7 @@ export async function execute(source, raw, start, end) {
   const ambiguous = trades.filter(t => t.status === 'ambiguous').length;
   const unresolved = trades.filter(t => t.status.startsWith('unresolved')).length;
   if (targets + stops + ambiguous + unresolved !== trades.length) throw new Error('Ledger does not reconcile');
-  return { summary: { referenceDays: days.length, enteredTrades: trades.length, targets, stops, ambiguous, unresolved,
+  return { summary: { calendarReferenceDays, excludedWeekendDays: calendarReferenceDays - days.length, referenceDays: days.length, enteredTrades: trades.length, targets, stops, ambiguous, unresolved,
     knownOutcomes: targets + stops, winRateKnown: targets + stops ? targets / (targets + stops) : null,
     daysWithEntry: days.filter(d => d.trades > 0).length, daysWithoutEntry: days.filter(d => d.trades === 0).length,
     daysWithTarget: days.filter(d => d.targets > 0).length,
@@ -131,15 +134,17 @@ async function main() {
   const source = readFileSync(new URL('../sol_short_setup.pine', import.meta.url), 'utf8');
   const start = Date.parse(raw.start), end = Date.parse(raw.endExclusive);
   const report = await execute(source, raw, start, end);
-  if (report.summary.referenceDays !== Math.round((end - start - 3_600_000) / DAY)) throw new Error('Missing reference H1 periods');
+  if (report.summary.calendarReferenceDays !== Math.round((end - start - 3_600_000) / DAY)) throw new Error('Missing reference H1 periods');
   const version = source.match(/indicator\("([^"]+)"/)?.[1];
   const scriptVersion = version?.match(/v\d+$/)?.[0] || 'current';
   const result = { strategy: version, sourceSha256: sha256(source), inputSha256: sha256(bytes),
     generatedAt: new Date().toISOString(), market: 'MEXC SOL_USDT USDT perpetual futures',
     period: { candlesStart: raw.start, endExclusive: raw.endExclusive, timezone: 'Asia/Krasnoyarsk',
-      firstReference: report.days[0].date, lastReference: report.days.at(-1).date },
+      windowFirstReference: referenceDate(start), windowLastReference: referenceDate(end - DAY),
+      firstReference: report.days[0]?.date ?? null, lastReference: report.days.at(-1)?.date ?? null },
     dataQuality: { candles: raw.count, missing: 0, incompleteReferenceHours: 0 },
     method: { execution: `Actual ${scriptVersion} Pine source in PineTS 0.12.0, observation plots only`,
+      calendar: 'No Saturday/Sunday references or entries in Asia/Krasnoyarsk; weekday entries have no 20:30 cutoff; existing trades retain their exit tracking',
       resolution: '5 minute OHLC; intrabar order unknown', entry: `${scriptVersion} retest touch; skip new-extreme historical bar`,
       swingPair: 'At least one candle between central P1/P2 bars; reject adjacent pair and restart; trail P1 until P2',
       longReversal: 'After an unbroken SHORT range, retain its low as floor 0 for LONG; preserve first upper pivot, skip adjacent low, wait for a deeper nonadjacent P2',
@@ -168,7 +173,7 @@ async function main() {
     'Незавершённых': d.unresolved,
   }))));
   const n = result.summary;
-  const body = `# Бэктест SOL/USDT MEXC — ${scriptVersion}\n\nОпорные дни: **${result.period.firstReference} — ${result.period.lastReference}** (${n.referenceDays} дней).\nНаблюдение до **${raw.endExclusive}**, время Красноярска.\n\n| Показатель | Результат |\n|---|---:|\n| Входов | ${n.enteredTrades} |\n| Достигнута цель | ${n.targets} |\n| Стоп | ${n.stops} |\n| TP и SL в одной M5, порядок неизвестен | ${n.ambiguous} |\n| Не завершились до смены H1 / конца данных | ${n.unresolved} |\n| Успешных среди определённых исходов | ${n.winRateKnown === null ? '—' : (n.winRateKnown * 100).toFixed(2) + '%'} |\n| Дней с входом | ${n.daysWithEntry} |\n| Дней без входа | ${n.daysWithoutEntry} |\n| Дней, когда достигнута цель | ${n.daysWithTarget} |\n| Дней со стопами и без цели | ${n.daysWithStopsAndNoTarget} |\n| Сумма известных исходов до расходов, R | ${n.netRKnownBeforeCosts.toFixed(2)} |\n\nИсполнялся сам исходник ${version} в PineTS 0.12.0. Сигнал — касание входа\nпо правилам ${scriptVersion}; стоп на 0.03 USDT за красной линией Фибо, цель — третья точка.\nВход сохранён как середина между базовой линией Фибо и целью, без сдвига\nиз-за отступа стопа. Фактический reward/risk немного меньше 1:1.\nВ обычном сценарии соседние центральные свечи P1/P2 не образуют диапазон: пару отбрасываем.\nМежду ними нужна хотя бы одна свеча. До подходящей P2 первая точка\nсопровождает новые подтверждённые экстремумы.\nРазворотный LONG после SHORT без обновления первого low сохраняет этот low\nкак «0». Откат P2 ниже H1 допустим выше «0»; верхняя P1 сохраняется,\nсоседний нижний свинг пропускается, нужна следующая более низкая P2.\nПробой P1 на свече подтверждения P2 сохраняется как P3, без входа задним числом на ней.\nПосле отдельного ретеста, не достигшего входа, следующий новый экстремум P3\nпереносит Фибо с 1–2 на 2–3. Базовая линия=P2−0.25×(P3−P2), цель=P3,\nвход=(базовая линия+цель)/2; фактический стоп вынесен за линию на 0.03 USDT. Без такого ретеста первоначальная сетка сохраняется.\nВ режиме 2–3 до входа сопровождаются все три цены; после входа они заморожены.\nПосле стопа со следующей M5 разрешён новый поиск. После цели новых входов\nпод этой H1 нет. Поэтому 60 дней не обязательно равны 60 сделкам.\n\nЭто **консервативный бэктест по M5 OHLC**, без тиков. Бар с новым экстремумом\nне используется как доказательство последующего ретеста. На самой свече\nвхода исход TP/SL не приписывается движению после входа. Если следующая\nсвеча содержит оба уровня, исход неизвестен и ${scriptVersion} блокирует новые входы\nпод этой H1. Такие сделки не включены в долю успешных определённых исходов.\nКомиссии, проскальзывание, финансирование и реальные исполнения не учтены.\nСумма R включает только известные TP/SL, не является итогом всего портфеля.\nНа стопе −1R, на цели — отношение расстояния до цели к расстоянию\nдо фактического стопа с отступом. Комиссии в R не включены.\n\nИсточник — [публичный API фьючерсов MEXC](${BASE_URL_PLACEHOLDER}).\nПолучено ${raw.count} непрерывных M5 свечей, пропусков и неполных опорных часов нет.\nДень в отчёте — дата опорного H1; вход может произойти после полуночи.\nИсходные данные и полный журнал приложены рядом. Время входа и выхода\nв CSV задано интервалом M5: точный момент внутри свечи неизвестен.\n\nSHA-256 исходника: \`${result.sourceSha256}\`.\nSHA-256 файла свечей: \`${result.inputSha256}\`.\n`;
+  const body = `# Бэктест SOL/USDT MEXC — ${scriptVersion}\n\nКалендарное окно: **${result.period.windowFirstReference} — ${result.period.windowLastReference}**.\nТорговые опорные дни: **${result.period.firstReference} — ${result.period.lastReference}** (${n.referenceDays} будних дней).\nКалендарных опорных дней в исходном окне: **${n.calendarReferenceDays}**, исключено выходных: **${n.excludedWeekendDays}**.\nНаблюдение до **${raw.endExclusive}**, время Красноярска.\n\n| Показатель | Результат |\n|---|---:|\n| Входов | ${n.enteredTrades} |\n| Достигнута цель | ${n.targets} |\n| Стоп | ${n.stops} |\n| TP и SL в одной M5, порядок неизвестен | ${n.ambiguous} |\n| Не завершились до смены H1 / конца данных | ${n.unresolved} |\n| Успешных среди определённых исходов | ${n.winRateKnown === null ? '—' : (n.winRateKnown * 100).toFixed(2) + '%'} |\n| Дней с входом | ${n.daysWithEntry} |\n| Дней без входа | ${n.daysWithoutEntry} |\n| Дней, когда достигнута цель | ${n.daysWithTarget} |\n| Дней со стопами и без цели | ${n.daysWithStopsAndNoTarget} |\n| Сумма известных исходов до расходов, R | ${n.netRKnownBeforeCosts.toFixed(2)} |\n\nСуббота и воскресенье по Красноярску исключены из поиска и новых входов.\nОграничения 20:30 нет: в будни вход разрешён до обычной смены H1.\nУже открытый в будни вход продолжает отслеживаться в выходные.\n\nИсполнялся сам исходник ${version} в PineTS 0.12.0. Сигнал — касание входа\nпо правилам ${scriptVersion}; стоп на 0.03 USDT за красной линией Фибо, цель — третья точка.\nВход сохранён как середина между базовой линией Фибо и целью, без сдвига\nиз-за отступа стопа. Фактический reward/risk немного меньше 1:1.\nВ обычном сценарии соседние центральные свечи P1/P2 не образуют диапазон: пару отбрасываем.\nМежду ними нужна хотя бы одна свеча. До подходящей P2 первая точка\nсопровождает новые подтверждённые экстремумы.\nРазворотный LONG после SHORT без обновления первого low сохраняет этот low\nкак «0». Откат P2 ниже H1 допустим выше «0»; верхняя P1 сохраняется,\nсоседний нижний свинг пропускается, нужна следующая более низкая P2.\nПробой P1 на свече подтверждения P2 сохраняется как P3, без входа задним числом на ней.\nПосле отдельного ретеста, не достигшего входа, следующий новый экстремум P3\nпереносит Фибо с 1–2 на 2–3. Базовая линия=P2−0.25×(P3−P2), цель=P3,\nвход=(базовая линия+цель)/2; фактический стоп вынесен за линию на 0.03 USDT. Без такого ретеста первоначальная сетка сохраняется.\nВ режиме 2–3 до входа сопровождаются все три цены; после входа они заморожены.\nПосле стопа со следующей M5 разрешён новый поиск. После цели новых входов\nпод этой H1 нет. Поэтому 60 дней не обязательно равны 60 сделкам.\n\nЭто **консервативный бэктест по M5 OHLC**, без тиков. Бар с новым экстремумом\nне используется как доказательство последующего ретеста. На самой свече\nвхода исход TP/SL не приписывается движению после входа. Если следующая\nсвеча содержит оба уровня, исход неизвестен и ${scriptVersion} блокирует новые входы\nпод этой H1. Такие сделки не включены в долю успешных определённых исходов.\nКомиссии, проскальзывание, финансирование и реальные исполнения не учтены.\nСумма R включает только известные TP/SL, не является итогом всего портфеля.\nНа стопе −1R, на цели — отношение расстояния до цели к расстоянию\nдо фактического стопа с отступом. Комиссии в R не включены.\n\nИсточник — [публичный API фьючерсов MEXC](${BASE_URL_PLACEHOLDER}).\nПолучено ${raw.count} непрерывных M5 свечей, пропусков и неполных опорных часов нет.\nДень в отчёте — дата опорного H1; вход может произойти после полуночи.\nИсходные данные и полный журнал приложены рядом. Время входа и выхода\nв CSV задано интервалом M5: точный момент внутри свечи неизвестен.\n\nSHA-256 исходника: \`${result.sourceSha256}\`.\nSHA-256 файла свечей: \`${result.inputSha256}\`.\n`;
   writeFileSync(prefix + '.md', body);
   process.stdout.write(JSON.stringify(result.summary, null, 2) + '\n');
 }

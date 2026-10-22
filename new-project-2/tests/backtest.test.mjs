@@ -83,3 +83,18 @@ test('пропущенная M5 и недопустимый OHLC останав�
   const wrong = entered(); wrong[13].low = 110;
   await assert.rejects(run(wrong), /Invalid OHLC/);
 });
+
+for (const [day, days] of [['суббота', -3], ['воскресенье', -2]]) {
+  test(`${day}: журнал исключает выходной из сделок и числа торговых дней`, async () => {
+    const delta = days * 86400000;
+    const bars = [...entered(), c(20, 102, 103, 98, 99)].map(b => ({ ...b, time: b.time + delta / 1000 }));
+    const { summary, days: referenceDays, trades } = await execute(source, raw(bars), start + delta, start + delta + bars.length * step);
+    assert.equal(summary.calendarReferenceDays, 1);
+    assert.equal(summary.excludedWeekendDays, 1);
+    assert.equal(summary.referenceDays, 0);
+    assert.equal(summary.enteredTrades, 0);
+    assert.equal(summary.winRateKnown, null);
+    assert.deepEqual(referenceDays, []);
+    assert.deepEqual(trades, []);
+  });
+}

@@ -17,7 +17,7 @@ test('файл для загрузки совпадает с исполняем�
 // Прежние сценарии проверяются при нулевом отступе, чтобы отличать
 // изменение буфера от регрессии структуры. Новые тесты ниже используют
 // настоящий default 0.03 и отдельно проверяют прежние входы и новые исходы.
-const zeroOffset = () => new Indicator(source, { 'Отступ стопа за Фибо (USDT)': 0 });
+const zeroOffset = () => new Indicator(source, { 'Отступ стопа за Фибо (USDT)': 0, 'Не торговать в субботу и воскресенье': false });
 const start = Date.parse('2026-10-20T14:00:00+07:00');
 const step = 300_000;
 
@@ -64,7 +64,7 @@ async function run(data, timeframe = '5', inputs = {}) {
   // Отдельный хвост оставляет все проверяемые свечи историческими.
   const last = data.at(-1);
   const guard = { ...last, openTime: last.openTime + step, closeTime: last.closeTime + step };
-  const script = new Indicator(source, { 'Отступ стопа за Фибо (USDT)': 0, ...inputs });
+  const script = new Indicator(source, { 'Отступ стопа за Фибо (USDT)': 0, 'Не торговать в субботу и воскресенье': false, ...inputs });
   return new PineTS([...data, guard], 'SOLUSDT', timeframe).run(script);
 }
 function values(ctx, name) { return ctx.plots[name].data.slice(0, -1).map(p => p.value); }
@@ -606,7 +606,7 @@ test('прокрутка окна перерисовывает старые дн
   const last = data.at(-1);
   const guard = { ...last, openTime: last.openTime + step, closeTime: last.closeTime + step };
   const engine = new PineTS([...data, guard], 'SOLUSDT', '5');
-  const script = new Indicator(source, { 'История: опорных дней': 2 });
+  const script = new Indicator(source, { 'История: опорных дней': 2, 'Не торговать в субботу и воскресенье': false });
   const recent = await engine.update(script);
   engine.setVisibleRange(start - 11 * 86_400_000, start - 10 * 86_400_000 + 9 * 3_600_000);
   const old = await engine.update();
@@ -1402,5 +1402,73 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(values(ctx, `${side} Target`)[20], price(98));
     assert.equal(values(ctx, 'Outcome')[21], 0);
     assert.equal(values(ctx, 'Outcome')[22], -1);
+  });
+}
+
+for (const side of ['SHORT', 'LONG']) {
+  const transform = data => side === 'SHORT' ? data : mirror(data);
+  const shift = (data, days) => data.map(b => ({ ...b, openTime: b.openTime + days * 86400000, closeTime: b.closeTime + days * 86400000 }));
+  for (const [name, days] of [['суббота', -3], ['воскресенье', -2]]) {
+    test(`${side}: ${name} по Красноярску — нет поиска, сигналов и нового часового прямоугольника`, async () => {
+      const ctx = await runDefault(transform(shift(complete(), days)));
+      assert.ok(values(ctx, 'Stage').every(s => s === 0));
+      assert.equal(signalCount(ctx, side), 0);
+      assert.equal(lines(ctx).length, 0);
+      assert.equal(positionZones(ctx).length, 0);
+    });
+  }
+  test(`${side}: ограничение 20:30 отменено — вход в будний день в 22:35 разрешён`, async () => {
+    const late = complete().slice(12).map(b => ({ ...b, openTime: b.openTime + 7 * 3600000, closeTime: b.closeTime + 7 * 3600000 }));
+    const ctx = await runDefault(transform([...hour(), ...late]));
+    assert.equal(values(ctx, side)[19], 1);
+    assert.equal(signalCount(ctx, side), 1);
+  });
+  test(`${side}: пятничный ожидающий план отменяется в субботу 00:00, а не в 20:30`, async () => {
+    const data = [...complete().slice(0, 18), candle(119, 100, 101.5, 99.1, 100.5),
+      candle(120, 100.5, 102.2, 100, 102)];
+    const ctx = await runDefault(transform(shift(data, -4)));
+    assert.equal(values(ctx, 'Stage')[18], 5);
+    assert.equal(values(ctx, 'Stage')[19], 0);
+    assert.equal(signalCount(ctx, side), 0);
+    assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Выходной · Без входа')));
+  });
+  test(`${side}: пятничный вход продолжает ждать исход в субботу`, async () => {
+    const ctx = await runDefault(transform(shift([...complete().slice(0, 20), candle(120, 102, 103, 98, 99)], -4)));
+    assert.equal(values(ctx, side)[19], 1);
+    assert.equal(values(ctx, 'Outcome')[20], 1);
+    assert.equal(signalCount(ctx, side), 1);
+  });
+  test(`${side}: после субботы и воскресенья новая понедельничная H1 снова разрешает вход`, async () => {
+    const ctx = await runDefault(transform([...shift(complete(), -3), ...shift(complete(), -2), ...shift(complete(), -1)]));
+    assert.equal(signalCount(ctx, side), 1);
+    assert.equal(values(ctx, side)[complete().length * 2 + 19], 1);
+  });
+}
+
+for (const side of ['SHORT', 'LONG']) {
+  test(`${side}: живой переход в субботу запрещает вход внутри пятничной свечи 23:55`, async () => {
+    const raw = [...complete().slice(0, 18), candle(119, 100, 101.5, 99.1, 100.5)]
+      .map(b => ({ ...b, openTime: b.openTime - 4 * 86400000, closeTime: b.closeTime - 4 * 86400000 }));
+    const data = side === 'SHORT' ? raw : mirror(raw);
+    let tail = { ...data.at(-1) };
+    const provider = {
+      getMarketData: async (_ticker, _tf, _limit, since) =>
+        since !== undefined && since >= tail.openTime ? [{ ...tail }] : data.map(b => ({ ...b })),
+      getSymbolInfo: async () => null,
+    };
+    try {
+      mock.timers.setTime(tail.openTime + 60_000); // Пятница 23:56 UTC+7.
+      const engine = new PineTS(provider, 'SOLUSDT', '5');
+      const ctx = await engine.run(source);
+      assert.equal(ctx.plots.Stage.data.at(-1).value, 5);
+      mock.timers.setTime(tail.openTime + step); // Уже суббота 00:00.
+      const quote = side === 'SHORT' ? 102.2 : 104.8;
+      tail = { ...tail, high: Math.max(tail.high, quote), low: Math.min(tail.low, quote), close: quote, closeTime: Date.now() + step };
+      await engine.updateTail(ctx);
+      assert.equal(ctx.plots.Stage.data.at(-1).value, 0);
+      assert.equal(ctx.alerts.length, 0);
+    } finally {
+      mock.timers.setTime(Date.parse('2026-10-23T00:00:00Z'));
+    }
   });
 }
