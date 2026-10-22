@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v25", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v26", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -248,6 +248,38 @@ if stage >= 1 and stage <= 5
                     lockedDirection := direction
                 stage := 2
                 breakBar := bar_index
+
+        // После 1–2–3 пробой P2 до входа запускает обратный сетап.
+        // На истории нельзя считать этот же бар последующим ретестом.
+        bool crossedSecond = stage == 5 and not na(point2) and (direction == 1 ? (barstate.isrealtime ? close < point2 : low < point2) : (barstate.isrealtime ? close > point2 : high > point2))
+        if crossedSecond
+            bool ambiguousReversal = not barstate.isrealtime and (direction == 1 ? high > point3 : low < point3)
+            int formerThirdTime = time[bar_index - lastExtremeBar]
+            point1 := point2
+            point1Time := point2Time
+            point1Bar := bar_index - int((time - point2Time) / 300000)
+            point2 := point3
+            point2Time := formerThirdTime
+            direction := -direction
+            lockedDirection := direction
+            longFloor0 := na
+            longFloorTime := na
+            skippedSecond := na
+            equalFirstLow := false
+            partialRetest := false
+            fibReanchored := false
+            point3 := direction == -1 ? low : high
+            stopFibo := point1 + 1.25 * (point2 - point1)
+            stop := stopFibo - direction * stopOffset
+            entry := (stopFibo + point3) / 2.0
+            lastExtremeBar := bar_index
+            positionLeft := time
+            drawingRight := na
+            signalBar := na
+            candidateEpoch := candidateEpoch + 1
+            retiredStatus := "Разворот по P2 · Без входа"
+            seededPoint3 := true
+            stage := ambiguousReversal ? 7 : 5
 
         // В обычном LONG граница отмены — low H1. После разворота SHORT,
         // не обновившего первый low, допускается откат до сохранённого «0».
