@@ -935,14 +935,14 @@ function adjacentPairPrefix() {
   return [...hour(), candle(12, 102, 103, 100.5, 101.5),
     candle(13, 101, 102, 100, 101), // Кандидат P1.
     candle(14, 101, 104, 100.6, 103), // Соседняя центральная свеча P2.
-    candle(15, 103, 103, 100.8, 102)]; // P2 подтвердился: пару отбрасываем.
+    candle(15, 103, 103, 100.8, 102)]; // P2 подтвердился: соседнюю P2 пропускаем, P1 сохраняем.
 }
 for (const side of ['SHORT', 'LONG']) {
   const transform = data => side === 'SHORT' ? data : mirror(data);
   const reflect = price => side === 'SHORT' ? price : 207 - price;
-  test(`${side}: соседние P1/P2 отбрасываются целиком, новый первый свинг создаёт новый диапазон`, async () => {
+  test(`${side}: соседнюю P2 пропускаем, P1 сохраняем и переносим на следующий более глубокий свинг`, async () => {
     const prefix = await run(transform(adjacentPairPrefix()));
-    assert.equal(values(prefix, 'Stage')[15], 2);
+    assert.equal(values(prefix, 'Stage')[15], 3);
     assert.equal(lines(prefix).length, 0);
     assert.equal(prefix.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
     const data = [...adjacentPairPrefix(),
@@ -992,7 +992,7 @@ test('MEXC 24 августа: пара 15:00/15:05 исключена, нова�
     .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
       open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
   const ctx = await run(data);
-  assert.equal(values(ctx, 'Stage')[14], 2); // 15:10 — подтверждение соседней P2 и отказ.
+  assert.equal(values(ctx, 'Stage')[14], 3); // 15:10 — соседняя P2 пропущена, P1 сохраняется.
   assert.equal(signalCount(ctx), 0);
   assert.equal(signalCount(ctx, 'LONG'), 0);
   const m5 = ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted');
@@ -1501,4 +1501,54 @@ test('разворот до подтверждения первого нижне
     candle(13, 103, 107, 100.8, 106.5)]);
   assert.equal(values(ctx, 'Direction')[13], 1);
   assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[13]));
+});
+
+for (const side of ['SHORT', 'LONG']) {
+  const transform = data => side === 'SHORT' ? data : mirror(data);
+  const reflect = p => side === 'SHORT' ? p : 207-p;
+  test(`${side}: равные соседние экстремумы подтверждают одну P2 только после выхода из плато`, async () => {
+    const prefix = [...hour(108), ...structure(), candle(17, 103, 104.5, 101.4, 104),
+      candle(18, 104, 104.5, 101.5, 104)];
+    const before = await run(transform(prefix));
+    const box0 = before.plots.__boxes__.data[0].value.find(b => b.border_style === 'style_dotted');
+    assert.equal(side === 'SHORT' ? box0.top : box0.bottom, reflect(104));
+    const ctx = await run(transform([...prefix, candle(19, 104, 104, 101.6, 103),
+      candle(20, 103, 103.5, 99, 100)]));
+    assert.equal(values(ctx, 'Stage')[19], 4);
+    assert.ok(Math.abs(values(ctx, `${side} Stop`)[20]-reflect(105.625))<1e-9);
+    assert.ok(Math.abs(values(ctx, `${side} Entry`)[20]-reflect(102.3125))<1e-9);
+  });
+  test(`${side}: плато противоположного свинга, начавшееся сразу после P1, остаётся соседним`, async () => {
+    const prefix = [...adjacentPairPrefix().slice(0, 15), candle(15, 103, 104, 100.8, 103),
+      candle(16, 103, 103, 101, 102)];
+    const before = await run(transform(prefix));
+    assert.equal(values(before, 'Stage')[16], 3);
+    assert.equal(before.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
+    const ctx = await run(transform([...prefix, candle(17, 102, 104.5, 101.5, 104),
+      candle(18, 104, 104, 101.6, 103), candle(19, 103, 103.5, 99, 100)]));
+    const range = ctx.plots.__boxes__.data[0].value.find(b => b.border_style === 'style_dotted');
+    assert.equal(range.left, start+13*step);
+    assert.ok(Math.abs(values(ctx, `${side} Stop`)[19]-reflect(105.625))<1e-9);
+  });
+}
+
+test('MEXC 1 сентября: сохраняем самый нижний P1 101.74 и общую вершину P2 102.68', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-09-01T14:00:00+07:00'), until = Date.parse('2026-09-01T20:00:00+07:00');
+  const data = raw.candles.filter(b => b.time*1000>=from && b.time*1000<until)
+    .map(b => ({ openTime:b.time*1000, closeTime:b.time*1000+step-1,
+      open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol }));
+  const ctx = await runDefault(data);
+  const at=t=>(Date.parse(`2026-09-01T${t}:00+07:00`)-from)/step;
+  assert.equal(values(ctx, 'Stage')[at('15:40')], 3);
+  assert.equal(values(ctx, 'Stage')[at('15:50')], 3);
+  assert.equal(values(ctx, 'SHORT')[at('19:45')], 1);
+  assert.equal(signalCount(ctx),1);
+  const range=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted');
+  assert.equal(range.left,Date.parse('2026-09-01T15:40:00+07:00'));
+  assert.equal(range.bottom,101.74);
+  assert.equal(range.top,102.68);
+  assert.ok(Math.abs(values(ctx,'SHORT Entry')[at('19:45')]-102.1525)<1e-9);
+  assert.ok(Math.abs(values(ctx,'SHORT Stop')[at('19:45')]-102.945)<1e-9);
+  assert.equal(values(ctx,'SHORT Target')[at('19:45')],101.39);
 });

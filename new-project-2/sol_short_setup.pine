@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v16", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v17", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -97,6 +97,14 @@ varip int lastExtremeBar = na
 varip int signalBar = na
 varip float previousQuote = na
 varip int lastPivotBar = na
+// Серия одинаковых high/low — одна вершина/впадина. Храним её
+// первый бар и наличие более низкого high / более высокого low слева.
+varip bool highRunHasLowerLeft = false
+varip bool lowRunHasHigherLeft = false
+varip int highRunBar = na
+varip int highRunTime = na
+varip int lowRunBar = na
+varip int lowRunTime = na
 varip int outcome = 0
 varip int outcomeBar = na
 varip int candidateEpoch = 0
@@ -306,10 +314,15 @@ if stage >= 1 and stage <= 5
                 bool livePartial = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? close > previousQuote and close > point3 and close < entry : close < previousQuote and close < point3 and close > entry)
                 partialRetest := partialRetest or historicalPartial or livePartial
 
-// Строгие трёхсвечные фракталы. Центральная свеча известна только после
-// закрытия правой. Равные экстремумы не образуют новый фрактал.
-bool lowerPivot = barstate.isconfirmed and bar_index >= 2 and low[1] < low[2] and low[1] < low
-bool upperPivot = barstate.isconfirmed and bar_index >= 2 and high[1] > high[2] and high[1] > high
+// Уникальный экстремум подтверждается правой свечой, как раньше.
+// Равные соседние экстремумы объединяются; подтверждение возникает
+// только после выхода из плато. Координата — первый бар общей вершины.
+bool lowerPivot = barstate.isconfirmed and bar_index >= 2 and lowRunHasHigherLeft and low > low[1]
+bool upperPivot = barstate.isconfirmed and bar_index >= 2 and highRunHasLowerLeft and high < high[1]
+int firstPivotBar = direction == -1 ? lowRunBar : highRunBar
+int firstPivotTime = direction == -1 ? lowRunTime : highRunTime
+int secondPivotBar = direction == -1 ? highRunBar : lowRunBar
+int secondPivotTime = direction == -1 ? highRunTime : lowRunTime
 
 // Обновление фракталов происходит ПОСЛЕ обработки событий текущей свечи.
 // Новый подтверждённый уровень не используется задним числом внутри неё.
@@ -317,42 +330,48 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     lastPivotBar := bar_index
     bool firstPivot = direction == -1 ? lowerPivot and low[1] < h1Low : upperPivot and high[1] > h1High
     bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 : lowerPivot and low[1] < point1
-    if stage == 2 and firstPivot and bar_index - 1 >= breakBar
+    if stage == 2 and firstPivot and firstPivotBar >= breakBar
         point1 := direction == -1 ? low[1] : high[1]
-        point1Bar := bar_index - 1
-        point1Time := time[1]
+        point1Bar := firstPivotBar
+        point1Time := firstPivotTime
         stage := 3
     else if stage == 3
         // Пока нет второй точки, первая следует за более глубоким
         // подтверждённым свингом (для LONG — за более высоким).
         if firstPivot and ((direction == -1 and low[1] < point1) or (direction == 1 and high[1] > point1))
             point1 := direction == -1 ? low[1] : high[1]
-            point1Bar := bar_index - 1
-            point1Time := time[1]
+            point1Bar := firstPivotBar
+            point1Time := firstPivotTime
             skippedLongLow := na
-        else if secondPivot and bar_index - 1 > point1Bar
-            if bar_index - 1 == point1Bar + 1
+        else if secondPivot and secondPivotBar > point1Bar
+            if secondPivotBar == point1Bar + 1
                 if direction == 1 and not na(longFloor0)
                     // После не подтвердившегося SHORT первую вершину
                     // сохраняем; соседний low только запоминаем и пропускаем.
                     skippedLongLow := na(skippedLongLow) ? low[1] : math.min(skippedLongLow, low[1])
-                else
-                    // В обычном сценарии прежнее правило: отказ от обеих.
-                    stage := 2
-                    breakBar := bar_index
-                    point1 := na
-                    point1Bar := na
-                    point1Time := na
-                    point2 := na
-                    point2Time := na
+                // Соседний противоположный свинг не становится P2,
+                // но P1 сохраняется и может обновляться глубже до отката.
+                point2 := na
+                point2Time := na
             else if na(skippedLongLow) or low[1] < skippedLongLow
                 point2 := direction == -1 ? high[1] : low[1]
-                point2Time := time[1]
+                point2Time := secondPivotTime
                 skippedLongLow := na
                 stage := 4
     else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
         point2 := direction == -1 ? high[1] : low[1]
-        point2Time := time[1]
+        point2Time := secondPivotTime
+
+    // После обработки предыдущего экстремума начинаем/продолжаем
+    // серию текущего бара. На тиках открытой свечи состояние не сдвигаем.
+    if na(highRunBar) or high != high[1]
+        highRunHasLowerLeft := not na(high[1]) and high > high[1]
+        highRunBar := bar_index
+        highRunTime := time
+    if na(lowRunBar) or low != low[1]
+        lowRunHasHigherLeft := not na(low[1]) and low < low[1]
+        lowRunBar := bar_index
+        lowRunTime := time
 
 // Свеча подтверждения P2 уже может обновить P1. Сохраняем этот экстремум
 // как P3 после подтверждения, иначе следующий бар потеряет совершённый пробой.

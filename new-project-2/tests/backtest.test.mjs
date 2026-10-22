@@ -27,6 +27,7 @@ test('журнал реального Pine: один SHORT, точные E/S/T, 
   const { summary, trades } = await run([...entered(), c(20, 102, 103, 98, 99)]);
   assert.equal(summary.enteredTrades, 1);
   assert.equal(summary.targets, 1);
+  assert.equal(summary.totalTrades, 1);
   assert.equal(summary.stops, 0);
   assert.ok(Math.abs(summary.netRKnownBeforeCosts - 3/3.03) < 1e-9);
   assert.equal(trades[0].entry, 102);
@@ -40,6 +41,7 @@ test('после стопа журнал сохраняет обе сделки 
   const next = entered().slice(12).map((b, i) => c(21 + i, 207 - b.open, 207 - b.low, 207 - b.high, 207 - b.close));
   const { summary, trades } = await run([...entered(), c(20, 102, 105.2, 101.5, 104), ...next, c(29, 105, 109, 104, 108)]);
   assert.equal(summary.enteredTrades, 2);
+  assert.equal(summary.totalTrades, 2);
   assert.equal(summary.targets, 1);
   assert.equal(summary.stops, 1);
   assert.ok(Math.abs(summary.netRKnownBeforeCosts - (3/3.03 - 1)) < 1e-9);
@@ -49,6 +51,7 @@ test('после стопа журнал сохраняет обе сделки 
 test('неизвестный порядок TP/SL не записывается ни в победы, ни в стопы', async () => {
   const { summary, trades } = await run([...entered(), c(20, 102, 106, 98, 103)]);
   assert.equal(summary.ambiguous, 1);
+  assert.equal(summary.totalTrades, 0);
   assert.equal(summary.targets, 0);
   assert.equal(summary.stops, 0);
   assert.equal(summary.winRateKnown, null);
@@ -62,6 +65,7 @@ test('смена H1 не превращает незавершённый вхо�
   const { summary, trades } = await run(throughNextHour());
   assert.equal(summary.referenceDays, 1);
   assert.equal(summary.unresolved, 1);
+  assert.equal(summary.totalTrades, 0);
   assert.equal(summary.targets + summary.stops, 0);
   assert.equal(trades[0].status, 'unresolved_at_new_h1');
   assert.equal(trades[0].exitPrice, null);
