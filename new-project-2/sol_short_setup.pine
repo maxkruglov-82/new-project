@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v10", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v11", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -76,6 +76,12 @@ varip int point1Bar = na
 varip int point1Time = na
 varip float point2 = na
 varip float point3 = na
+// При развороте не подтвердившегося SHORT его первый low становится
+// границей «0» нового LONG. Она фиксируется до отмены/смены кандидата.
+varip float longFloor0 = na
+// Нижний свинг сразу после первой вершины не считается точкой 2.
+// В этом разворотном LONG ждём следующий, более низкий подтверждённый low.
+varip float skippedLongLow = na
 varip float entry = na
 varip float stop = na
 varip int lastExtremeBar = na
@@ -164,6 +170,8 @@ if retry
     point1Time := na
     point2 := na
     point3 := na
+    longFloor0 := na
+    skippedLongLow := na
     entry := na
     stop := na
     signalBar := na
@@ -175,6 +183,8 @@ if retry
 if stage >= 1 and stage <= 5
     if time >= validUntil
         stage := 0
+        longFloor0 := na
+        skippedLongLow := na
     else
         bool below = barstate.isrealtime ? close < h1Low : low < h1Low
         bool above = barstate.isrealtime ? close > h1High : high > h1High
@@ -187,13 +197,17 @@ if stage >= 1 and stage <= 5
                 stage := 2
                 breakBar := bar_index
 
-        // До входа противоположная граница меняет приоритет под той же H1.
-        // Новый P1 — первый подтверждённый свинг на ноге нового пробоя.
-        if stage >= 2 and stage <= 5 and ((direction == -1 and above) or (direction == 1 and below))
+        // В обычном LONG граница отмены — low H1. После разворота SHORT,
+        // не обновившего первый low, допускается откат до сохранённого «0».
+        bool longInvalid = na(longFloor0) ? below : low < longFloor0
+        if stage >= 2 and stage <= 5 and ((direction == -1 and above) or (direction == 1 and longInvalid))
+            bool unbrokenShort = direction == -1 and stage == 4 and not na(point1) and low >= point1
+            longFloor0 := unbrokenShort ? point1 : na
+            skippedLongLow := na
             candidateEpoch := candidateEpoch + 1
             retiredStatus := "Отмена · Без входа"
             direction := direction == -1 ? 1 : -1
-            stage := below and above ? 7 : 2
+            stage := below and above and na(longFloor0) ? 7 : 2
             breakBar := bar_index
             point1 := na
             point1Bar := na
@@ -268,18 +282,24 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
             point1 := direction == -1 ? low[1] : high[1]
             point1Bar := bar_index - 1
             point1Time := time[1]
+            skippedLongLow := na
         else if secondPivot and bar_index - 1 > point1Bar
             if bar_index - 1 == point1Bar + 1
-                // Соседние центральные свечи не образуют диапазон 1–2.
-                // Отбрасываем обе точки и ищем новый первый свинг.
-                stage := 2
-                breakBar := bar_index
-                point1 := na
-                point1Bar := na
-                point1Time := na
-                point2 := na
-            else
+                if direction == 1 and not na(longFloor0)
+                    // После не подтвердившегося SHORT первую вершину
+                    // сохраняем; соседний low только запоминаем и пропускаем.
+                    skippedLongLow := na(skippedLongLow) ? low[1] : math.min(skippedLongLow, low[1])
+                else
+                    // В обычном сценарии прежнее правило: отказ от обеих.
+                    stage := 2
+                    breakBar := bar_index
+                    point1 := na
+                    point1Bar := na
+                    point1Time := na
+                    point2 := na
+            else if na(skippedLongLow) or low[1] < skippedLongLow
                 point2 := direction == -1 ? high[1] : low[1]
+                skippedLongLow := na
                 stage := 4
     else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
         point2 := direction == -1 ? high[1] : low[1]
@@ -416,6 +436,8 @@ if barstate.isconfirmed and hh == 14
         point1Time := na
         point2 := na
         point3 := na
+        longFloor0 := na
+        skippedLongLow := na
         entry := na
         stop := na
         lastExtremeBar := na
@@ -447,6 +469,7 @@ plot(stage, "Stage", color=color.new(color.white, 100), display=display.data_win
 plot(direction, "Direction", color=color.new(color.white, 100), display=display.data_window)
 plot(h1High, "H1 High", color=color.new(color.white, 100), display=display.data_window)
 plot(h1Low, "H1 Low", color=color.new(color.white, 100), display=display.data_window)
+plot(longFloor0, "LONG Floor 0", color=color.new(color.white, 100), display=display.data_window)
 
 plot(outcome, "Outcome", color=color.new(color.white, 100), display=display.data_window)
 plot(showMarks and ((shortEvent and eventDraw) or (drawReference and direction == -1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "SHORT", color=color.new(color.white, 100), display=display.none)

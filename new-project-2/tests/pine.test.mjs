@@ -791,8 +791,9 @@ test('двойная смена приоритета SHORT → LONG → SHORT д
     candle(27, 100, 102, 99, 101.8)];
   const ctx = await run(data);
   assert.equal(values(ctx, 'Direction')[17], 1);
-  assert.equal(values(ctx, 'Direction')[20], -1);
-  assert.equal(values(ctx, 'Stage')[20], 2);
+  assert.equal(values(ctx, 'Direction')[20], 1); // Low=100 равен «0»: LONG ещё допустим.
+  assert.equal(values(ctx, 'Direction')[21], -1); // Только low=99 пробивает «0».
+  assert.equal(values(ctx, 'Stage')[21], 2);
   assert.equal(signalCount(ctx), 1);
   assert.equal(signalCount(ctx, 'LONG'), 0);
   assert.equal(values(ctx, 'SHORT Entry')[27], 101.625);
@@ -1052,3 +1053,180 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(ctx.alerts.length, 1);
   });
 }
+
+function unbrokenShortToLong() {
+  return [...hour(), ...structure(),
+    candle(17, 103, 107, 102, 106.5), // Выход через high H1, SHORT P1=100 не обновлён.
+    candle(18, 106.5, 108, 104, 107),
+    candle(19, 107, 107.5, 103, 104), // LONG P1=108 подтверждён.
+    candle(20, 104, 105, 100.5, 102), // Ниже low H1=101, но выше «0»=100.
+    candle(21, 102, 105.5, 101.2, 104), // LONG P2 подтверждён.
+    candle(22, 104, 109, 103, 108), // Новая третья точка.
+    candle(23, 108, 108.5, 104.2, 105),
+    candle(24, 105, 107, 103.5, 104), // Ретест к 103.8125, RR 1:1.
+    candle(25, 104, 110, 104, 109)];
+}
+
+test('разворот не подтвердившегося SHORT: LONG P2 ниже H1 допустима выше шортового свинга «0»', async () => {
+  const ctx = await run(unbrokenShortToLong());
+  assert.equal(values(ctx, 'LONG Floor 0')[17], 100);
+  assert.equal(values(ctx, 'Direction')[20], 1);
+  assert.equal(values(ctx, 'Stage')[21], 4);
+  assert.equal(values(ctx, 'H1 Low')[20], 101);
+  assert.equal(values(ctx, 'LONG Stop')[22], 98.625); // Стоп может лежать ниже самого «0».
+  assert.equal(values(ctx, 'LONG Target')[22], 109);
+  assert.equal(values(ctx, 'LONG Entry')[24], 103.8125);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  assert.equal(signalCount(ctx), 0);
+  assert.equal(values(ctx, 'Outcome').at(-1), 1);
+  assert.equal(values(ctx, 'LONG Floor 0').at(-1), 100);
+  assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')));
+});
+
+test('LONG: равенство P2 шортовому «0» допустимо, строгое обновление отменяет приоритет', async () => {
+  for (const low of [100, 99.9]) {
+    const data = unbrokenShortToLong().slice(0, 22);
+    data[20] = candle(20, 104, 105, low, 102);
+    const ctx = await run(data);
+    if (low === 100) {
+      assert.equal(values(ctx, 'Direction')[20], 1);
+      assert.equal(values(ctx, 'Stage')[21], 4);
+      assert.equal(values(ctx, 'LONG Floor 0')[21], 100);
+    } else {
+      assert.equal(values(ctx, 'Direction')[20], -1);
+      assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[20]));
+      assert.equal(signalCount(ctx, 'LONG'), 0);
+    }
+  }
+});
+
+test('LONG: P2 может понижаться ниже H1, пока не нарушен фиксированный «0»', async () => {
+  const data = [...unbrokenShortToLong().slice(0, 22),
+    candle(22, 104, 105.5, 100.2, 102), candle(23, 102, 106, 100.8, 104),
+    candle(24, 104, 109, 103, 108), candle(25, 108, 108.5, 104.2, 105),
+    candle(26, 105, 107, 103.5, 104)];
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'LONG Floor 0')[23], 100);
+  assert.equal(values(ctx, 'LONG Stop')[24], 98.25);
+  assert.equal(values(ctx, 'LONG Entry')[26], 103.625);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+});
+
+test('LONG: пробой «0» на ретесте отменяет вход, касания рассчитанного E недостаточно', async () => {
+  const data = unbrokenShortToLong().slice(0, 24);
+  data[23] = candle(23, 105, 105.5, 99.9, 100.5);
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Direction')[23], -1);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[23]));
+  assert.equal(signalCount(ctx, 'LONG'), 0);
+});
+
+test('LONG: после входа живёт до TP/SL, после стопа следующий поиск не наследует «0»', async () => {
+  const data = [...unbrokenShortToLong().slice(0, 25),
+    candle(25, 104, 107, 99.5, 100), // Ниже «0», но SL=98.625 пока не достигнут.
+    candle(26, 100, 104, 98.5, 99), // Стоп.
+    candle(27, 102, 104, 102, 103)];
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Stage')[25], 6);
+  assert.equal(values(ctx, 'Outcome')[25], 0);
+  assert.equal(values(ctx, 'Outcome')[26], -1);
+  assert.equal(values(ctx, 'Stage')[27], 1);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[27]));
+});
+
+test('новая H1 сбрасывает сохранённый шортовый «0» ожидающего LONG', async () => {
+  const next = Array.from({ length: 12 }, (_, i) => candle(i, 105, 106, 104, 105, 1));
+  const ctx = await run([...unbrokenShortToLong().slice(0, 24), ...next]);
+  assert.equal(values(ctx, 'Stage').at(-1), 1);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0').at(-1)));
+});
+
+test('если SHORT уже сформировал P3, последующий LONG не получает исключение по «0»', async () => {
+  const data = [...complete().slice(0, 18), candle(18, 103, 107, 102, 106.5),
+    candle(19, 106.5, 108, 104, 107), candle(20, 107, 107.5, 103, 104),
+    candle(21, 104, 105, 100.5, 102)];
+  const ctx = await run(data);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[18]));
+  assert.equal(values(ctx, 'Direction')[21], -1);
+  assert.equal(signalCount(ctx, 'LONG'), 0);
+});
+
+test('живой LONG: возврат под H1 сохраняет приоритет до строгого пробоя «0»', async () => {
+  const data = [...unbrokenShortToLong().slice(0, 20), candle(20, 104, 105, 102, 103)];
+  let tail = { ...data.at(-1) };
+  const provider = {
+    getMarketData: async (_ticker, _tf, _limit, since) =>
+      since !== undefined && since >= tail.openTime ? [{ ...tail }] : data.map(b => ({ ...b })),
+    getSymbolInfo: async () => null,
+  };
+  const engine = new PineTS(provider, 'SOLUSDT', '5');
+  const ctx = await engine.run(source);
+  for (const quote of [100.5, 100, 102]) {
+    tail = { ...tail, close: quote, low: Math.min(tail.low, quote), closeTime: Date.now() + step };
+    await engine.updateTail(ctx);
+    assert.equal(ctx.plots.Direction.data.at(-1).value, quote >= 100 ? 1 : -1);
+    if (quote >= 100) assert.equal(ctx.plots['LONG Floor 0'].data.at(-1).value, 100);
+    else assert.ok(Number.isNaN(ctx.plots['LONG Floor 0'].data.at(-1).value));
+    assert.equal(ctx.alerts.length, 0);
+  }
+  // Отдельная котировка пробоя не пришла, но новая тень уже нарушила «0».
+  tail = { ...tail, close: 102, low: 99.9, closeTime: Date.now() + step };
+  await engine.updateTail(ctx);
+  assert.equal(ctx.plots.Direction.data.at(-1).value, -1);
+  assert.ok(Number.isNaN(ctx.plots['LONG Floor 0'].data.at(-1).value));
+  assert.equal(ctx.alerts.length, 0);
+});
+
+test('MEXC 24 августа: сохранён «0» 93.21, P2 93.76 ниже H1, LONG около 94.88 в 20:40', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-08-24T14:00:00+07:00');
+  const until = Date.parse('2026-08-25T06:00:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const ctx = await run(data);
+  const index = time => (Date.parse(`2026-08-24T${time}:00+07:00`) - from) / step;
+  assert.equal(values(ctx, 'LONG Floor 0')[index('19:15')], 93.21);
+  assert.equal(values(ctx, 'Direction')[index('19:15')], 1);
+  assert.equal(values(ctx, 'Stage')[index('19:20')], 4);
+  const entryBar = index('20:40');
+  assert.equal(values(ctx, 'LONG')[entryBar], 1);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  assert.equal(signalCount(ctx), 0);
+  assert.ok(Math.abs(values(ctx, 'LONG Stop')[entryBar] - 93.1175) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Entry')[entryBar] - 94.87875) < 1e-9);
+  assert.equal(values(ctx, 'LONG Target')[entryBar], 96.64);
+  assert.equal(values(ctx, 'Outcome').at(-1), 1);
+});
+
+test('разворотный LONG сохраняет P1 после соседнего low и ждёт более низкую не соседнюю P2', async () => {
+  const data = [...unbrokenShortToLong().slice(0, 20),
+    candle(20, 104, 106, 103.5, 105), // Подтверждён соседний low 19-й свечи = 103.
+    candle(21, 105, 106.5, 103.2, 104),
+    candle(22, 104, 106, 103.6, 105), // Новый low=103.2 выше пропущенного 103: ещё не P2.
+    candle(23, 105, 106.5, 100.5, 102),
+    candle(24, 102, 107, 101.2, 106), // Подходящий низ=100.5 подтверждён, «0»=100 цел.
+    candle(25, 106, 109, 103, 108), candle(26, 108, 108.5, 104.2, 105),
+    candle(27, 105, 107, 103.5, 104)];
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Stage')[20], 3);
+  assert.equal(values(ctx, 'Stage')[22], 3);
+  assert.equal(values(ctx, 'Stage')[24], 4);
+  assert.equal(values(ctx, 'LONG Floor 0')[24], 100);
+  assert.equal(values(ctx, 'LONG Stop')[27], 98.625);
+  assert.equal(values(ctx, 'LONG Entry')[27], 103.8125);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  const m5 = ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted');
+  const longRange = m5.find(b => b.left === start + 18 * step);
+  assert.ok(longRange);
+  assert.equal(longRange.top, 108);
+  assert.equal(longRange.bottom, 100.5);
+});
+
+test('«0» требует сформированного шортового диапазона: одного нижнего P1 без верхнего P2 недостаточно', async () => {
+  const data = [...hour(), ...structure().slice(0, 3), candle(15, 103, 107, 102, 106.5)];
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Stage')[14], 3);
+  assert.equal(values(ctx, 'Direction')[15], 1);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[15]));
+});
