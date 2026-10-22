@@ -41,6 +41,12 @@ function complete() {
     candle(20, 102, 102.3, 98, 99),
     candle(21, 101, 103, 98, 102)];
 }
+// Отражаем настоящие OHLC вокруг 103.5: high и low меняются местами.
+// Тестируется тот же .pine, без отдельного алгоритма расчёта LONG.
+function mirror(data) {
+  return data.map(b => ({ ...b, open: 207 - b.open, high: 207 - b.low,
+    low: 207 - b.high, close: 207 - b.close }));
+}
 async function run(data, timeframe = '5') {
   // PineTS помечает последний бар isrealtime даже в завершённом массиве.
   // Отдельный хвост оставляет все проверяемые свечи историческими.
@@ -49,7 +55,7 @@ async function run(data, timeframe = '5') {
   return new PineTS([...data, guard], 'SOLUSDT', timeframe).run(source);
 }
 function values(ctx, name) { return ctx.plots[name].data.slice(0, -1).map(p => p.value); }
-function signalCount(ctx) { return values(ctx, 'SHORT').filter(Boolean).length; }
+function signalCount(ctx, side = 'SHORT') { return values(ctx, side).filter(Boolean).length; }
 function lines(ctx) { return ctx.plots.__lines__?.data[0]?.value || []; }
 
 test('уровни — восемь горизонтальных отрезков, после сигнала правый край не движется', async () => {
@@ -242,8 +248,129 @@ test('неправильный таймфрейм вызывает понятн�
   await assert.rejects(run(hour(), '60'), /5 минут/);
 });
 
-test('обновления открытой M5: новый low, ретест вверх без закрытия, фиксация без повторов', async () => {
-  const data = [...hour(), ...structure(), candle(17, 102, 103, 99, 100)];
+test('LONG: верхний свинг 107, нижний 103, цель 108, стоп 102 и вход 105', async () => {
+  const ctx = await run(mirror(complete()));
+  assert.deepEqual(values(ctx, 'Stage').slice(12), [2, 2, 3, 3, 4, 5, 5, 6, 6, 6]);
+  assert.equal(values(ctx, 'Direction')[12], 1);
+  assert.equal(values(ctx, 'LONG Entry')[19], 105);
+  assert.equal(values(ctx, 'LONG Stop')[19], 102);
+  assert.equal(values(ctx, 'LONG Target')[19], 108);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  assert.equal(signalCount(ctx), 0);
+  assert.ok(values(ctx, 'SHORT Entry').every(Number.isNaN));
+  assert.deepEqual(lines(ctx).filter(l => l.width === 2).map(l => [l.y1, l.y2]),
+    [[105, 105], [102, 102], [108, 108]]);
+  const m5 = ctx.plots.__boxes__.data[0].value.find(b => b.border_style === 'style_dotted');
+  assert.equal(m5.top, 107);
+  assert.equal(m5.bottom, 103);
+});
+
+const longCases = [
+  ['цель и вход растут до ретеста, затем фиксируются', () => {
+    const data = complete();
+    data[18] = candle(18, 100, 102, 98.5, 101);
+    data[19] = candle(19, 101, 102, 99, 101.8);
+    return data;
+  }, 6],
+  ['касание без закрытия ниже входа', () => {
+    const data = complete().slice(0, 20);
+    data[19] = candle(19, 101, 102, 100, 101.2);
+    return data;
+  }, 6],
+  ['новый верхний фрактал в точке 3 не обязателен', () =>
+    [...hour(), ...structure(), candle(17, 102, 103, 99, 100), candle(18, 100, 102.1, 99, 101)], 6],
+  ['нижний свинг можно понижать до пробоя точки 1', () =>
+    [...hour(), ...structure(), candle(17, 102, 104.5, 101.4, 103),
+      candle(18, 103, 103.8, 101.5, 102), candle(19, 102, 103, 99, 100),
+      candle(20, 100, 101, 99.1, 100.5)], 5],
+  ['второй свинг заморожен после пробоя', () =>
+    [...hour(), ...structure(), candle(17, 102, 103, 99, 100),
+      candle(18, 103, 104.5, 98, 102), candle(19, 103, 104, 97, 102)], 5],
+  ['пробой минимума H1 отменяет LONG без запуска SHORT', () => {
+    const data = complete();
+    data[18] = candle(18, 100, 106.1, 99.4, 101);
+    return data;
+  }, 7],
+  ['стоп ниже минимума H1 отбраковывает план', () =>
+    [...hour(104.5), ...complete().slice(12)], 7],
+  ['равенство high H1 не является первым выходом', () =>
+    [...hour(), candle(12, 102, 103, 101, 102)], 1],
+  ['равенство первому high не является точкой 3', () =>
+    [...hour(), ...structure(), candle(17, 102, 103, 100, 101)], 4],
+  ['новый high и касание на одной исторической свече не создают ложный ретест', () =>
+    [...hour(), ...structure(), candle(17, 102, 103, 99, 100)], 5],
+  ['после 22:00 план жив, новая H1 заменяет его и сбрасывает направление', () =>
+    [...complete().slice(0, 18), candle(96, 100, 101.5, 99.1, 100.5),
+      ...Array.from({ length: 12 }, (_, i) => candle(i, 100.5, 101.5, 100, 101, 1))], 1],
+];
+for (const [name, makeData, expectedStage] of longCases) {
+  test(`LONG зеркален SHORT: ${name}`, async () => {
+    const data = makeData();
+    const short = await run(data);
+    const long = await run(mirror(data));
+    assert.equal(values(long, 'Stage').at(-1), expectedStage);
+    assert.deepEqual(values(long, 'Stage'), values(short, 'Stage'));
+    assert.deepEqual(values(long, 'Direction'), values(short, 'Direction').map(d => d === 0 ? 0 : -d));
+    for (const field of ['Entry', 'Stop', 'Target']) {
+      const shorts = values(short, `SHORT ${field}`);
+      const longs = values(long, `LONG ${field}`);
+      for (let i = 0; i < shorts.length; i++) {
+        if (Number.isNaN(shorts[i])) assert.ok(Number.isNaN(longs[i]));
+        else assert.ok(Math.abs(longs[i] - (207 - shorts[i])) < 1e-9, `${field}, bar ${i}`);
+      }
+    }
+    assert.equal(signalCount(long, 'LONG'), signalCount(short));
+    assert.equal(signalCount(long), 0);
+    for (const line of lines(long)) assert.equal(line.y1, line.y2);
+  });
+}
+
+test('выход вверх и вниз на первой исторической M5 не позволяет угадать приоритет', async () => {
+  const ctx = await run([...hour(), candle(12, 103, 107, 100, 104), ...complete().slice(13)]);
+  assert.equal(values(ctx, 'Stage')[12], 7);
+  assert.equal(values(ctx, 'Direction')[12], 0);
+  assert.equal(signalCount(ctx), 0);
+  assert.equal(signalCount(ctx, 'LONG'), 0);
+});
+
+test('направление выхода не зависит от цвета опорной H1', async () => {
+  const data = mirror(complete());
+  data[0] = { ...data[0], open: 105 };
+  const ctx = await run(data);
+  assert.equal(values(ctx, 'Direction')[12], 1);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+});
+
+test('новый день может сменить LONG на SHORT, прежние уровни не смешиваются', async () => {
+  const next = complete().map(b => ({ ...b, openTime: b.openTime + 86_400_000, closeTime: b.closeTime + 86_400_000 }));
+  const ctx = await run([...mirror(complete()), ...next]);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  assert.equal(signalCount(ctx), 1);
+  assert.equal(values(ctx, 'Direction').at(-1), -1);
+  assert.equal(values(ctx, 'SHORT Entry').at(-1), 102);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Entry').at(-1)));
+  assert.equal(lines(ctx).length, 8);
+  assert.deepEqual(lines(ctx).filter(l => l.width === 2).map(l => l.y1), [102, 105, 99]);
+});
+
+test('LONG на границе новой H1 сохраняет цены и метку после сброса направления', async () => {
+  const data = [...complete().slice(0, 18),
+    ...Array.from({ length: 12 }, (_, i) => candle(i, 100.5, i === 11 ? 102.1 : 101.5, 100, 101, 1))];
+  const ctx = await run(mirror(data));
+  assert.equal(values(ctx, 'Stage').at(-1), 1);
+  assert.equal(values(ctx, 'Direction').at(-1), 0);
+  assert.equal(values(ctx, 'LONG Entry').at(-1), 105);
+  assert.equal(values(ctx, 'LONG Stop').at(-1), 102);
+  assert.equal(values(ctx, 'LONG Target').at(-1), 108);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  assert.equal(signalCount(ctx), 0);
+});
+
+for (const side of ['SHORT', 'LONG']) {
+test(`${side}: обновления открытой M5, новый экстремум и ретест без закрытия, один сигнал`, async () => {
+  const reflect = price => side === 'SHORT' ? price : 207 - price;
+  const raw = [...hour(), ...structure(), candle(17, 102, 103, 99, 100)];
+  const data = side === 'SHORT' ? raw : mirror(raw);
   let tail = { ...data.at(-1) };
   const provider = {
     getMarketData: async (_ticker, _tf, _limit, since) =>
@@ -254,16 +381,18 @@ test('обновления открытой M5: новый low, ретест в�
   const ctx = await engine.run(source);
   const last = name => ctx.plots[name].data.at(-1).value;
   assert.equal(last('Stage'), 5);
-  for (const [quote, expectedStage] of [[98, 5], [100, 5], [101.5, 6], [97, 6], [103, 6]]) {
+  for (const [rawQuote, expectedStage] of [[98, 5], [100, 5], [101.5, 6], [97, 6], [103, 6]]) {
+    const quote = reflect(rawQuote);
     tail = { ...tail, close: quote, high: Math.max(tail.high, quote), low: Math.min(tail.low, quote),
       // В течение теста свеча открыта, даже если остальные данные исторические.
       closeTime: Date.now() + step };
     assert.equal(await engine.updateTail(ctx), true);
     assert.equal(last('Stage'), expectedStage);
-    assert.equal(last('SHORT Entry'), 101.5);
-    assert.equal(last('SHORT Stop'), 105);
-    assert.equal(last('SHORT Target'), 98);
+    assert.equal(last(`${side} Entry`), reflect(101.5));
+    assert.equal(last(`${side} Stop`), reflect(105));
+    assert.equal(last(`${side} Target`), reflect(98));
   }
   assert.equal(ctx.alerts.length, 1);
-  assert.equal(ctx.alerts[0].title, 'SHORT');
+  assert.equal(ctx.alerts[0].title, side);
 });
+}

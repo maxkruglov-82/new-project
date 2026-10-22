@@ -1,14 +1,14 @@
 //@version=5
-indicator("SOL — часовой диапазон и SHORT 1:1 v2", overlay=true, max_boxes_count=20, max_labels_count=100, max_lines_count=20)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v3", overlay=true, max_boxes_count=20, max_labels_count=100, max_lines_count=20)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
-// На истории внутрибарный порядок неизвестен: свеча с новым минимумом
+// На истории внутрибарный порядок неизвестен: свеча с новым экстремумом
 // не используется одновременно как доказательство последующего ретеста.
 string tz = "Asia/Krasnoyarsk"
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
 bool showLevels = input.bool(true, "Показывать вход, стоп и цель")
-bool showMarks = input.bool(true, "Показывать SHORT")
+bool showMarks = input.bool(true, "Показывать SHORT и LONG")
 
 // Отдельные горизонтальные объекты не соединяют уровни разных дней.
 // Не полагаемся на поддержку plot.style_linebr рендерером терминала.
@@ -24,10 +24,12 @@ updateLevel(line id, int leftTime, int rightTime, float price, color ink, int th
 if barstate.isfirst and timeframe.period != "5"
     runtime.error("Выберите таймфрейм 5 минут. Часовой диапазон индикатор собирает автоматически.")
 
-// Состояния: 0 нет диапазона; 1 ждём выход; 2 нижний фрактал;
-// 3 верхний фрактал; 4 диапазон M5; 5 ретест; 6 сигнал выдан; 7 отмена.
+// Состояния: 0 нет диапазона; 1 ждём выход; 2 первый фрактал;
+// 3 второй фрактал; 4 диапазон M5; 5 ретест; 6 сигнал выдан; 7 отмена.
 // varip сохраняет состояние между обновлениями открытой свечи.
 varip int stage = 0
+// -1 SHORT, +1 LONG, 0 направление пока не определено.
+varip int direction = 0
 varip float h1High = na
 varip float h1Low = na
 varip int validUntil = na
@@ -39,7 +41,7 @@ varip float point2 = na
 varip float point3 = na
 varip float entry = na
 varip float stop = na
-varip int lastLowBar = na
+varip int lastExtremeBar = na
 varip int signalBar = na
 varip float previousQuote = na
 varip int lastPivotBar = na
@@ -73,6 +75,7 @@ int hh = hour(time, tz)
 int mi = minute(time, tz)
 int dayKey = yy * 10000 + mm * 100 + dd
 bool shortEvent = false
+bool longEvent = false
 float eventEntry = na
 float eventStop = na
 float eventTarget = na
@@ -81,39 +84,51 @@ float eventTarget = na
 if stage >= 1 and stage <= 5
     if time >= validUntil
         stage := 0
-    else if high > h1High
-        stage := 7
     else
-        if stage == 1 and low < h1Low
-            stage := 2
-            breakBar := bar_index
+        if stage == 1
+            bool below = low < h1Low
+            bool above = high > h1High
+            // Если при первой обработке свеча уже пересекла обе границы,
+            // порядок неизвестен. Направление задним числом не угадываем.
+            if below and above
+                stage := 7
+            else if below or above
+                direction := below ? -1 : 1
+                stage := 2
+                breakBar := bar_index
 
-        // Верхнюю точку замораживаем именно в момент пробоя первого лоя.
-        if stage == 4 and low < point1
+        // Противоположная граница H1 отменяет выбранную сторону.
+        // Не запускаем противоположный сетап задним числом в том же дне.
+        if stage >= 2 and stage <= 5 and ((direction == -1 and high > h1High) or (direction == 1 and low < h1Low))
+            stage := 7
+
+        // Вторую точку замораживаем в момент обновления первой.
+        if stage == 4 and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
             stop := point1 + 1.25 * (point2 - point1)
-            if stop > h1High
+            if (direction == -1 and stop > h1High) or (direction == 1 and stop < h1Low)
                 stage := 7
             else
-                point3 := low
+                point3 := direction == -1 ? low : high
                 entry := (stop + point3) / 2.0
-                lastLowBar := bar_index
+                lastExtremeBar := bar_index
                 stage := 5
 
         if stage == 5
-            if low < point3
-                point3 := low
+            if (direction == -1 and low < point3) or (direction == 1 and high > point3)
+                point3 := direction == -1 ? low : high
                 entry := (stop + point3) / 2.0
-                lastLowBar := bar_index
+                lastExtremeBar := bar_index
 
-            // В реальном времени используем текущую цену, а не high, который
-            // мог возникнуть раньше нового минимума этой же открытой свечи.
-            bool liveTouch = barstate.isrealtime and not na(previousQuote) and previousQuote < entry and close >= entry
+            // Текущая цена позволяет отличить ретест от high/low,
+            // возникшего раньше нового экстремума открытой свечи.
+            bool liveTouch = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? previousQuote < entry and close >= entry : previousQuote > entry and close <= entry)
             // Без тиков на истории пропускаем неоднозначный порядок low/high.
-            bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastLowBar and open <= entry and high >= entry
+            bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? open <= entry and high >= entry : open >= entry and low <= entry)
             if liveTouch or historyTouch
                 stage := 6
                 signalBar := bar_index
-                shortEvent := true
+                shortEvent := direction == -1
+                longEvent := direction == 1
                 eventEntry := entry
                 eventStop := stop
                 eventTarget := point3
@@ -127,23 +142,26 @@ bool upperPivot = barstate.isconfirmed and bar_index >= 2 and high[1] > high[2] 
 // Новый подтверждённый уровень не используется задним числом внутри неё.
 if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     lastPivotBar := bar_index
-    if stage == 2 and lowerPivot and bar_index - 1 >= breakBar and low[1] < h1Low
-        point1 := low[1]
+    bool firstPivot = direction == -1 ? lowerPivot and low[1] < h1Low : upperPivot and high[1] > h1High
+    bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 : lowerPivot and low[1] < point1
+    if stage == 2 and firstPivot and bar_index - 1 >= breakBar
+        point1 := direction == -1 ? low[1] : high[1]
         point1Bar := bar_index - 1
         point1Time := time[1]
         stage := 3
-    else if stage == 3 and upperPivot and bar_index - 1 > point1Bar and high[1] > point1
-        point2 := high[1]
+    else if stage == 3 and secondPivot and bar_index - 1 > point1Bar
+        point2 := direction == -1 ? high[1] : low[1]
         stage := 4
-    else if stage == 4 and upperPivot and high[1] > point2
-        point2 := high[1]
+    else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
+        point2 := direction == -1 ? high[1] : low[1]
 
 // Рабочий диапазон M5. Его правый край сопровождает расчёт до сигнала/отмены.
 if stage >= 4 and stage <= 6 and not na(point1) and not na(point2)
     if na(m5Box)
-        m5Box := box.new(left=point1Time, top=point2, right=time_close, bottom=point1, xloc=xloc.bar_time, border_color=color.gray, border_style=line.style_dotted, bgcolor=na)
+        m5Box := box.new(left=point1Time, top=math.max(point1, point2), right=time_close, bottom=math.min(point1, point2), xloc=xloc.bar_time, border_color=color.gray, border_style=line.style_dotted, bgcolor=na)
     if stage == 4
-        box.set_top(m5Box, point2)
+        box.set_top(m5Box, math.max(point1, point2))
+        box.set_bottom(m5Box, math.min(point1, point2))
     if stage <= 5 or signalBar == bar_index
         box.set_right(m5Box, time_close)
 
@@ -171,6 +189,7 @@ if barstate.isconfirmed and hh == 14
         h1Low := collectedLow
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
         stage := 1
+        direction := 0
         breakBar := na
         point1 := na
         point1Bar := na
@@ -179,7 +198,7 @@ if barstate.isconfirmed and hh == 14
         point3 := na
         entry := na
         stop := na
-        lastLowBar := na
+        lastExtremeBar := na
         signalBar := na
         drawingRight := na
         // Цены события хранятся отдельно: даже на границе смены H1
@@ -238,12 +257,18 @@ if stage >= 4 and stage <= 6
 // Невидимые серии нужны для цен в оповещении и автоматических проверок.
 // Помимо display.none задана полная прозрачность — даже если терминал
 // игнорирует режим отображения, эти серии не нарисуют диагонали.
-plot(shortEvent ? eventEntry : planVisible ? entry : na, "SHORT Entry", color=color.new(color.white, 100), display=display.none)
-plot(shortEvent ? eventStop : planVisible ? stop : na, "SHORT Stop", color=color.new(color.white, 100), display=display.none)
-plot(shortEvent ? eventTarget : planVisible ? point3 : na, "SHORT Target", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventEntry : planVisible and direction == -1 ? entry : na, "SHORT Entry", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventStop : planVisible and direction == -1 ? stop : na, "SHORT Stop", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventTarget : planVisible and direction == -1 ? point3 : na, "SHORT Target", color=color.new(color.white, 100), display=display.none)
+plot(longEvent ? eventEntry : planVisible and direction == 1 ? entry : na, "LONG Entry", color=color.new(color.white, 100), display=display.none)
+plot(longEvent ? eventStop : planVisible and direction == 1 ? stop : na, "LONG Stop", color=color.new(color.white, 100), display=display.none)
+plot(longEvent ? eventTarget : planVisible and direction == 1 ? point3 : na, "LONG Target", color=color.new(color.white, 100), display=display.none)
 plot(stage, "Stage", color=color.new(color.white, 100), display=display.data_window)
+plot(direction, "Direction", color=color.new(color.white, 100), display=display.data_window)
 plot(h1High, "H1 High", color=color.new(color.white, 100), display=display.data_window)
 plot(h1Low, "H1 Low", color=color.new(color.white, 100), display=display.data_window)
 
-plotshape(showMarks and (shortEvent or (not na(signalBar) and signalBar == bar_index)), title="SHORT", text="SHORT", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small)
+plotshape(showMarks and (shortEvent or (direction == -1 and not na(signalBar) and signalBar == bar_index)), title="SHORT", text="SHORT", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small)
+plotshape(showMarks and (longEvent or (direction == 1 and not na(signalBar) and signalBar == bar_index)), title="LONG", text="LONG", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small)
 alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}} | R:R 1:1')
+alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}} | R:R 1:1')
