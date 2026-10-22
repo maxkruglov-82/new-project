@@ -701,16 +701,19 @@ for (const side of ['SHORT', 'LONG']) {
   const opposite = side === 'SHORT' ? 'LONG' : 'SHORT';
 
   test(`${side}: противоположный пробой до входа запускает новый P1 под той же H1`, async () => {
-    const ctx = await run(transform(reversalToShort()));
+    const data = transform(reversalToShort());
+    if (side === 'LONG') data.push(candle(25, 105, 106, 102.5, 103));
+    const ctx = await run(data);
     assert.equal(values(ctx, 'Stage')[15], 2);
     assert.equal(values(ctx, 'Direction')[15], side === 'SHORT' ? -1 : 1);
     assert.equal(values(ctx, 'Stage')[17], 3);
     assert.equal(values(ctx, 'Stage')[19], 4);
     assert.equal(values(ctx, 'Stage')[20], 5);
-    assert.equal(values(ctx, 'Stage')[22], 6);
+    const entryIndex = side === 'SHORT' ? 22 : 25;
+    assert.equal(values(ctx, 'Stage')[entryIndex], 6);
     assert.equal(signalCount(ctx, side), 1);
     assert.equal(signalCount(ctx, opposite), 0);
-    assert.equal(values(ctx, `${side} Entry`)[22], side === 'SHORT' ? 102 : 105);
+    assert.equal(values(ctx, `${side} Entry`)[entryIndex], side === 'SHORT' ? 102 : 103);
     assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.left === Date.parse('2026-10-20T13:00:00+07:00')).length, 1);
   });
 
@@ -1067,7 +1070,7 @@ function unbrokenShortToLong() {
     candle(21, 102, 105.5, 101.2, 104), // LONG P2 подтверждён.
     candle(22, 104, 109, 103, 108), // Новая третья точка.
     candle(23, 108, 108.5, 104.2, 105),
-    candle(24, 105, 107, 103.5, 104), // Ретест к 103.8125, RR 1:1.
+    candle(24, 105, 107, 103.5, 104), // Ретест к 103.5 по Фибо «0–1».
     candle(25, 104, 110, 104, 109)];
 }
 
@@ -1077,9 +1080,9 @@ test('разворот не подтвердившегося SHORT: LONG P2 ни
   assert.equal(values(ctx, 'Direction')[20], 1);
   assert.equal(values(ctx, 'Stage')[21], 4);
   assert.equal(values(ctx, 'H1 Low')[20], 101);
-  assert.equal(values(ctx, 'LONG Stop')[22], 98.625); // Стоп может лежать ниже самого «0».
+  assert.equal(values(ctx, 'LONG Stop')[22], 98); // Стоп может лежать ниже самого «0».
   assert.equal(values(ctx, 'LONG Target')[22], 109);
-  assert.equal(values(ctx, 'LONG Entry')[24], 103.8125);
+  assert.equal(values(ctx, 'LONG Entry')[24], 103.5);
   assert.equal(signalCount(ctx, 'LONG'), 1);
   assert.equal(signalCount(ctx), 0);
   assert.equal(values(ctx, 'Outcome').at(-1), 1);
@@ -1111,8 +1114,8 @@ test('LONG: P2 может понижаться ниже H1, пока не нар
     candle(26, 105, 107, 103.5, 104)];
   const ctx = await run(data);
   assert.equal(values(ctx, 'LONG Floor 0')[23], 100);
-  assert.equal(values(ctx, 'LONG Stop')[24], 98.25);
-  assert.equal(values(ctx, 'LONG Entry')[26], 103.625);
+  assert.equal(values(ctx, 'LONG Stop')[24], 98);
+  assert.equal(values(ctx, 'LONG Entry')[26], 103.5);
   assert.equal(signalCount(ctx, 'LONG'), 1);
 });
 
@@ -1127,8 +1130,8 @@ test('LONG: пробой «0» на ретесте отменяет вход, к
 
 test('LONG: после входа живёт до TP/SL, после стопа следующий поиск не наследует «0»', async () => {
   const data = [...unbrokenShortToLong().slice(0, 25),
-    candle(25, 104, 107, 99.5, 100), // Ниже «0», но SL=98.625 пока не достигнут.
-    candle(26, 100, 104, 98.5, 99), // Стоп.
+    candle(25, 104, 107, 99.5, 100), // Ниже «0», но SL=98 пока не достигнут.
+    candle(26, 100, 104, 98, 99), // Стоп.
     candle(27, 102, 104, 102, 103)];
   const ctx = await run(data);
   assert.equal(values(ctx, 'Stage')[25], 6);
@@ -1181,7 +1184,7 @@ test('живой LONG: возврат под H1 сохраняет приори�
   assert.equal(ctx.alerts.length, 0);
 });
 
-test('MEXC 24 августа: сохранён «0» 93.21, P2 93.76 ниже H1, LONG около 94.88 в 20:40', async () => {
+test('MEXC 24 августа: Фибо «0–1» даёт стоп 92.43 и вход 94.535 в 20:45', async () => {
   const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
   const from = Date.parse('2026-08-24T14:00:00+07:00');
   const until = Date.parse('2026-08-25T06:00:00+07:00');
@@ -1193,12 +1196,12 @@ test('MEXC 24 августа: сохранён «0» 93.21, P2 93.76 ниже H1
   assert.equal(values(ctx, 'LONG Floor 0')[index('19:15')], 93.21);
   assert.equal(values(ctx, 'Direction')[index('19:15')], 1);
   assert.equal(values(ctx, 'Stage')[index('19:20')], 4);
-  const entryBar = index('20:40');
+  const entryBar = index('20:45');
   assert.equal(values(ctx, 'LONG')[entryBar], 1);
   assert.equal(signalCount(ctx, 'LONG'), 1);
   assert.equal(signalCount(ctx), 0);
-  assert.ok(Math.abs(values(ctx, 'LONG Stop')[entryBar] - 93.1175) < 1e-9);
-  assert.ok(Math.abs(values(ctx, 'LONG Entry')[entryBar] - 94.87875) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Stop')[entryBar] - 92.43) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Entry')[entryBar] - 94.535) < 1e-9);
   assert.equal(values(ctx, 'LONG Target')[entryBar], 96.64);
   assert.equal(values(ctx, 'Outcome').at(-1), 1);
 });
@@ -1217,8 +1220,8 @@ test('разворотный LONG сохраняет P1 после соседн�
   assert.equal(values(ctx, 'Stage')[22], 3);
   assert.equal(values(ctx, 'Stage')[24], 4);
   assert.equal(values(ctx, 'LONG Floor 0')[24], 100);
-  assert.equal(values(ctx, 'LONG Stop')[27], 98.625);
-  assert.equal(values(ctx, 'LONG Entry')[27], 103.8125);
+  assert.equal(values(ctx, 'LONG Stop')[27], 98);
+  assert.equal(values(ctx, 'LONG Entry')[27], 103.5);
   assert.equal(signalCount(ctx, 'LONG'), 1);
   const m5 = ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted');
   const longRange = m5.find(b => b.left === start + 18 * step);
@@ -1227,12 +1230,12 @@ test('разворотный LONG сохраняет P1 после соседн�
   assert.equal(longRange.bottom, 100.5);
 });
 
-test('«0» требует сформированного шортового диапазона: одного нижнего P1 без верхнего P2 недостаточно', async () => {
+test('при смене SHORT на LONG подтверждённый минимум «0» сохраняется до подтверждения верхнего P2', async () => {
   const data = [...hour(), ...structure().slice(0, 3), candle(15, 103, 107, 102, 106.5)];
   const ctx = await run(data);
   assert.equal(values(ctx, 'Stage')[14], 3);
   assert.equal(values(ctx, 'Direction')[15], 1);
-  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[15]));
+  assert.equal(values(ctx, 'LONG Floor 0')[15], 100);
 });
 
 for (const side of ['LONG', 'SHORT']) {
@@ -1472,3 +1475,30 @@ for (const side of ['SHORT', 'LONG']) {
     }
   });
 }
+
+test('MEXC 31 августа: LONG после SHORT строит Фибо от «0» к выбранной «1», вход около 103.13', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-08-31T14:00:00+07:00');
+  const until = Date.parse('2026-08-31T20:00:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const ctx = await runDefault(data);
+  const at = time => (Date.parse(`2026-08-31T${time}:00+07:00`) - from) / step;
+  assert.equal(values(ctx, 'LONG Floor 0')[at('17:10')], 102.4);
+  assert.equal(values(ctx, 'LONG')[at('19:25')], 1);
+  assert.equal(signalCount(ctx, 'LONG'), 1);
+  assert.ok(Math.abs(values(ctx, 'LONG Entry')[at('19:25')] - 103.12625) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Stop')[at('19:25')] - 102.1025) < 1e-9);
+  assert.equal(values(ctx, 'LONG Target')[at('19:25')], 104.12);
+  assert.equal(values(ctx, 'Fibo Reanchored')[at('19:25')], 0);
+  const fibs = lines(ctx).filter(l => l.width === 1).map(l => l.y1);
+  for (const n of [102.1325, 102.4, 102.935, 103.47, 103.7375]) assert.ok(fibs.some(v => Math.abs(v-n)<1e-9));
+});
+
+test('разворот до подтверждения первого нижнего свинга не создаёт вымышленный минимум «0»', async () => {
+  const ctx = await run([...hour(), candle(12, 102, 103, 100.5, 101.5),
+    candle(13, 103, 107, 100.8, 106.5)]);
+  assert.equal(values(ctx, 'Direction')[13], 1);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[13]));
+});

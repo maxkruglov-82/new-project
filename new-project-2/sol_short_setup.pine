@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v15", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v16", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -85,6 +85,7 @@ varip bool fibReanchored = false
 // При развороте не подтвердившегося SHORT его первый low становится
 // границей «0» нового LONG. Она фиксируется до отмены/смены кандидата.
 varip float longFloor0 = na
+varip int longFloorTime = na
 // Нижний свинг сразу после первой вершины не считается точкой 2.
 // В этом разворотном LONG ждём следующий, более низкий подтверждённый low.
 varip float skippedLongLow = na
@@ -187,6 +188,7 @@ if retry
     partialRetest := false
     fibReanchored := false
     longFloor0 := na
+    longFloorTime := na
     skippedLongLow := na
     entry := na
     stop := na
@@ -201,6 +203,7 @@ if stage >= 1 and stage <= 5
     if time >= validUntil or not tradingDay
         stage := 0
         longFloor0 := na
+        longFloorTime := na
         skippedLongLow := na
     else
         bool below = barstate.isrealtime ? close < h1Low : low < h1Low
@@ -218,8 +221,9 @@ if stage >= 1 and stage <= 5
         // не обновившего первый low, допускается откат до сохранённого «0».
         bool longInvalid = na(longFloor0) ? below : low < longFloor0
         if stage >= 2 and stage <= 5 and ((direction == -1 and above) or (direction == 1 and longInvalid))
-            bool unbrokenShort = direction == -1 and stage == 4 and not na(point1) and low >= point1
+            bool unbrokenShort = direction == -1 and stage >= 3 and stage <= 4 and not na(point1) and low >= point1
             longFloor0 := unbrokenShort ? point1 : na
+            longFloorTime := unbrokenShort ? point1Time : na
             skippedLongLow := na
             candidateEpoch := candidateEpoch + 1
             retiredStatus := "Отмена · Без входа"
@@ -244,7 +248,7 @@ if stage >= 1 and stage <= 5
 
         // Вторую точку замораживаем в момент обновления первой.
         if stage == 4 and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
-            stopFibo := point1 + 1.25 * (point2 - point1)
+            stopFibo := direction == 1 and not na(longFloor0) ? longFloor0 - 0.25 * (point1 - longFloor0) : point1 + 1.25 * (point2 - point1)
             stop := stopFibo - direction * stopOffset
             // Для LONG стоп может лежать ниже low H1 (пример пользователя).
             // Отменяет LONG фактический пробой low H1 ценой, а не сам стоп.
@@ -264,7 +268,8 @@ if stage >= 1 and stage <= 5
             if extendedExtreme
                 // Одного продолжения импульса недостаточно: до переноса
                 // должен быть наблюдавшийся ретест без касания старого входа.
-                fibReanchored := fibReanchored or partialRetest
+                // В разворотном LONG сохраняем опорную Фибо от «0» до «1».
+                fibReanchored := fibReanchored or (partialRetest and na(longFloor0))
                 partialRetest := false
                 point3 := direction == -1 ? low : high
                 if fibReanchored
@@ -354,7 +359,7 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
 // Вход на этой свече задним числом не создаём: ретест проверяется выше,
 // а новый план становится доступен только после закрытия подтверждающей M5.
 if stage == 4 and barstate.isconfirmed and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
-    stopFibo := point1 + 1.25 * (point2 - point1)
+    stopFibo := direction == 1 and not na(longFloor0) ? longFloor0 - 0.25 * (point1 - longFloor0) : point1 + 1.25 * (point2 - point1)
     stop := stopFibo - direction * stopOffset
     if direction == -1 and stopFibo > h1High
         stage := 7
@@ -430,10 +435,11 @@ if drawReference and stage >= 4 and stage <= 6 and not na(point1) and not na(poi
 
 bool baseVisible = showFibo and stage >= 5 and stage <= 6 and not na(point2)
 bool planVisible = (stage == 5 or stage == 6) and not na(entry)
-float fibBase = fibReanchored ? point2 : point1
-float fibEnd = fibReanchored ? point3 : point2
+bool originLong = direction == 1 and not na(longFloor0)
+float fibBase = originLong ? longFloor0 : fibReanchored ? point2 : point1
+float fibEnd = originLong ? point1 : fibReanchored ? point3 : point2
 float span = fibEnd - fibBase
-int fibLeft = fibReanchored ? point2Time : point1Time
+int fibLeft = originLong ? longFloorTime : fibReanchored ? point2Time : point1Time
 if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
     drawingRight := time_close
 // Ширина — только размер рисунка, не срок действия сценария.
@@ -506,6 +512,7 @@ if barstate.isconfirmed and hh == 14
         partialRetest := false
         fibReanchored := false
         longFloor0 := na
+        longFloorTime := na
         skippedLongLow := na
         entry := na
         stop := na
