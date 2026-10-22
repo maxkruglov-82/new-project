@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v12", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v13", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -75,7 +75,11 @@ varip float point1 = na
 varip int point1Bar = na
 varip int point1Time = na
 varip float point2 = na
+varip int point2Time = na
 varip float point3 = na
+// После неполного ретеста и нового экстремума Фибо переносится на 2–3.
+varip bool partialRetest = false
+varip bool fibReanchored = false
 // При развороте не подтвердившегося SHORT его первый low становится
 // границей «0» нового LONG. Она фиксируется до отмены/смены кандидата.
 varip float longFloor0 = na
@@ -139,6 +143,7 @@ bool eventDraw = false
 float eventEntry = na
 float eventStop = na
 float eventTarget = na
+bool seededPoint3 = false
 
 // Пока вход активен, противоположный выход H1 не создаёт вторую сделку.
 // Исторический бар входа не доказывает последующий TP/SL: порядок неизвестен.
@@ -169,7 +174,10 @@ if retry
     point1Bar := na
     point1Time := na
     point2 := na
+    point2Time := na
     point3 := na
+    partialRetest := false
+    fibReanchored := false
     longFloor0 := na
     skippedLongLow := na
     entry := na
@@ -213,7 +221,10 @@ if stage >= 1 and stage <= 5
             point1Bar := na
             point1Time := na
             point2 := na
+            point2Time := na
             point3 := na
+            partialRetest := false
+            fibReanchored := false
             entry := na
             stop := na
             signalBar := na
@@ -235,19 +246,30 @@ if stage >= 1 and stage <= 5
                 lastExtremeBar := bar_index
                 positionLeft := time
                 stage := 5
+                seededPoint3 := true
 
         if stage == 5
-            if (direction == -1 and low < point3) or (direction == 1 and high > point3)
+            bool extendedExtreme = (direction == -1 and low < point3) or (direction == 1 and high > point3)
+            if extendedExtreme
+                // Одного продолжения импульса недостаточно: до переноса
+                // должен быть наблюдавшийся ретест без касания старого входа.
+                fibReanchored := fibReanchored or partialRetest
+                partialRetest := false
                 point3 := direction == -1 ? low : high
+                if fibReanchored
+                    stop := point2 - 0.25 * (point3 - point2)
                 entry := (stop + point3) / 2.0
                 lastExtremeBar := bar_index
+                // Прежний отдельный фильтр стопа SHORT сохраняется.
+                if direction == -1 and stop > h1High
+                    stage := 7
 
             // Текущая цена позволяет отличить ретест от high/low,
             // возникшего раньше нового экстремума открытой свечи.
             bool liveTouch = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? previousQuote < entry and close >= entry : previousQuote > entry and close <= entry)
             // Без тиков на истории пропускаем неоднозначный порядок low/high.
             bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? open <= entry and high >= entry : open >= entry and low <= entry)
-            if liveTouch or historyTouch
+            if stage == 5 and (liveTouch or historyTouch)
                 stage := 6
                 outcome := 0
                 outcomeBar := na
@@ -258,6 +280,14 @@ if stage >= 1 and stage <= 5
                 eventEntry := entry
                 eventStop := stop
                 eventTarget := point3
+            else if stage == 5 and not seededPoint3 and not extendedExtreme
+                // На истории последовательность доказывает отдельная M5
+                // после экстремума: откат был, но вход не достигнут.
+                // В потоке достаточно наблюдавшегося движения котировки
+                // обратно к входу; тень старого участка свечи не используется.
+                bool historicalPartial = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? high > point3 and high < entry : low < point3 and low > entry)
+                bool livePartial = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? close > previousQuote and close > point3 and close < entry : close < previousQuote and close < point3 and close > entry)
+                partialRetest := partialRetest or historicalPartial or livePartial
 
 // Строгие трёхсвечные фракталы. Центральная свеча известна только после
 // закрытия правой. Равные экстремумы не образуют новый фрактал.
@@ -297,12 +327,15 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
                     point1Bar := na
                     point1Time := na
                     point2 := na
+                    point2Time := na
             else if na(skippedLongLow) or low[1] < skippedLongLow
                 point2 := direction == -1 ? high[1] : low[1]
+                point2Time := time[1]
                 skippedLongLow := na
                 stage := 4
     else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
         point2 := direction == -1 ? high[1] : low[1]
+        point2Time := time[1]
 
 // Свеча подтверждения P2 уже может обновить P1. Сохраняем этот экстремум
 // как P3 после подтверждения, иначе следующий бар потеряет совершённый пробой.
@@ -318,6 +351,7 @@ if stage == 4 and barstate.isconfirmed and ((direction == -1 and low < point1) o
         lastExtremeBar := bar_index
         positionLeft := time
         stage := 5
+        seededPoint3 := true
 
 // Смена кандидата не двигает старые объекты. Обычный var откатывается
 // на каждом тике; сравнение с varip epoch повторяет этот шаг после отката.
@@ -383,7 +417,10 @@ if drawReference and stage >= 4 and stage <= 6 and not na(point1) and not na(poi
 
 bool baseVisible = showFibo and stage >= 5 and stage <= 6 and not na(point2)
 bool planVisible = (stage == 5 or stage == 6) and not na(entry)
-float span = point2 - point1
+float fibBase = fibReanchored ? point2 : point1
+float fibEnd = fibReanchored ? point3 : point2
+float span = fibEnd - fibBase
+int fibLeft = fibReanchored ? point2Time : point1Time
 if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
     drawingRight := time_close
 // Ширина — только размер рисунка, не срок действия сценария.
@@ -403,11 +440,11 @@ else if drawReference and (stage == 7 or stage == 0) and not na(entryPriceLabel)
 
 if drawReference and stage >= 4 and stage <= 6
     if baseVisible
-        fibMinus := updateLevel(fibMinus, point1Time, drawingRight, point1 - 0.25 * span, color.red, 1)
-        fibZero := updateLevel(fibZero, point1Time, drawingRight, point1, color.gray, 1)
-        fibHalf := updateLevel(fibHalf, point1Time, drawingRight, point1 + 0.5 * span, color.gray, 1)
-        fibOne := updateLevel(fibOne, point1Time, drawingRight, point2, color.gray, 1)
-        fibStop := updateLevel(fibStop, point1Time, drawingRight, point1 + 1.25 * span, color.red, 1)
+        fibMinus := updateLevel(fibMinus, fibLeft, drawingRight, fibBase - 0.25 * span, color.red, 1)
+        fibZero := updateLevel(fibZero, fibLeft, drawingRight, fibBase, color.gray, 1)
+        fibHalf := updateLevel(fibHalf, fibLeft, drawingRight, fibBase + 0.5 * span, color.gray, 1)
+        fibOne := updateLevel(fibOne, fibLeft, drawingRight, fibEnd, color.gray, 1)
+        fibStop := updateLevel(fibStop, fibLeft, drawingRight, fibBase + 1.25 * span, color.red, 1)
     if showLevels and planVisible
         int levelRight = showPosition ? positionRight : drawingRight
         entryLine := updateLevel(entryLine, point1Time, levelRight, entry, color.blue, 2)
@@ -450,7 +487,10 @@ if barstate.isconfirmed and hh == 14
         point1Bar := na
         point1Time := na
         point2 := na
+        point2Time := na
         point3 := na
+        partialRetest := false
+        fibReanchored := false
         longFloor0 := na
         skippedLongLow := na
         entry := na
@@ -484,6 +524,7 @@ plot(stage, "Stage", color=color.new(color.white, 100), display=display.data_win
 plot(direction, "Direction", color=color.new(color.white, 100), display=display.data_window)
 plot(h1High, "H1 High", color=color.new(color.white, 100), display=display.data_window)
 plot(h1Low, "H1 Low", color=color.new(color.white, 100), display=display.data_window)
+plot(fibReanchored ? 1 : 0, "Fibo Reanchored", color=color.new(color.white, 100), display=display.data_window)
 plot(longFloor0, "LONG Floor 0", color=color.new(color.white, 100), display=display.data_window)
 
 plot(outcome, "Outcome", color=color.new(color.white, 100), display=display.data_window)

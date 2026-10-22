@@ -1254,3 +1254,105 @@ for (const side of ['LONG', 'SHORT']) {
     assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')));
   });
 }
+
+for (const side of ['SHORT', 'LONG']) {
+  const transform = data => side === 'SHORT' ? data : mirror(data);
+  const price = n => side === 'SHORT' ? n : 207 - n;
+  test(`${side}: после ретеста без входа новый экстремум перестраивает Фибо с 1–2 на 2–3`, async () => {
+    const data = transform([...hour(108), ...structure(),
+      candle(17, 101, 101.5, 99, 100),
+      candle(18, 100, 101.5, 99.5, 101), // Не дошли до исходного входа 102.
+      candle(19, 101, 101.2, 98, 99), // Новый минимум: стоп 105.5, вход 101.75.
+      candle(20, 99, 101.8, 98.5, 101.5),
+      candle(21, 101.5, 102, 97, 98)]);
+    const ctx = await run(data);
+    assert.equal(signalCount(ctx, side), 1);
+    assert.equal(values(ctx, side)[20], 1);
+    assert.ok(Math.abs(values(ctx, `${side} Stop`)[20] - price(105.5)) < 1e-9);
+    assert.ok(Math.abs(values(ctx, `${side} Entry`)[20] - price(101.75)) < 1e-9);
+    assert.equal(values(ctx, `${side} Target`)[20], price(98));
+    assert.equal(values(ctx, 'Outcome')[21], 1);
+    const fibs = lines(ctx).filter(l => l.width === 1).map(l => l.y1);
+    for (const n of [105.5, 104, 101, 98, 96.5]) assert.ok(fibs.some(v => Math.abs(v-price(n))<1e-9));
+  });
+  test(`${side}: непрерывное обновление P3 без отдельного ретеста сохраняет Фибо 1–2`, async () => {
+    const ctx = await run(transform([...hour(108), ...structure(),
+      candle(17, 101, 101.5, 99, 100), candle(18, 100, 101, 98, 99),
+      candle(19, 99, 100.5, 97, 98)]));
+    assert.equal(signalCount(ctx, side), 0);
+    assert.equal(values(ctx, `${side} Stop`).at(-1), price(105));
+    assert.equal(values(ctx, `${side} Target`).at(-1), price(97));
+  });
+}
+
+test('MEXC 28 августа: неудачный ретест, новая P3 104.46, Фибо 2–3, SHORT в 17:30', async () => {
+  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
+  const from = Date.parse('2026-08-28T14:00:00+07:00');
+  const until = Date.parse('2026-08-28T20:30:00+07:00');
+  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
+    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
+  const ctx = await run(data);
+  const at = time => (Date.parse(`2026-08-28T${time}:00+07:00`) - from) / step;
+  assert.equal(values(ctx, 'SHORT')[at('17:05')], 0);
+  assert.equal(values(ctx, 'SHORT')[at('17:30')], 1);
+  assert.ok(Math.abs(values(ctx, 'SHORT Stop')[at('17:30')] - 107.085) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'SHORT Entry')[at('17:30')] - 105.7725) < 1e-9);
+  assert.equal(values(ctx, 'SHORT Target')[at('17:30')], 104.46);
+  assert.equal(signalCount(ctx), 1);
+  assert.equal(values(ctx, 'Outcome').at(-1), 1);
+});
+
+for (const side of ['SHORT', 'LONG']) {
+  const reflect = p => side === 'SHORT' ? p : 207 - p;
+  test(`${side}: неполный ретест и новый экстремум внутри открытой M5, перенос и один сигнал`, async () => {
+    const raw = [...hour(108), ...structure(), candle(17, 101, 101.5, 99, 100)];
+    const data = side === 'SHORT' ? raw : mirror(raw);
+    let tail = { ...data.at(-1) };
+    const provider = {
+      getMarketData: async (_ticker, _tf, _limit, since) =>
+        since !== undefined && since >= tail.openTime ? [{ ...tail }] : data.map(b => ({ ...b })),
+      getSymbolInfo: async () => null,
+    };
+    const engine = new PineTS(provider, 'SOLUSDT', '5');
+    const ctx = await engine.run(source);
+    const last = name => ctx.plots[name].data.at(-1).value;
+    for (const quote of [98, 100]) {
+      const p = reflect(quote);
+      tail = { ...tail, close: p, high: Math.max(tail.high, p), low: Math.min(tail.low, p), closeTime: Date.now() + step };
+      await engine.updateTail(ctx);
+      assert.equal(last('Stage'), 5);
+      assert.equal(last('Fibo Reanchored'), 0);
+    }
+    for (const [quote, stage] of [[97, 5], [101.375, 6], [96, 6]]) {
+      const p = reflect(quote);
+      tail = { ...tail, close: p, high: Math.max(tail.high, p), low: Math.min(tail.low, p) };
+      await engine.updateTail(ctx);
+      assert.equal(last('Stage'), stage);
+      assert.equal(last('Fibo Reanchored'), 1);
+      assert.equal(last(`${side} Entry`), reflect(101.375));
+      assert.equal(last(`${side} Stop`), reflect(105.75));
+      assert.equal(last(`${side} Target`), reflect(97));
+      assert.equal(positionZones(ctx).length, 2);
+    }
+    assert.equal(ctx.alerts.length, 1);
+  });
+  test(`${side}: новая H1 сбрасывает перенос Фибо 2–3`, async () => {
+    let data = [...hour(108), ...structure(), candle(17, 101, 101.5, 99, 100),
+      candle(18, 100, 101.5, 99.5, 101), candle(19, 101, 101.2, 98, 99),
+      ...hour(108).map(b => ({ ...b, openTime: b.openTime + 86400000, closeTime: b.closeTime + 86400000 }))];
+    if (side === 'LONG') data = mirror(data);
+    const ctx = await run(data);
+    assert.equal(values(ctx, 'Fibo Reanchored')[19], 1);
+    assert.equal(values(ctx, 'Fibo Reanchored').at(-1), 0);
+    assert.equal(values(ctx, 'Stage').at(-1), 1);
+  });
+}
+
+test('перенос 2–3 сохраняет фильтр SHORT: стоп выше H1 не создаёт сигнал', async () => {
+  const ctx = await run([...hour(105.25), ...structure(), candle(17, 101, 101.5, 99, 100),
+    candle(18, 100, 101.5, 99.5, 101), candle(19, 101, 101.2, 98, 99),
+    candle(20, 99, 104, 98.5, 103)]);
+  assert.equal(values(ctx, 'Stage')[19], 7);
+  assert.equal(signalCount(ctx), 0);
+});
