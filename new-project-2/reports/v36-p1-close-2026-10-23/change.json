@@ -1,0 +1,19 @@
+{
+  "version": "v36",
+  "baseVersion": "v35",
+  "baseCommit": "fa3c7b3ca5d22770acdebd8fa39b71b963ce6450",
+  "baseSha256": "04ce87e68f83e4a6262a5ac79352a1f770d962fc7c0041268dd335fe3086c3d7",
+  "sourceSha256": "ed7fa55d3f38c078105b77ffeb7f775149903939c65c46d60f7dcf5d6a6d45c8",
+  "calculatedDraftSha256": "7694d91db3e4a46f3dbb43a4abce5e95ba189134cc7a091d23bd164af920058c",
+  "oldPredicate": "bool firstPivot = direction == -1 ? lowerPivot and belowH1(low[1], h1Low) : upperPivot and aboveH1(high[1], h1High)",
+  "newPredicate": "bool firstPivot = direction == -1 ? lowerPivot and belowH1(low[1], h1Low) and close[1] < h1Low : upperPivot and aboveH1(high[1], h1High) and close[1] > h1High",
+  "onlyChange": "Initial H1-break swing P1 and its replacements require that pivot candle close strictly outside H1; P3 wick rule unchanged.",
+  "backtestEquivalence": "Published source differs from the tested P1-only draft solely in indicator title.",
+  "authorization": "User selected P1-only after reviewing six-month comparison, and explicitly requested save and publication.",
+  "validation": {
+    "currentAndV35Tests": 40,
+    "historicalAndNearTests": 237,
+    "totalPassed": 277,
+    "failed": 0
+  }
+}

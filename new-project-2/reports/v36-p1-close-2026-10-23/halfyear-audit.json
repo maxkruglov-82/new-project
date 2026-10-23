@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "candles": 52536,
+  "period": [
+    "2026-04-23T14:00:00+07:00",
+    "2026-10-23T00:00:00+07:00"
+  ],
+  "variants": [
+    {
+      "variant": "v35",
+      "name": "v35 без изменений",
+      "entries": 115,
+      "closed": 114,
+      "wins": 75,
+      "losses": 39,
+      "winRate": 65.78947368421053,
+      "unresolved": 1,
+      "ambiguous": 0,
+      "netR": 24.348731022531084,
+      "profitFactor": 1.624326436475156,
+      "maxDrawdownR": 8.330072404641626
+    },
+    {
+      "variant": "p1_close",
+      "name": "Закрытие точки 1",
+      "entries": 104,
+      "closed": 101,
+      "wins": 67,
+      "losses": 34,
+      "winRate": 66.33663366336634,
+      "unresolved": 3,
+      "ambiguous": 0,
+      "netR": 21.951795839178054,
+      "profitFactor": 1.6456410540934723,
+      "maxDrawdownR": 5.6844712891543985
+    },
+    {
+      "variant": "p1_p3_close",
+      "name": "Закрытие точек 1 и 3",
+      "entries": 88,
+      "closed": 84,
+      "wins": 50,
+      "losses": 34,
+      "winRate": 59.523809523809526,
+      "unresolved": 4,
+      "ambiguous": 0,
+      "netR": 9.404532062456953,
+      "profitFactor": 1.2766038841899106,
+      "maxDrawdownR": 8.34342356080828
+    }
+  ],
+  "checks": [
+    "Continuous M5 and complete H1",
+    "Source/input SHA256",
+    "Entry times, weekdays, approach and touch",
+    "Entry/SL/TP formulas",
+    "First subsequent OHLC exit independently reconstructed for every trade",
+    "No new entry after target",
+    "Monthly sums",
+    "August–October ledger reproduction",
+    "Combined filter: all entered P3 candles close strictly past P1 before entry"
+  ]
+}

@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v35", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v36", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -476,7 +476,7 @@ int secondPivotTime = time[1]
 // Новый подтверждённый уровень не используется задним числом внутри неё.
 if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     lastPivotBar := bar_index
-    bool firstPivot = direction == -1 ? lowerPivot and belowH1(low[1], h1Low) : upperPivot and aboveH1(high[1], h1High)
+    bool firstPivot = direction == -1 ? lowerPivot and belowH1(low[1], h1Low) and close[1] < h1Low : upperPivot and aboveH1(high[1], h1High) and close[1] > h1High
     bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 and highRunLow >= point1 : lowerPivot and low[1] < point1 and lowRunHigh <= point1
     if stage == 2 and firstPivot and firstPivotBar >= breakBar
         point1 := direction == -1 ? low[1] : high[1]
