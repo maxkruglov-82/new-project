@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "controlCases": 4,
+  "onlyExecutableChange": "Initial priority gate300000→600000",
+  "candles": 23736,
+  "calendarReferences": 83,
+  "weekdayReferences": 59,
+  "verifiedTrades": 49,
+  "checks": [
+    "Continuous M5 input and OHLC",
+    "First two M5 ignored including dual edge breaks",
+    "Exact0.02 accepted from15:10, mirrored",
+    "No signals before15:10",
+    "All E/SL/TP formulas",
+    "No earlier subsequent exit touch omitted",
+    "Monthly totals reconcile",
+    "Oct1 SHORT target"
+  ],
+  "oct1": [
+    {
+      "id": 36,
+      "referenceDate": "2026-10-01",
+      "side": "SHORT",
+      "tightReversal": false,
+      "entryBarStart": "2026-10-01T17:30:00.000+07:00",
+      "entryBarEnd": "2026-10-01T17:35:00.000+07:00",
+      "fiboStop": 118.4475,
+      "swingTarget": 116.94,
+      "entry": 117.69375,
+      "stop": 118.4775,
+      "target": 116.97,
+      "status": "target",
+      "exitBarStart": "2026-10-01T20:00:00.000+07:00",
+      "exitBarEnd": "2026-10-01T20:05:00.000+07:00",
+      "exitPrice": 116.97,
+      "r": 0.9234449760765352,
+      "rewardRisk": 0.9234449760765352
+    }
+  ]
+}

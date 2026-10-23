@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v32", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v34", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -259,9 +259,9 @@ if stage >= 1 and stage <= 5
     else
         bool below = barstate.isrealtime ? belowH1(close, h1Low) : belowH1(low, h1Low)
         bool above = barstate.isrealtime ? aboveH1(close, h1High) : aboveH1(high, h1High)
-        // 15:00–15:05 не задаёт приоритет и не блокирует его при двух выходах.
+        // Свечи 15:00–15:05 и15:05–15:10 не задают приоритет.
         // validUntil — следующая опорная H1 в15:00; UTC+7 без переходов DST.
-        if stage == 1 and time >= validUntil - 86400000 + 300000
+        if stage == 1 and time >= validUntil - 86400000 + 600000
             // У исторической свечи с обоими пробоями нет известного порядка.
             if below and above
                 stage := 7

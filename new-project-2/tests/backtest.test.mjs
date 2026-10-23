@@ -1,9 +1,10 @@
+// Historical v32 ledger fixtures; current v34 ledger is verified in pine.test.mjs.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execute, observe, sha256 } from '../backtest/run.mjs';
 
-const source = readFileSync(new URL('../sol_short_setup.pine', import.meta.url), 'utf8');
+const source = readFileSync(new URL('./fixtures/sol-v32.pine', import.meta.url), 'utf8');
 const start = Date.parse('2026-10-20T14:00:00+07:00'), step = 300_000;
 const c = (i, open, high, low, close) => ({ time: (start + i * step) / 1000, open, high, low, close, vol: 100 });
 function entered() {
@@ -18,7 +19,7 @@ const run = bars => execute(source, raw(bars), start, start + bars.length * step
 test('наблюдения не меняют исходный файл и контролируют единственность точек вставки', () => {
   const hash = sha256(source);
   const instrumented = observe(source);
-  assert.equal(sha256(readFileSync(new URL('../sol_short_setup.pine', import.meta.url))), hash);
+  assert.equal(sha256(readFileSync(new URL('./fixtures/sol-v32.pine', import.meta.url))), hash);
   assert.match(instrumented, /BT Result/);
   assert.throws(() => observe(source.replace('outcomeBar := bar_index', 'outcomeBar := time')), /anchor changed/);
 });
