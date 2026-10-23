@@ -1604,7 +1604,7 @@ for (const side of ['LONG','SHORT']) {
   assert.equal(values(ctx,side)[at('16:15')],0);
   assert.equal(values(ctx,side)[at('16:25')],1);
   assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),0);
-  for (const [label,expected] of [['Entry',103.705],['Stop',103.45],['Target',103.96]])
+  for (const [label,expected] of [['Entry',103.735],['Stop',103.45],['Target',103.96]])
    assert.ok(Math.abs(values(ctx,`${side} ${label}`)[at('16:25')]-price(expected))<1e-9);
   assert.equal(values(ctx,'Outcome')[at('16:45')],1);
  });
@@ -1791,23 +1791,24 @@ for (const side of ['SHORT', 'LONG']) {
   });
 }
 
-test('MEXC14 октября: без входа, после полуночи нет разметки сетапа', async () => {
-  const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
-  const from = Date.parse('2026-10-14T14:00:00+07:00');
-  const until = Date.parse('2026-10-15T01:00:00+07:00');
-  const data = raw.candles.filter(b => b.time * 1000 >= from && b.time * 1000 < until)
-    .map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + step - 1,
-      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
-  const before = await runDefault(data.filter(b => b.openTime < Date.parse('2026-10-15T00:00:00+07:00') - step));
-  assert.ok(positionZones(before).length > 0);
-  const ctx = await runDefault(data);
-  assert.equal(signalCount(ctx, 'LONG') + signalCount(ctx, 'SHORT'), 0);
-  assert.equal(positionZones(ctx).length, 0);
-  assert.equal(lines(ctx).length, 0);
-  assert.equal(priceLabels(ctx).length, 0);
-  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted').length, 0);
-  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.text === 'входа не было').length, 1);
-});
+for (const side of ['LONG','SHORT']) {
+ test(`${side}: MEXC14 октября — вход18:00 до отступов, тейк18:15, после полуночи сохраняется история`,async()=>{
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
+  const from=Date.parse('2026-10-14T14:00:00+07:00'),until=Date.parse('2026-10-15T01:00:00+07:00');
+  let data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  if(side==='SHORT')data=mirror(data);
+  const ctx=await runDefault(data),at=t=>(Date.parse(`2026-10-14T${t}:00+07:00`)-from)/step;
+  const price=p=>side==='LONG'?p:207-p;
+  assert.equal(values(ctx,side)[at('17:30')],0);
+  assert.equal(values(ctx,side)[at('18:00')],1);
+  assert.equal(signalCount(ctx,side),1);
+  assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),0);
+  for(const [label,expected] of [['Entry',106.605],['Stop',106],['Target',107.15]])assert.ok(Math.abs(values(ctx,`${side} ${label}`)[at('18:00')]-price(expected))<1e-9);
+  assert.equal(values(ctx,'Outcome')[at('18:15')],1);
+  assert.ok(positionZones(ctx).length>0);
+  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b=>b.text==='входа не было').length,0);
+ });
+}
 
 test('день со состоявшимся входом не получает подпись без входов', async () => {
   const ctx = await run([...complete(), candle(120, 100, 101, 99, 100)]);
@@ -1941,7 +1942,7 @@ for (const initial of ['SHORT','LONG']) {
  const transform=d=>initial==='SHORT'?d:mirror(d);
  const opposite=initial==='SHORT'?'LONG':'SHORT';
  const reflect=p=>initial==='SHORT'?p:207-p;
- test(`${initial}: v29 соседняя пара даёт разворот со стопом за P3 и точным RR1:1`,async()=>{
+ test(`${initial}: v30 соседняя пара даёт разворот со стопом за P3 и входом до отступов`,async()=>{
   const ctx=await runDefault(transform(adjacentReversalPattern()));
   assert.equal(values(ctx,'Stage')[15],3);
   assert.equal(values(ctx,initial)[16],0);
@@ -1949,7 +1950,7 @@ for (const initial of ['SHORT','LONG']) {
   assert.equal(values(ctx,opposite)[17],0,'на свече разворота нет ретеста задним числом');
   assert.equal(values(ctx,opposite)[18],1);
   assert.equal(signalCount(ctx,initial),0);
-  assert.ok(Math.abs(values(ctx,`${opposite} Entry`)[18]-reflect(101.72))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${opposite} Entry`)[18]-reflect(101.75))<1e-9);
   assert.ok(Math.abs(values(ctx,`${opposite} Stop`)[18]-reflect(98.97))<1e-9);
   assert.ok(Math.abs(values(ctx,`${opposite} Target`)[18]-reflect(104.47))<1e-9);
   assert.equal(values(ctx,'Outcome')[19],1);
@@ -1978,15 +1979,15 @@ for(const initial of ['SHORT','LONG']) {
   assert.equal(values(ctx,side)[20],1);
   assert.equal(values(ctx,'Fibo Reanchored')[20],0);
   assert.ok(Math.abs(values(ctx,`${side} Stop`)[20]-price(98.97))<1e-9);
-  assert.ok(Math.abs(values(ctx,`${side} Entry`)[20]-price(102.47))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${side} Entry`)[20]-price(102.5))<1e-9);
   assert.ok(Math.abs(values(ctx,`${side} Target`)[20]-price(105.97))<1e-9);
   assert.equal(values(ctx,'Outcome')[21],1);
  });
- test(`${side}: v29 вход учитывает разные отступы SL/TP и сохраняет точный RR`,async()=>{
+ test(`${side}: v30 разные отступы SL/TP не сдвигают вход`,async()=>{
   const d=tr(adjacentReversalPattern());const last=d.at(-1);const guard={...last,openTime:last.openTime+step,closeTime:last.closeTime+step};
   const ctx=await new PineTS([...d,guard],'SOLUSDT','5').run(new Indicator(source,{'Отступ стопа за Фибо (USDT)':0.02,'Отступ тейка перед целью (USDT)':0.07}));
   const e=values(ctx,`${side} Entry`)[18],sl=values(ctx,`${side} Stop`)[18],tp=values(ctx,`${side} Target`)[18];
-  assert.ok(Math.abs(e-price(101.705))<1e-9);
-  assert.ok(Math.abs(Math.abs(tp-e)/Math.abs(sl-e)-1)<1e-9);
+  assert.ok(Math.abs(e-price(101.75))<1e-9);
+  assert.ok(Math.abs((Math.abs(tp-e)/Math.abs(sl-e))-(2.68/2.77))<1e-9);
  });
 }

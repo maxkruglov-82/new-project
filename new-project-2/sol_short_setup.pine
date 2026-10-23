@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v29", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v30", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -97,7 +97,7 @@ varip float point3 = na
 // После неполного ретеста и нового экстремума Фибо переносится на 2–3.
 varip bool partialRetest = false
 varip bool fibReanchored = false
-// Только исключение из соседней пары: стоп за прежним P3, точный RR1:1.
+// Только исключение из соседней пары: стоп за прежним P3, вход до отступов по базовому RR1:1.
 varip bool tightReversal = false
 // При развороте не подтвердившегося SHORT его первый low становится
 // границей «0» нового LONG. Она фиксируется до отмены/смены кандидата.
@@ -317,7 +317,7 @@ if stage >= 1 and stage <= 5
             point3 := direction == -1 ? low : high
             stopFibo := tightReversal ? point2 : point1 + 1.25 * (point2 - point1)
             stop := stopFibo - direction * stopOffset
-            entry := tightReversal ? (stop + point3 - direction * takeOffset) / 2.0 : (stopFibo + point3) / 2.0
+            entry := (stopFibo + point3) / 2.0
             lastExtremeBar := bar_index
             positionLeft := time
             drawingRight := na
@@ -407,7 +407,7 @@ if stage >= 1 and stage <= 5
                 if fibReanchored
                     stopFibo := point2 - 0.25 * (point3 - point2)
                     stop := stopFibo - direction * stopOffset
-                entry := tightReversal ? (stop + point3 - direction * takeOffset) / 2.0 : (stopFibo + point3) / 2.0
+                entry := (stopFibo + point3) / 2.0
                 lastExtremeBar := bar_index
                 // Прежний отдельный фильтр стопа SHORT сохраняется.
                 if lockedDirection == 0 and direction == -1 and stopFibo > h1High
