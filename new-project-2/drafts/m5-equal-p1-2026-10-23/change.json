@@ -1,0 +1,12 @@
+{
+  "status": "draft; not published",
+  "baseVersion": "v37",
+  "baseSha256": "3d8dfb6dd1490026458430db6a9a8eee805bac5e7b651a770a93792260925f69",
+  "sourceSha256": "c8cd6c7d2074502fb808b7aea1dba62fa00965071f91b8e8731990c9a63e6e75",
+  "rule": "A confirmed equal low/high at P1 preserves P1/P2. A later strict break is P3 and allows a retest. Equality alone is not P3. LONG mirrored; old SHORT-only reset removed. All take/stop/entry formulas unchanged.",
+  "removedResetBlocks": [
+    "        if stage == 4 and direction == -1 and equalFirstLow and low < point1\n            // Повторный равный минимум не P3. Его последующий пробой начинает новую P1.\n            stage := 2\n            breakBar := bar_index\n            point1 := na\n            point1Bar := na\n            point1Time := na\n            point2 := na\n            point2Time := na\n            skippedSecond := na\n            equalFirstLow := false\n            candidateEpoch := candidateEpoch + 1\n            retiredStatus := \"Без входа\"\n\n",
+    "if stage == 4 and direction == -1 and equalFirstLow and low < point1\n    // Повторный равный минимум не P3. Его последующий пробой начинает новую P1.\n    stage := 2\n    breakBar := bar_index\n    point1 := na\n    point1Bar := na\n    point1Time := na\n    point2 := na\n    point2Time := na\n    skippedSecond := na\n    equalFirstLow := false\n    candidateEpoch := candidateEpoch + 1\n    retiredStatus := \"Без входа\"\n\n"
+  ],
+  "published": false
+}

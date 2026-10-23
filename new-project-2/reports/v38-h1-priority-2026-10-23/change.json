@@ -1,0 +1,27 @@
+{
+  "version": "v38",
+  "baseVersion": "v37",
+  "baseCommit": "28e69f19ff930cbcc4921a865b179c8fe5b2b235",
+  "baseSourceSha256": "3d8dfb6dd1490026458430db6a9a8eee805bac5e7b651a770a93792260925f69",
+  "sourceSha256": "ebc53245d09fbf4dc2c7d7795261d900e23e820525413d7fdcb2e469584c20f7",
+  "calculatedCandidateSha256": "153baf4270ec6aa66bdd00c178ca684ab8fd35df95cc5e6a345020d708ff4a73",
+  "equivalence": "Executable equals validated candidate except indicator title. Internal v39 draft consolidated with unpublished equal-P1 v38 into published v38.",
+  "rules": [
+    "Equal P1 touches preserve P1/P2; only a strict later break creates P3.",
+    "Before entry, internal P2/shadow reversal requires the opposite working H1 boundary break.",
+    "A failed wick break before a qualifying outside close shifts that side of the working reversal boundary to its extreme. A later reversal must strictly pass this extreme; equality does not qualify. Reset next H1.",
+    "Opposite working H1 boundary can switch an already switched pending priority. Open trades remain fixed.",
+    "P1 prior close, P3 wick break, SL0.03 and take0.10 before target, entry formulas, sessions and TP daily lock unchanged."
+  ],
+  "authorization": "User explicitly requested save and publish all accepted latest changes; then clarified shifted upper boundary to failed 15:25 high77.12 on10Aug.",
+  "validation": {
+    "focusedPassed": 28,
+    "failed": 0,
+    "aug10": "SHORT21:10, entry76.66875,SL77.2675,TP76.20,target22:00; failed upper wick77.12 confirmed.",
+    "aug14": "SHORT18:00,target18:05; equal-P1 fix preserved.",
+    "fullHalfyear": "Not recalculated after latest priority/shifted-boundary change. Earlier half-year equal-P1-only report is historical and does not describe this published source.",
+    "totalPassed": 335,
+    "fullSuite": "Current source equivalence +28 behavior controls, pinned historical M5 controls and NEAR"
+  },
+  "intermediateSourceSha256": "c8cd6c7d2074502fb808b7aea1dba62fa00965071f91b8e8731990c9a63e6e75"
+}

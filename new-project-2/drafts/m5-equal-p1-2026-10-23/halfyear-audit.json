@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "candles": 52536,
+  "verifiedReferences": 131,
+  "verifiedP1Events": 251,
+  "verifiedTrades": 106,
+  "sourceSha256": "c8cd6c7d2074502fb808b7aea1dba62fa00965071f91b8e8731990c9a63e6e75",
+  "inputSha256": "d577f10284f1aa9e64cbe97111b98948fe10990757a789657bddae5c39111681",
+  "checks": [
+    "Continuous M5 data and actual reference H1",
+    "Each P1 prior close independently reconstructed, without future close",
+    "Entry price touched, time and weekdays",
+    "Unchanged E/SL/TP formulas",
+    "First subsequent OHLC exit independently reconstructed",
+    "No new entry after TP",
+    "Monthly and CSV reconciliation",
+    "Aug11 unchanged and Aug14 earlier entry",
+    "Workbook values checked"
+  ]
+}

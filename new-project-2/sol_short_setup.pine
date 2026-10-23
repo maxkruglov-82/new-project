@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v37", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v38", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -78,11 +78,10 @@ if barstate.isfirst and timeframe.period != "5"
 varip int stage = 0
 // -1 SHORT, +1 LONG, 0 направление пока не определено.
 varip int direction = 0
-// Первая смена фиксирует второй приоритет до следующей опорной H1.
+// Последний приоритет сохраняется до следующего противоположного пробоя H1.
 varip int lockedDirection = 0
 varip int firstDirection = 0
 varip bool referenceHadEntry = false
-varip bool equalFirstLow = false
 varip bool drawReference = false
 varip float h1High = na
 varip float h1Low = na
@@ -91,6 +90,10 @@ varip int validUntil = na
 // Сам свинг P1 может закрыться внутри: достаточно закрепления до/на его свече.
 varip int h1AboveCloseBar = na
 varip int h1BelowCloseBar = na
+// Тени без предшествующего закрепления не P1, но их экстремумы
+// нужно строго превысить для последующей смены приоритета.
+varip float h1RejectedHigh = na
+varip float h1RejectedLow = na
 varip int breakBar = na
 varip float point1 = na
 varip int point1Bar = na
@@ -297,6 +300,12 @@ if stage >= 1 and stage <= 5
                 stage := 2
                 breakBar := bar_index
 
+        // До входа внутренний паттерн не меняет приоритет без пробоя
+        // противоположной границы H1. Порог H1 и правила тиков сохранены.
+        bool priorityAbove = above and (na(h1RejectedHigh) or (barstate.isrealtime ? close : high) > h1RejectedHigh)
+        bool priorityBelow = below and (na(h1RejectedLow) or (barstate.isrealtime ? close : low) < h1RejectedLow)
+        bool oppositeH1Break = direction == -1 ? priorityAbove : priorityBelow
+
         // Теневая 1–2–3 из запрещённой соседней пары: только обратный план.
         if reversalDirection != 0
             if reversalUntil != validUntil or direction != reversalDirection or stage < 2 or stage > 5
@@ -305,7 +314,7 @@ if stage >= 1 and stage <= 5
                 bool shadowBreak = direction == -1 ? low < reversalFirst : high > reversalFirst
                 bool shadowCross = direction == -1 ? (barstate.isrealtime ? close > reversalSecond : high > reversalSecond) : (barstate.isrealtime ? close < reversalSecond : low < reversalSecond)
                 bool shadowExtends = shadowBreak and (na(reversalThird) or (direction == -1 ? low < reversalThird : high > reversalThird))
-                if shadowCross and not na(reversalThird)
+                if shadowCross and not na(reversalThird) and oppositeH1Break
                     // Дальше используется прежний механизм разворота по P2.
                     shadowReversalNow := true
                     point2 := reversalSecond
@@ -328,7 +337,7 @@ if stage >= 1 and stage <= 5
 
         // После 1–2–3 пробой P2 до входа запускает обратный сетап.
         // На истории нельзя считать этот же бар последующим ретестом.
-        bool crossedSecond = stage == 5 and not na(point2) and (direction == 1 ? (barstate.isrealtime ? close < point2 : low < point2) : (barstate.isrealtime ? close > point2 : high > point2))
+        bool crossedSecond = stage == 5 and oppositeH1Break and not na(point2) and (direction == 1 ? (barstate.isrealtime ? close < point2 : low < point2) : (barstate.isrealtime ? close > point2 : high > point2))
         if crossedSecond
             bool ambiguousReversal = not barstate.isrealtime and (direction == 1 ? high > point3 : low < point3)
             int formerThirdTime = time[bar_index - lastExtremeBar]
@@ -343,7 +352,6 @@ if stage >= 1 and stage <= 5
             longFloor0 := na
             longFloorTime := na
             skippedSecond := na
-            equalFirstLow := false
             partialRetest := false
             fibReanchored := false
             tightReversal := shadowReversalNow
@@ -360,12 +368,12 @@ if stage >= 1 and stage <= 5
             seededPoint3 := true
             stage := ambiguousReversal ? 7 : 5
 
-        // В обычном LONG граница отмены — low H1. После разворота SHORT,
-        // не обновившего первый low, допускается откат до сохранённого «0».
-        bool longInvalid = na(longOriginGuard) ? below : low < longOriginGuard
+        // Противоположная рабочая граница H1 меняет любой ожидающий
+        // приоритет, в том числе уже однажды сменившийся в этом дне.
+        bool crossedPriorityBoundary = direction == -1 ? priorityAbove : priorityBelow
         // Пробой сохранённого «0» отменяет структуру LONG, но не второй приоритет.
         bool brokenLongOrigin = lockedDirection == 1 and not na(longOriginGuard) and low < longOriginGuard
-        if stage >= 2 and stage <= 5 and ((lockedDirection == 0 and ((direction == -1 and above) or (direction == 1 and longInvalid))) or brokenLongOrigin)
+        if stage >= 2 and stage <= 5 and (crossedPriorityBoundary or brokenLongOrigin)
             tightReversal := false
             bool unbrokenShort = direction == -1 and stage >= 3 and stage <= 4 and not na(point1) and low >= point1
             longOriginGuard := unbrokenShort ? point1 : na
@@ -374,7 +382,7 @@ if stage >= 1 and stage <= 5
             skippedSecond := na
             candidateEpoch := candidateEpoch + 1
             retiredStatus := "Отмена · Без входа"
-            direction := lockedDirection == 0 ? -direction : lockedDirection
+            direction := crossedPriorityBoundary ? -direction : direction
             lockedDirection := direction
             stage := below and above and na(longFloor0) ? 7 : 2
             breakBar := bar_index
@@ -394,23 +402,8 @@ if stage >= 1 and stage <= 5
             drawingRight := na
             positionLeft := na
 
-        if stage != 4
-            equalFirstLow := false
-
-        if stage == 4 and direction == -1 and equalFirstLow and low < point1
-            // Повторный равный минимум не P3. Его последующий пробой начинает новую P1.
-            stage := 2
-            breakBar := bar_index
-            point1 := na
-            point1Bar := na
-            point1Time := na
-            point2 := na
-            point2Time := na
-            skippedSecond := na
-            equalFirstLow := false
-            candidateEpoch := candidateEpoch + 1
-            retiredStatus := "Без входа"
-
+        // Равный P1 экстремум сохраняет структуру в обоих направлениях.
+        // P3 возникает только при строгом пробое; повторное касание не сбрасывает P1/P2.
         // Вторую точку замораживаем в момент обновления первой.
         if stage == 4 and ((direction == -1 and low < point1) or (direction == 1 and high > point1))
             stopFibo := direction == 1 and not na(longFloor0) ? longFloor0 - 0.25 * (point1 - longFloor0) : point1 + 1.25 * (point2 - point1)
@@ -474,6 +467,15 @@ if stage >= 1 and stage <= 5
                 bool livePartial = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? close > previousQuote and close > point3 and close < entry : close < previousQuote and close < point3 and close > entry)
                 partialRetest := partialRetest or historicalPartial or livePartial
 
+// Запоминаем отвергнутые тени после обработки текущей M5: она не может
+// повысить собственный порог до проверки пробоя. Сохраняем до новой H1.
+// После первого закрепления на этой стороне дальнейшие тени уже не отвергаются.
+if barstate.isconfirmed and tradingDay and searchWindow
+    if na(h1AboveCloseBar) and close <= h1High and high > h1High
+        h1RejectedHigh := math.max(nz(h1RejectedHigh, h1High), high)
+    if na(h1BelowCloseBar) and close >= h1Low and low < h1Low
+        h1RejectedLow := math.min(nz(h1RejectedLow, h1Low), low)
+
 // Уникальный экстремум подтверждается правой свечой, как раньше.
 // Равные соседние экстремумы объединяются; подтверждение возникает
 // только после выхода из плато. Координата — последний бар общей вершины.
@@ -534,8 +536,6 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
                     longFloorTime := na
                 skippedSecond := na
                 stage := 4
-    else if stage == 4 and direction == -1 and lowerPivot and low[1] == point1 and firstPivotBar > point1Bar
-        equalFirstLow := true
     else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2))
         point2 := direction == -1 ? high[1] : low[1]
         point2Time := secondPivotTime
@@ -552,20 +552,6 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
         lowRunHigh := high
     else
         lowRunHigh := math.max(lowRunHigh, high)
-
-if stage == 4 and direction == -1 and equalFirstLow and low < point1
-    // Повторный равный минимум не P3. Его последующий пробой начинает новую P1.
-    stage := 2
-    breakBar := bar_index
-    point1 := na
-    point1Bar := na
-    point1Time := na
-    point2 := na
-    point2Time := na
-    skippedSecond := na
-    equalFirstLow := false
-    candidateEpoch := candidateEpoch + 1
-    retiredStatus := "Без входа"
 
 // Свеча подтверждения P2 уже может обновить P1. Сохраняем этот экстремум
 // как P3 после подтверждения, иначе следующий бар потеряет совершённый пробой.
@@ -763,6 +749,8 @@ if barstate.isconfirmed and hh == 14
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
         h1AboveCloseBar := na
         h1BelowCloseBar := na
+        h1RejectedHigh := na
+        h1RejectedLow := na
         stage := skipWeekends and barIsWeekend ? 0 : 1
         tightReversal := false
         direction := 0

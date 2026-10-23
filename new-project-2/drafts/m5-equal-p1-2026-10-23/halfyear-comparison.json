@@ -1,0 +1,274 @@
+{
+  "period": {
+    "start": "2026-04-23T14:00:00+07:00",
+    "endExclusive": "2026-10-23T00:00:00+07:00",
+    "candles": 52536,
+    "timezone": "UTC+7"
+  },
+  "inputSha256": "d577f10284f1aa9e64cbe97111b98948fe10990757a789657bddae5c39111681",
+  "baseSourceSha256": "3d8dfb6dd1490026458430db6a9a8eee805bac5e7b651a770a93792260925f69",
+  "sourceSha256": "c8cd6c7d2074502fb808b7aea1dba62fa00965071f91b8e8731990c9a63e6e75",
+  "baseline": "Previously verified v37 ledger; same exact dataset; published/calculated source title equivalence asserted.",
+  "v37": {
+    "entered": 106,
+    "closed": 103,
+    "wins": 73,
+    "losses": 30,
+    "unresolved": 3,
+    "ambiguous": 0,
+    "winRate": 0.7087378640776699,
+    "netR": 17.752128857781326,
+    "maxDrawdownR": 7.841192113357004,
+    "profitFactor": 1.591737628592711
+  },
+  "v38": {
+    "entered": 106,
+    "closed": 103,
+    "wins": 73,
+    "losses": 30,
+    "unresolved": 3,
+    "ambiguous": 0,
+    "winRate": 0.7087378640776699,
+    "netR": 17.909421205721237,
+    "maxDrawdownR": 7.841192113357004,
+    "profitFactor": 1.5969807068573745
+  },
+  "monthly": [
+    {
+      "month": "2026-04",
+      "v37": {
+        "entered": 6,
+        "closed": 6,
+        "wins": 4,
+        "losses": 2,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.6666666666666666,
+        "netR": 0.418976567174405,
+        "maxDrawdownR": 2,
+        "profitFactor": 1.2094882835872025
+      },
+      "v38": {
+        "entered": 6,
+        "closed": 6,
+        "wins": 4,
+        "losses": 2,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.6666666666666666,
+        "netR": 0.418976567174405,
+        "maxDrawdownR": 2,
+        "profitFactor": 1.2094882835872025
+      }
+    },
+    {
+      "month": "2026-05",
+      "v37": {
+        "entered": 22,
+        "closed": 20,
+        "wins": 10,
+        "losses": 10,
+        "unresolved": 2,
+        "ambiguous": 0,
+        "winRate": 0.5,
+        "netR": -4.463567945410257,
+        "maxDrawdownR": 6.279649558896032,
+        "profitFactor": 0.5536432054589743
+      },
+      "v38": {
+        "entered": 22,
+        "closed": 20,
+        "wins": 10,
+        "losses": 10,
+        "unresolved": 2,
+        "ambiguous": 0,
+        "winRate": 0.5,
+        "netR": -4.463567945410257,
+        "maxDrawdownR": 6.279649558896032,
+        "profitFactor": 0.5536432054589743
+      }
+    },
+    {
+      "month": "2026-06",
+      "v37": {
+        "entered": 16,
+        "closed": 16,
+        "wins": 14,
+        "losses": 2,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.875,
+        "netR": 7.4250827906283625,
+        "maxDrawdownR": 1,
+        "profitFactor": 4.712541395314181
+      },
+      "v38": {
+        "entered": 16,
+        "closed": 16,
+        "wins": 14,
+        "losses": 2,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.875,
+        "netR": 7.4250827906283625,
+        "maxDrawdownR": 1,
+        "profitFactor": 4.712541395314181
+      }
+    },
+    {
+      "month": "2026-07",
+      "v37": {
+        "entered": 16,
+        "closed": 15,
+        "wins": 9,
+        "losses": 6,
+        "unresolved": 1,
+        "ambiguous": 0,
+        "winRate": 0.6,
+        "netR": -0.9060277789056349,
+        "maxDrawdownR": 3.1361256544502574,
+        "profitFactor": 0.8489953701823941
+      },
+      "v38": {
+        "entered": 16,
+        "closed": 15,
+        "wins": 9,
+        "losses": 6,
+        "unresolved": 1,
+        "ambiguous": 0,
+        "winRate": 0.6,
+        "netR": -0.9060277789056349,
+        "maxDrawdownR": 3.1361256544502574,
+        "profitFactor": 0.8489953701823941
+      }
+    },
+    {
+      "month": "2026-08",
+      "v37": {
+        "entered": 15,
+        "closed": 15,
+        "wins": 12,
+        "losses": 3,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.8,
+        "netR": 4.323569083756628,
+        "maxDrawdownR": 2,
+        "profitFactor": 2.441189694585543
+      },
+      "v38": {
+        "entered": 15,
+        "closed": 15,
+        "wins": 12,
+        "losses": 3,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.8,
+        "netR": 4.480861431696539,
+        "maxDrawdownR": 2,
+        "profitFactor": 2.49362047723218
+      }
+    },
+    {
+      "month": "2026-09",
+      "v37": {
+        "entered": 17,
+        "closed": 17,
+        "wins": 10,
+        "losses": 7,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.5882352941176471,
+        "netR": 0.8008399014759753,
+        "maxDrawdownR": 3.9114888433506168,
+        "profitFactor": 1.1144057002108536
+      },
+      "v38": {
+        "entered": 17,
+        "closed": 17,
+        "wins": 10,
+        "losses": 7,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.5882352941176471,
+        "netR": 0.8008399014759753,
+        "maxDrawdownR": 3.9114888433506168,
+        "profitFactor": 1.1144057002108536
+      }
+    },
+    {
+      "month": "2026-10",
+      "v37": {
+        "entered": 14,
+        "closed": 14,
+        "wins": 14,
+        "losses": 0,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 1,
+        "netR": 10.153256239061848,
+        "maxDrawdownR": 0,
+        "profitFactor": null
+      },
+      "v38": {
+        "entered": 14,
+        "closed": 14,
+        "wins": 14,
+        "losses": 0,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 1,
+        "netR": 10.153256239061848,
+        "maxDrawdownR": 0,
+        "profitFactor": null
+      }
+    }
+  ],
+  "changedDays": [
+    {
+      "date": "2026-08-14",
+      "before": [
+        {
+          "id": 68,
+          "referenceDate": "2026-08-14",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-14T20:40:00.000+07:00",
+          "entryBarEnd": "2026-08-14T20:45:00.000+07:00",
+          "fiboStop": 75.4775,
+          "swingTarget": 75.19,
+          "entry": 75.33375,
+          "stop": 75.5075,
+          "target": 75.29,
+          "status": "target",
+          "exitBarStart": "2026-08-14T20:50:00.000+07:00",
+          "exitBarEnd": "2026-08-14T20:55:00.000+07:00",
+          "exitPrice": 75.29,
+          "r": 0.2517985611510162,
+          "rewardRisk": 0.2517985611510162
+        }
+      ],
+      "after": [
+        {
+          "id": 68,
+          "referenceDate": "2026-08-14",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-14T18:00:00.000+07:00",
+          "entryBarEnd": "2026-08-14T18:05:00.000+07:00",
+          "fiboStop": 75.67,
+          "swingTarget": 75.29,
+          "entry": 75.48,
+          "stop": 75.7,
+          "target": 75.39,
+          "status": "target",
+          "exitBarStart": "2026-08-14T18:05:00.000+07:00",
+          "exitBarEnd": "2026-08-14T18:10:00.000+07:00",
+          "exitPrice": 75.39,
+          "r": 0.4090909090909267,
+          "rewardRisk": 0.4090909090909267
+        }
+      ]
+    }
+  ]
+}

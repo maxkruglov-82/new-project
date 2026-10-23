@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "tests": 335,
+  "passed": 335,
+  "failed": 0,
+  "focusedBehaviorTests": 28,
+  "sourceSha256": "ebc53245d09fbf4dc2c7d7795261d900e23e820525413d7fdcb2e469584c20f7",
+  "candidateSha256": "153baf4270ec6aa66bdd00c178ca684ab8fd35df95cc5e6a345020d708ff4a73",
+  "publishedExecutableMatchesCandidateExceptTitle": true,
+  "pineEqualsTxt": true,
+  "checks": [
+    "SHORT/LONG equality and strict P3",
+    "Local reversal blocked before opposite working H1",
+    "Shifted rejected-wick boundary, strict comparison and daily reset",
+    "Historical and live behavior",
+    "10Aug77.12 failed wick,SHORT21:10,TP22:00",
+    "14AugSHORT18:00,TP18:05",
+    "No simultaneous opposite entry while active",
+    "Historical M5 and NEAR regression controls"
+  ],
+  "fullHalfyearForFinalSource": false
+}

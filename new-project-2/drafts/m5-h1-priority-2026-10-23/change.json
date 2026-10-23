@@ -1,0 +1,9 @@
+{
+  "status": "draft; not published",
+  "baseVersion": "v38 draft",
+  "version": "v39 draft",
+  "baseSourceSha256": "c8cd6c7d2074502fb808b7aea1dba62fa00965071f91b8e8731990c9a63e6e75",
+  "sourceSha256": "153baf4270ec6aa66bdd00c178ca684ab8fd35df95cc5e6a345020d708ff4a73",
+  "rule": "Before entry, both shadow exception and ordinary P2 reversal require opposite H1 break. Equal P1 preservation, P1 prior close, strict P3, all offsets, time, exits and existing ordinary H1 switching remain unchanged. Reversal additionally requires a strict break past previously rejected wick extremes from this reference H1; upper/lower history is reset with the next H1. The opposite working H1 boundary can switch any pending priority, including a previously switched priority; original-minimum guard may cancel a candidate without reversing direction.",
+  "published": false
+}
