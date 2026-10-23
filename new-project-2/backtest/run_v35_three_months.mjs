@@ -1,0 +1,13 @@
+import{readFileSync,writeFileSync}from'node:fs';
+import{mock}from'node:test';
+import{execute,sha256}from'./run.mjs';
+import{fileURLToPath}from'node:url';
+const root=fileURLToPath(new URL('../',import.meta.url)),dir=root+'reports/v35-early-close-2026-10-23/';
+const raw=JSON.parse(readFileSync(root+'reports/v34-start-1510-2026-10-23/candles.json')),old=JSON.parse(readFileSync(root+'reports/v34-start-1510-2026-10-23/result.json'));
+const source=readFileSync(root+'sol_short_setup.pine','utf8');mock.timers.enable({apis:['Date'],now:Date.parse(raw.endExclusive)+1000});
+const report=await execute(source,raw,Date.parse(raw.start),Date.parse(raw.endExclusive));
+const monthly=['2026-08','2026-09','2026-10'].map(month=>{const own=report.trades.filter(t=>t.entryBarStart.startsWith(month)),targets=own.filter(t=>t.status==='target').length,stops=own.filter(t=>t.status==='stop').length;return{month,entries:own.length,closed:targets+stops,targets,stops,winRate:targets+stops?targets/(targets+stops):null,unresolved:own.filter(t=>t.status.startsWith('unresolved')).length,ambiguous:own.filter(t=>t.status==='ambiguous').length};});
+const result={strategy:'SOL M5 v35 early-close exception',sourceSha256:sha256(source),inputFile:'reports/v34-start-1510-2026-10-23/candles.json',inputSha256:sha256(readFileSync(root+'reports/v34-start-1510-2026-10-23/candles.json')),period:{start:raw.start,endExclusive:raw.endExclusive,timezone:'Asia/Krasnoyarsk'},market:'MEXC SOL_USDT USDT perpetual futures',costs:'Commission, funding, slippage excluded',monthly,...report};
+writeFileSync(dir+'three-months.json',JSON.stringify(result,null,2)+'\n');
+const comparison={v34:old.summary,v35:report.summary,worseWinRate:report.summary.winRateKnown<old.summary.winRateKnown,worseNetR:report.summary.netRKnownBeforeCosts<old.summary.netRKnownBeforeCosts};writeFileSync(dir+'comparison.json',JSON.stringify(comparison,null,2)+'\n');
+console.log(JSON.stringify({comparison,monthly},null,2));

@@ -1,0 +1,56 @@
+{
+  "sourceSha256": "04ce87e68f83e4a6262a5ac79352a1f770d962fc7c0041268dd335fe3086c3d7",
+  "summary": {
+    "calendarReferenceDays": 1,
+    "excludedWeekendDays": 0,
+    "referenceDays": 1,
+    "enteredTrades": 1,
+    "targets": 1,
+    "stops": 0,
+    "ambiguous": 0,
+    "unresolved": 0,
+    "totalTrades": 1,
+    "knownOutcomes": 1,
+    "winRateKnown": 1,
+    "daysWithEntry": 1,
+    "daysWithoutEntry": 0,
+    "daysWithTarget": 1,
+    "daysWithStopsAndNoTarget": 0,
+    "netRKnownBeforeCosts": 0.836177474402689
+  },
+  "days": [
+    {
+      "date": "2026-10-19",
+      "referenceClose": "2026-10-19T15:00:00.000+07:00",
+      "high": 106.17,
+      "low": 105.55,
+      "endingStage": null,
+      "trades": 1,
+      "targets": 1,
+      "stops": 0,
+      "ambiguous": 0,
+      "unresolved": 0
+    }
+  ],
+  "trades": [
+    {
+      "id": 1,
+      "referenceDate": "2026-10-19",
+      "side": "SHORT",
+      "tightReversal": false,
+      "entryBarStart": "2026-10-19T16:15:00.000+07:00",
+      "entryBarEnd": "2026-10-19T16:20:00.000+07:00",
+      "fiboStop": 106.0725,
+      "swingTarget": 105.4,
+      "entry": 105.73625,
+      "stop": 106.1025,
+      "target": 105.43,
+      "status": "target",
+      "exitBarStart": "2026-10-19T17:00:00.000+07:00",
+      "exitBarEnd": "2026-10-19T17:05:00.000+07:00",
+      "exitPrice": 105.43,
+      "r": 0.836177474402689,
+      "rewardRisk": 0.836177474402689
+    }
+  ]
+}

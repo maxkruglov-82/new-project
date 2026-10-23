@@ -1,0 +1,40 @@
+{
+  "v34": {
+    "calendarReferenceDays": 83,
+    "excludedWeekendDays": 24,
+    "referenceDays": 59,
+    "enteredTrades": 49,
+    "targets": 33,
+    "stops": 16,
+    "ambiguous": 0,
+    "unresolved": 0,
+    "totalTrades": 49,
+    "knownOutcomes": 49,
+    "winRateKnown": 0.673469387755102,
+    "daysWithEntry": 46,
+    "daysWithoutEntry": 13,
+    "daysWithTarget": 33,
+    "daysWithStopsAndNoTarget": 13,
+    "netRKnownBeforeCosts": 12.805452642250277
+  },
+  "v35": {
+    "calendarReferenceDays": 83,
+    "excludedWeekendDays": 24,
+    "referenceDays": 59,
+    "enteredTrades": 49,
+    "targets": 35,
+    "stops": 14,
+    "ambiguous": 0,
+    "unresolved": 0,
+    "totalTrades": 49,
+    "knownOutcomes": 49,
+    "winRateKnown": 0.7142857142857143,
+    "daysWithEntry": 46,
+    "daysWithoutEntry": 13,
+    "daysWithTarget": 35,
+    "daysWithStopsAndNoTarget": 11,
+    "netRKnownBeforeCosts": 16.320673457033536
+  },
+  "worseWinRate": false,
+  "worseNetR": false
+}

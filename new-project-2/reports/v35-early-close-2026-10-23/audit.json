@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "controlTests": 251,
+  "verifiedTrades": 49,
+  "sourceSha256": "04ce87e68f83e4a6262a5ac79352a1f770d962fc7c0041268dd335fe3086c3d7",
+  "inputSha256": "e1c43c52d099d5b7acc23781654aa41b7708fa58eeddae88e47f4a1e5036e2df",
+  "checks": [
+    "Exact v34 plus early-close block only",
+    "Historical and live close for both early bars and both sides",
+    "Oct19 entry16:15 target17:00",
+    "Independent first subsequent exit reconstruction for all49 trades"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "status": "v35 publication authorized by user",
+  "base": "Solana M5 v34",
+  "baseSha256": "ac28d4c8595de241a71fbc551c09251cba1087c5d703e7101f72794576410738",
+  "sourceSha256": "04ce87e68f83e4a6262a5ac79352a1f770d962fc7c0041268dd335fe3086c3d7",
+  "oldBlock": "        // Свечи 15:00–15:05 и15:05–15:10 не задают приоритет.\n        // validUntil — следующая опорная H1 в15:00; UTC+7 без переходов DST.\n        if stage == 1 and time >= validUntil - 86400000 + 600000",
+  "newBlock": "        // До15:10 первоначальный приоритет разрешён только после закрытия\n        // M5 за соответствующей границей H1. Тень проходит прежний порог0.02.\n        // Это исключение касается обеих M5:15:00–15:05 и15:05–15:10.\n        int referenceStart = validUntil - 86400000\n        bool earlyBar = time >= referenceStart and time < referenceStart + 600000\n        bool earlyShort = earlyBar and barstate.isconfirmed and close < h1Low and belowH1(low, h1Low)\n        bool earlyLong = earlyBar and barstate.isconfirmed and close > h1High and aboveH1(high, h1High)\n        bool earlyInitial = stage == 1 and (earlyShort or earlyLong)\n        if earlyInitial\n            // Направление известно после закрытия. Предыдущие тени этой\n            // же M5 не используются для обратной отмены нового кандидата.\n            below := earlyShort\n            above := earlyLong\n        if stage == 1 and (time >= referenceStart + 600000 or earlyInitial)",
+  "timeZone": "Asia/Krasnoyarsk",
+  "scope": [
+    "15:00–15:05",
+    "15:05–15:10"
+  ]
+}

@@ -31,7 +31,8 @@ export async function execute(source, raw, start, end) {
   if (raw.interval !== 'Min5' || raw.symbol !== 'SOL_USDT') throw new Error('Expected SOL_USDT Min5 futures data');
   const candles = raw.candles.map(b => ({ openTime: b.time * 1000, closeTime: b.time * 1000 + STEP - 1,
     open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
-  const entryStart = source.includes('if stage == 1 and time >= validUntil - 86400000 + 600000') ? '15:10' : '15:05';
+  const earlyCloseException = source.includes('bool earlyInitial = stage == 1 and (earlyShort or earlyLong)');
+  const entryStart = earlyCloseException ? '15:00' : source.includes('if stage == 1 and time >= validUntil - 86400000 + 600000') ? '15:10' : '15:05';
   const expected = (end - start) / STEP;
   if (candles.length !== expected) throw new Error('Incomplete input length');
   candles.forEach((b, i) => {
@@ -138,7 +139,8 @@ async function main() {
   const start = Date.parse(raw.start), end = Date.parse(raw.endExclusive);
   const report = await execute(source, raw, start, end);
   if (report.summary.calendarReferenceDays !== Math.round((end - start - 3_600_000) / DAY)) throw new Error('Missing reference H1 periods');
-  const entryStart = source.includes('if stage == 1 and time >= validUntil - 86400000 + 600000') ? '15:10' : '15:05';
+  const earlyCloseException = source.includes('bool earlyInitial = stage == 1 and (earlyShort or earlyLong)');
+  const entryStart = earlyCloseException ? '15:00' : source.includes('if stage == 1 and time >= validUntil - 86400000 + 600000') ? '15:10' : '15:05';
   const version = source.match(/indicator\("([^"]+)"/)?.[1];
   const scriptVersion = version?.includes('черновик') ? version : version?.match(/v\d+$/)?.[0] || 'current';
   const result = { strategy: version, sourceSha256: sha256(source), inputSha256: sha256(bytes),
@@ -153,7 +155,7 @@ async function main() {
       p2Reversal: 'Before entry, a P2 break after P3 reverses the pending setup using former P2/P3 Fibo anchors; wait for a separate retest. It overrides the H1 priority lock. Existing positions are unchanged. Simultaneous new P3 and P2 break on historical M5 cancels the setup because order is unknown. The dual-pivot exclusion is not enabled.',
       equalShortLows: 'After a distinct confirmed return to P1 at the same low, its next strict break resets the SHORT structure. Wait for a new confirmed lower P1 and a new P2; do not seed P3 from the old pair.',
       entryWindow: `New searches and entries on the reference calendar day from${entryStart} until00:00 Asia/Krasnoyarsk; pending plans expire at midnight, existing positions remain tracked.`,
-      firstM5: `Ignore M5 bars opening before${entryStart} for H1 priority selection and P1. Inclusive0.02 threshold unchanged.`,
+      firstM5: earlyCloseException ? 'v35:15:00 and15:05 bars may set initial priority only after confirmed close outside H1, with unchanged inclusive0.02 wick threshold; from15:10 ordinary wick rule. P1 still needs confirmation.' : `Ignore M5 bars opening before${entryStart} for H1 priority selection and P1. Inclusive0.02 threshold unchanged.`,
       h1BreakThreshold: 'Price must exceed the H1 edge by at least 0.02 USDT (inclusive); applies to initial priority, first H1 reversal and P1 qualification. P3/M5 breaks and saved LONG origin retain strict prior rules.',
       takeBuffer: 'Take profit is 0.03 USDT before raw swing P3 (SHORT above, LONG below); entry stays the midpoint of base Fibo stop and raw swing target. Only profitable take levels permit entry.',
       priorityLock: 'Record initial direction for the H1; first opposite priority locks until new H1, including retries after stops; ignore later H1 edge breaks, except pending structural P2 reversal. A broken saved LONG origin cancels its candidate but preserves locked LONG.',

@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v34", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v35", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -259,9 +259,20 @@ if stage >= 1 and stage <= 5
     else
         bool below = barstate.isrealtime ? belowH1(close, h1Low) : belowH1(low, h1Low)
         bool above = barstate.isrealtime ? aboveH1(close, h1High) : aboveH1(high, h1High)
-        // Свечи 15:00–15:05 и15:05–15:10 не задают приоритет.
-        // validUntil — следующая опорная H1 в15:00; UTC+7 без переходов DST.
-        if stage == 1 and time >= validUntil - 86400000 + 600000
+        // До15:10 первоначальный приоритет разрешён только после закрытия
+        // M5 за соответствующей границей H1. Тень проходит прежний порог0.02.
+        // Это исключение касается обеих M5:15:00–15:05 и15:05–15:10.
+        int referenceStart = validUntil - 86400000
+        bool earlyBar = time >= referenceStart and time < referenceStart + 600000
+        bool earlyShort = earlyBar and barstate.isconfirmed and close < h1Low and belowH1(low, h1Low)
+        bool earlyLong = earlyBar and barstate.isconfirmed and close > h1High and aboveH1(high, h1High)
+        bool earlyInitial = stage == 1 and (earlyShort or earlyLong)
+        if earlyInitial
+            // Направление известно после закрытия. Предыдущие тени этой
+            // же M5 не используются для обратной отмены нового кандидата.
+            below := earlyShort
+            above := earlyLong
+        if stage == 1 and (time >= referenceStart + 600000 or earlyInitial)
             // У исторической свечи с обоими пробоями нет известного порядка.
             if below and above
                 stage := 7
