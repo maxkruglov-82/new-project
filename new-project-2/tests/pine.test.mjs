@@ -719,7 +719,7 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(values(ctx, 'Stage')[entryIndex], 6);
     assert.equal(signalCount(ctx, side), 1);
     assert.equal(signalCount(ctx, opposite), 0);
-    assert.equal(values(ctx, `${side} Entry`)[entryIndex], side === 'SHORT' ? 102 : 103);
+    assert.equal(values(ctx, `${side} Entry`)[entryIndex], side === 'SHORT' ? 102 : 105);
     assert.equal(ctx.plots.__boxes__.data[0].value.filter(b => b.left === Date.parse('2026-10-20T13:00:00+07:00')).length, 1);
   });
 
@@ -1083,19 +1083,20 @@ function unbrokenShortToLong() {
     candle(25, 104, 110, 104, 109)];
 }
 
-test('разворот не подтвердившегося SHORT: LONG P2 ниже H1 допустима выше шортового свинга «0»', async () => {
+test('v32: новая LONG P2 выше прежнего SHORT минимума использует Фибо1–2', async () => {
   const ctx = await run(unbrokenShortToLong());
   assert.equal(values(ctx, 'LONG Floor 0')[17], 100);
   assert.equal(values(ctx, 'Direction')[20], 1);
   assert.equal(values(ctx, 'Stage')[21], 4);
   assert.equal(values(ctx, 'H1 Low')[20], 101);
-  assert.equal(values(ctx, 'LONG Stop')[22], 98); // Стоп может лежать ниже самого «0».
+  assert.equal(values(ctx, 'LONG Stop')[22], 98.625); // Стоп может лежать ниже самого «0».
   assert.equal(values(ctx, 'LONG Target')[22], 109);
-  assert.equal(values(ctx, 'LONG Entry')[24], 103.5);
+  assert.equal(values(ctx, 'LONG Entry')[24], 103.8125);
   assert.equal(signalCount(ctx, 'LONG'), 1);
   assert.equal(signalCount(ctx), 0);
   assert.equal(values(ctx, 'Outcome').at(-1), 1);
-  assert.equal(values(ctx, 'LONG Floor 0').at(-1), 100);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0').at(-1)));
+  assert.equal(values(ctx,'LONG Origin Guard')[21],100);
   assert.ok(priceLabels(ctx).some(l => l.text.startsWith('Цель:') && l.text.endsWith(' +')));
 });
 
@@ -1107,7 +1108,8 @@ test('LONG: равенство P2 шортовому «0» допустимо, �
     if (low === 100) {
       assert.equal(values(ctx, 'Direction')[20], 1);
       assert.equal(values(ctx, 'Stage')[21], 4);
-      assert.equal(values(ctx, 'LONG Floor 0')[21], 100);
+      assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[21]));
+      assert.equal(values(ctx,'LONG Origin Guard')[21],100);
     } else {
       assert.equal(values(ctx, 'Direction')[20], 1);
       assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[20]));
@@ -1116,15 +1118,16 @@ test('LONG: равенство P2 шортовому «0» допустимо, �
   }
 });
 
-test('LONG: P2 может понижаться ниже H1, пока не нарушен фиксированный «0»', async () => {
+test('LONG: новая P2 может понижаться до прежнего SHORT минимума, Фибо следует новой1–2', async () => {
   const data = [...unbrokenShortToLong().slice(0, 22),
     candle(22, 104, 105.5, 100.2, 102), candle(23, 102, 106, 100.8, 104),
     candle(24, 104, 109, 103, 108), candle(25, 108, 108.5, 104.2, 105),
     candle(26, 105, 107, 103.5, 104)];
   const ctx = await run(data);
-  assert.equal(values(ctx, 'LONG Floor 0')[23], 100);
-  assert.equal(values(ctx, 'LONG Stop')[24], 98);
-  assert.equal(values(ctx, 'LONG Entry')[26], 103.5);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[23]));
+  assert.equal(values(ctx,'LONG Origin Guard')[23],100);
+  assert.equal(values(ctx, 'LONG Stop')[24], 98.25);
+  assert.equal(values(ctx, 'LONG Entry')[26], 103.625);
   assert.equal(signalCount(ctx, 'LONG'), 1);
 });
 
@@ -1196,7 +1199,7 @@ test('живой LONG: возврат под H1 пробой «0» сбрасы�
   assert.equal(ctx.alerts.length, 0);
 });
 
-test('MEXC 24 августа: Фибо «0–1» даёт стоп 92.43 и вход 94.535 в 20:45', async () => {
+test('MEXC24 августа: новаяФибо1–2 без старого0 даёт LONG20:40', async () => {
   const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
   const from = Date.parse('2026-08-24T14:00:00+07:00');
   const until = Date.parse('2026-08-25T06:00:00+07:00');
@@ -1205,15 +1208,16 @@ test('MEXC 24 августа: Фибо «0–1» даёт стоп 92.43 и вх
       open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
   const ctx = await run(data);
   const index = time => (Date.parse(`2026-08-24T${time}:00+07:00`) - from) / step;
-  assert.equal(values(ctx, 'LONG Floor 0')[index('19:15')], 93.21);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[index('19:20')]));
+  assert.equal(values(ctx,'LONG Origin Guard')[index('19:20')],93.21);
   assert.equal(values(ctx, 'Direction')[index('19:15')], 1);
   assert.equal(values(ctx, 'Stage')[index('19:20')], 4);
-  const entryBar = index('20:45');
+  const entryBar = index('20:40');
   assert.equal(values(ctx, 'LONG')[entryBar], 1);
   assert.equal(signalCount(ctx, 'LONG'), 1);
   assert.equal(signalCount(ctx), 0);
-  assert.ok(Math.abs(values(ctx, 'LONG Stop')[entryBar] - 92.43) < 1e-9);
-  assert.ok(Math.abs(values(ctx, 'LONG Entry')[entryBar] - 94.535) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Stop')[entryBar] - 93.1175) < 1e-9);
+  assert.ok(Math.abs(values(ctx, 'LONG Entry')[entryBar] - 94.87875) < 1e-9);
   assert.equal(values(ctx, 'LONG Target')[entryBar], 96.64);
   assert.equal(values(ctx, 'Outcome').at(-1), 1);
 });
@@ -1231,9 +1235,10 @@ test('разворотный LONG сохраняет P1 после соседн�
   assert.equal(values(ctx, 'Stage')[20], 3);
   assert.equal(values(ctx, 'Stage')[22], 3);
   assert.equal(values(ctx, 'Stage')[24], 4);
-  assert.equal(values(ctx, 'LONG Floor 0')[24], 100);
-  assert.equal(values(ctx, 'LONG Stop')[27], 98);
-  assert.equal(values(ctx, 'LONG Entry')[27], 103.5);
+  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[24]));
+  assert.equal(values(ctx,'LONG Origin Guard')[24],100);
+  assert.equal(values(ctx, 'LONG Stop')[27], 98.625);
+  assert.equal(values(ctx, 'LONG Entry')[27], 103.8125);
   assert.equal(signalCount(ctx, 'LONG'), 1);
   const m5 = ctx.plots.__boxes__.data[0].value.filter(b => b.border_style === 'style_dotted');
   const longRange = m5.find(b => b.left === start + 18 * step);
@@ -1925,7 +1930,8 @@ test('MEXC8 сентября: перенос P1 убирает старую Фи
       open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
   const ctx = await runDefault(data);
   const at = t => (Date.parse(`2026-09-08T${t}:00+07:00`) - from) / step;
-  assert.equal(values(ctx, 'LONG Floor 0')[at('15:50')], 102.44);
+  assert.equal(values(ctx, 'LONG Floor 0')[at('15:50')],102.44);
+  assert.equal(values(ctx,'LONG Origin Guard')[at('15:50')],102.44);
   assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[at('16:50')]));
   assert.equal(signalCount(ctx, 'LONG'), 1);
   assert.equal(signalCount(ctx, 'SHORT'), 0);
@@ -2043,3 +2049,34 @@ test('MEXC1 октября: утреннийLONG12:55 по диапазону30 
  assert.ok([0,6].includes(values(ctx,'Stage')[at]),'утром нет ожидающего сетапа; история либо открытая позиция допустимы');
  for(let i=0;i<d.length;i++)if(d[i].openTime>=Date.parse('2026-10-01T00:00:00+07:00')){assert.equal(values(ctx,'LONG')[i],0);assert.equal(values(ctx,'SHORT')[i],0);}
 });
+
+test('v32: LONG после SHORT освобождает Фибо от0 только при допустимой подтверждённой P2',async()=>{
+ for(const low of [100.5,100,99.9]){
+  const d=unbrokenShortToLong().slice(0,22);d[20]=candle(20,104,105,low,102);const ctx=await run(d);
+  assert.equal(values(ctx,'LONG Floor 0')[19],100);
+  assert.equal(values(ctx,'Direction')[21],1);
+  if(low>=100){assert.equal(values(ctx,'Stage')[21],4);assert.ok(Number.isNaN(values(ctx,'LONG Floor 0')[21]));assert.equal(values(ctx,'LONG Origin Guard')[21],100);}
+  else {assert.equal(values(ctx,'Stage')[21],2);assert.ok(Number.isNaN(values(ctx,'LONG Origin Guard')[21]));}
+  assert.equal(signalCount(ctx,'LONG'),0);
+ }
+});
+test('v32: замена LONG P1 не снимает проверку будущей P2 по прежнему SHORT минимуму',async()=>{
+ const d=[...unbrokenShortToLong().slice(0,20),candle(20,104,110,102,109),candle(21,109,109,103,106),candle(22,105,105.5,99.9,100)];const ctx=await run(d);
+ assert.equal(values(ctx,'LONG Origin Guard')[21],100);
+ assert.ok(Number.isNaN(values(ctx,'LONG Floor 0')[21]));
+ assert.equal(values(ctx,'Stage')[22],2);assert.equal(signalCount(ctx,'LONG'),0);
+});
+for(const side of ['LONG','SHORT']){
+ test(`${side}: MEXC30 сентября новая структура1–2 после сменыH1, вход18:00, тейк19:25`,async()=>{
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-04-01_2026-10-22.json',import.meta.url)));const from=Date.parse('2026-09-30T14:00:00+07:00'),until=Date.parse('2026-09-30T19:40:00+07:00');
+  let d=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  if(side==='SHORT')d=mirror(d);const ctx=await runDefault(d);const at=t=>(Date.parse(`2026-09-30T${t}:00+07:00`)-from)/step;const price=p=>side==='LONG'?p:207-p;
+  assert.equal(values(ctx,'Direction')[at('16:25')],side==='LONG'?1:-1);
+  assert.equal(values(ctx,'Stage')[at('16:50')],4);
+  assert.ok(Number.isNaN(values(ctx,'LONG Floor 0')[at('16:50')]));
+  if(side==='LONG')assert.equal(values(ctx,'LONG Origin Guard')[at('16:50')],117.77);
+  assert.equal(values(ctx,side)[at('17:30')],0);assert.equal(values(ctx,side)[at('18:00')],1);
+  for(const [label,expected]of[['Entry',119.39],['Stop',118.88],['Target',119.84]])assert.ok(Math.abs(values(ctx,`${side} ${label}`)[at('18:00')]-price(expected))<1e-9);
+  assert.equal(values(ctx,'Outcome')[at('19:25')],1);assert.equal(signalCount(ctx,side),1);
+ });
+}

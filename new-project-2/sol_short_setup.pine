@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v31", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v32", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -102,6 +102,8 @@ varip bool tightReversal = false
 // При развороте не подтвердившегося SHORT его первый low становится
 // границей «0» нового LONG. Она фиксируется до отмены/смены кандидата.
 varip float longFloor0 = na
+// Прежний SHORT минимум ограничивает допустимость новой LONG P2, но не Фибо.
+varip float longOriginGuard = na
 varip int longFloorTime = na
 // Соседний противоположный свинг не считается P2. До новой P1
 // требуется более высокий high в SHORT / более низкий low в LONG.
@@ -217,6 +219,7 @@ if stage == 6 or stage == 0 or stage == 7
     reversalDirection := 0
 
 if retry
+    longOriginGuard := na
     tightReversal := false
     reversalDirection := 0
     candidateEpoch := candidateEpoch + 1
@@ -248,6 +251,7 @@ if retry
 // Старый ожидающий сетап прекращается при новой опорной H1.
 if stage >= 1 and stage <= 5
     if time >= validUntil or not tradingDay or not searchWindow
+        longOriginGuard := na
         stage := 0
         longFloor0 := na
         longFloorTime := na
@@ -312,6 +316,7 @@ if stage >= 1 and stage <= 5
             point2Time := formerThirdTime
             direction := -direction
             lockedDirection := direction
+            longOriginGuard := na
             longFloor0 := na
             longFloorTime := na
             skippedSecond := na
@@ -334,12 +339,13 @@ if stage >= 1 and stage <= 5
 
         // В обычном LONG граница отмены — low H1. После разворота SHORT,
         // не обновившего первый low, допускается откат до сохранённого «0».
-        bool longInvalid = na(longFloor0) ? below : low < longFloor0
+        bool longInvalid = na(longOriginGuard) ? below : low < longOriginGuard
         // Пробой сохранённого «0» отменяет структуру LONG, но не второй приоритет.
-        bool brokenLongOrigin = lockedDirection == 1 and not na(longFloor0) and low < longFloor0
+        bool brokenLongOrigin = lockedDirection == 1 and not na(longOriginGuard) and low < longOriginGuard
         if stage >= 2 and stage <= 5 and ((lockedDirection == 0 and ((direction == -1 and above) or (direction == 1 and longInvalid))) or brokenLongOrigin)
             tightReversal := false
             bool unbrokenShort = direction == -1 and stage >= 3 and stage <= 4 and not na(point1) and low >= point1
+            longOriginGuard := unbrokenShort ? point1 : na
             longFloor0 := unbrokenShort ? point1 : na
             longFloorTime := unbrokenShort ? point1Time : na
             skippedSecond := na
@@ -498,6 +504,11 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
             else if na(skippedSecond) or (direction == -1 ? high[1] > skippedSecond : low[1] < skippedSecond)
                 point2 := direction == -1 ? high[1] : low[1]
                 point2Time := secondPivotTime
+                // После смены SHORT→LONG допустимая P2 создаёт собственную Фибо1–2.
+                // Равенство прежнему минимуму разрешено; строгий пробой отменяется выше.
+                if direction == 1 and not na(longOriginGuard) and point2 >= longOriginGuard
+                    longFloor0 := na
+                    longFloorTime := na
                 skippedSecond := na
                 stage := 4
     else if stage == 4 and direction == -1 and lowerPivot and low[1] == point1 and firstPivotBar > point1Bar
@@ -722,6 +733,7 @@ if barstate.isconfirmed and hh == 14
             box.set_text(h1Box, "входа не было")
             box.set_text_color(h1Box, color.gray)
         referenceHadEntry := false
+        longOriginGuard := na
         publishedDay := dayKey
         h1High := collectedHigh
         h1Low := collectedLow
@@ -789,3 +801,5 @@ alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}
 plot(shortEvent or longEvent ? eventSwingTarget : planVisible ? point3 : na, "Swing Target", color=color.new(color.white, 100), display=display.none)
 
 plot(tightReversal ? 1 : 0, "Tight Reversal", display=display.none)
+
+plot(longOriginGuard, "LONG Origin Guard", display=display.none)
