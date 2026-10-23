@@ -1604,7 +1604,7 @@ for (const side of ['LONG','SHORT']) {
   assert.equal(values(ctx,side)[at('16:15')],0);
   assert.equal(values(ctx,side)[at('16:25')],1);
   assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),0);
-  for (const [label,expected] of [['Entry',103.685],['Stop',103.35],['Target',103.96]])
+  for (const [label,expected] of [['Entry',103.705],['Stop',103.45],['Target',103.96]])
    assert.ok(Math.abs(values(ctx,`${side} ${label}`)[at('16:25')]-price(expected))<1e-9);
   assert.equal(values(ctx,'Outcome')[at('16:45')],1);
  });
@@ -1941,7 +1941,7 @@ for (const initial of ['SHORT','LONG']) {
  const transform=d=>initial==='SHORT'?d:mirror(d);
  const opposite=initial==='SHORT'?'LONG':'SHORT';
  const reflect=p=>initial==='SHORT'?p:207-p;
- test(`${initial}: v28 соседняя пара запрещает исходный вход, но даёт зеркальный разворот 2–3`,async()=>{
+ test(`${initial}: v29 соседняя пара даёт разворот со стопом за P3 и точным RR1:1`,async()=>{
   const ctx=await runDefault(transform(adjacentReversalPattern()));
   assert.equal(values(ctx,'Stage')[15],3);
   assert.equal(values(ctx,initial)[16],0);
@@ -1949,8 +1949,8 @@ for (const initial of ['SHORT','LONG']) {
   assert.equal(values(ctx,opposite)[17],0,'на свече разворота нет ретеста задним числом');
   assert.equal(values(ctx,opposite)[18],1);
   assert.equal(signalCount(ctx,initial),0);
-  assert.ok(Math.abs(values(ctx,`${opposite} Entry`)[18]-reflect(101.125))<1e-9);
-  assert.ok(Math.abs(values(ctx,`${opposite} Stop`)[18]-reflect(97.72))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${opposite} Entry`)[18]-reflect(101.72))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${opposite} Stop`)[18]-reflect(98.97))<1e-9);
   assert.ok(Math.abs(values(ctx,`${opposite} Target`)[18]-reflect(104.47))<1e-9);
   assert.equal(values(ctx,'Outcome')[19],1);
  });
@@ -1963,5 +1963,30 @@ for (const initial of ['SHORT','LONG']) {
  test(`${initial}: v28 одновременные новый P3 и пробой P2 не выдумывают порядок`,async()=>{
   const d=adjacentReversalPattern().slice(0,16);d.push(candle(16,102,104.5,99,103));
   const ctx=await runDefault(transform(d));assert.equal(values(ctx,'Stage')[16],3);assert.equal(signalCount(ctx),0);
+ });
+}
+
+for(const initial of ['SHORT','LONG']) {
+ const tr=d=>initial==='SHORT'?d:mirror(d);
+ const side=initial==='SHORT'?'LONG':'SHORT';
+ const price=p=>initial==='SHORT'?p:207-p;
+ test(`${side}: v29 частичный ретест и продление цели сохраняют стоп за прежним P3`,async()=>{
+  const d=[...adjacentReversalPattern().slice(0,18),candle(18,104,104.2,102,103),candle(19,103,106,102.5,105),candle(20,105,105.5,102.4,103),candle(21,103,106,102.8,105.99)];
+  const ctx=await runDefault(tr(d));
+  assert.equal(values(ctx,side)[18],0);
+  assert.equal(values(ctx,side)[19],0);
+  assert.equal(values(ctx,side)[20],1);
+  assert.equal(values(ctx,'Fibo Reanchored')[20],0);
+  assert.ok(Math.abs(values(ctx,`${side} Stop`)[20]-price(98.97))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${side} Entry`)[20]-price(102.47))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${side} Target`)[20]-price(105.97))<1e-9);
+  assert.equal(values(ctx,'Outcome')[21],1);
+ });
+ test(`${side}: v29 вход учитывает разные отступы SL/TP и сохраняет точный RR`,async()=>{
+  const d=tr(adjacentReversalPattern());const last=d.at(-1);const guard={...last,openTime:last.openTime+step,closeTime:last.closeTime+step};
+  const ctx=await new PineTS([...d,guard],'SOLUSDT','5').run(new Indicator(source,{'Отступ стопа за Фибо (USDT)':0.02,'Отступ тейка перед целью (USDT)':0.07}));
+  const e=values(ctx,`${side} Entry`)[18],sl=values(ctx,`${side} Stop`)[18],tp=values(ctx,`${side} Target`)[18];
+  assert.ok(Math.abs(e-price(101.705))<1e-9);
+  assert.ok(Math.abs(Math.abs(tp-e)/Math.abs(sl-e)-1)<1e-9);
  });
 }

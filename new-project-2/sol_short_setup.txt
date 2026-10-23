@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v28", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v29", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -97,6 +97,8 @@ varip float point3 = na
 // После неполного ретеста и нового экстремума Фибо переносится на 2–3.
 varip bool partialRetest = false
 varip bool fibReanchored = false
+// Только исключение из соседней пары: стоп за прежним P3, точный RR1:1.
+varip bool tightReversal = false
 // При развороте не подтвердившегося SHORT его первый low становится
 // границей «0» нового LONG. Она фиксируется до отмены/смены кандидата.
 varip float longFloor0 = na
@@ -183,6 +185,7 @@ float eventStop = na
 float eventTarget = na
 float eventSwingTarget = na
 bool seededPoint3 = false
+bool shadowReversalNow = false
 bool barIsWeekend = dayofweek(time, tz) == dayofweek.saturday or dayofweek(time, tz) == dayofweek.sunday
 bool clockIsWeekend = dayofweek(timenow, tz) == dayofweek.saturday or dayofweek(timenow, tz) == dayofweek.sunday
 // В потоке учитываем переход в субботу даже внутри пятничной M5 23:55.
@@ -209,6 +212,7 @@ if stage == 6 or stage == 0 or stage == 7
     reversalDirection := 0
 
 if retry
+    tightReversal := false
     reversalDirection := 0
     candidateEpoch := candidateEpoch + 1
     retiredStatus := ""
@@ -271,6 +275,7 @@ if stage >= 1 and stage <= 5
                 bool shadowExtends = shadowBreak and (na(reversalThird) or (direction == -1 ? low < reversalThird : high > reversalThird))
                 if shadowCross and not na(reversalThird)
                     // Дальше используется прежний механизм разворота по P2.
+                    shadowReversalNow := true
                     point2 := reversalSecond
                     point2Time := reversalSecondTime
                     point3 := reversalThird
@@ -308,10 +313,11 @@ if stage >= 1 and stage <= 5
             equalFirstLow := false
             partialRetest := false
             fibReanchored := false
+            tightReversal := shadowReversalNow
             point3 := direction == -1 ? low : high
-            stopFibo := point1 + 1.25 * (point2 - point1)
+            stopFibo := tightReversal ? point2 : point1 + 1.25 * (point2 - point1)
             stop := stopFibo - direction * stopOffset
-            entry := (stopFibo + point3) / 2.0
+            entry := tightReversal ? (stop + point3 - direction * takeOffset) / 2.0 : (stopFibo + point3) / 2.0
             lastExtremeBar := bar_index
             positionLeft := time
             drawingRight := na
@@ -327,6 +333,7 @@ if stage >= 1 and stage <= 5
         // Пробой сохранённого «0» отменяет структуру LONG, но не второй приоритет.
         bool brokenLongOrigin = lockedDirection == 1 and not na(longFloor0) and low < longFloor0
         if stage >= 2 and stage <= 5 and ((lockedDirection == 0 and ((direction == -1 and above) or (direction == 1 and longInvalid))) or brokenLongOrigin)
+            tightReversal := false
             bool unbrokenShort = direction == -1 and stage >= 3 and stage <= 4 and not na(point1) and low >= point1
             longFloor0 := unbrokenShort ? point1 : na
             longFloorTime := unbrokenShort ? point1Time : na
@@ -394,13 +401,13 @@ if stage >= 1 and stage <= 5
                 // Одного продолжения импульса недостаточно: до переноса
                 // должен быть наблюдавшийся ретест без касания старого входа.
                 // В разворотном LONG сохраняем опорную Фибо от «0» до «1».
-                fibReanchored := fibReanchored or (partialRetest and na(longFloor0))
+                fibReanchored := not tightReversal and (fibReanchored or (partialRetest and na(longFloor0)))
                 partialRetest := false
                 point3 := direction == -1 ? low : high
                 if fibReanchored
                     stopFibo := point2 - 0.25 * (point3 - point2)
                     stop := stopFibo - direction * stopOffset
-                entry := (stopFibo + point3) / 2.0
+                entry := tightReversal ? (stop + point3 - direction * takeOffset) / 2.0 : (stopFibo + point3) / 2.0
                 lastExtremeBar := bar_index
                 // Прежний отдельный фильтр стопа SHORT сохраняется.
                 if lockedDirection == 0 and direction == -1 and stopFibo > h1High
@@ -715,6 +722,7 @@ if barstate.isconfirmed and hh == 14
         h1Low := collectedLow
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
         stage := skipWeekends and barIsWeekend ? 0 : 1
+        tightReversal := false
         direction := 0
         lockedDirection := 0
         firstDirection := 0
@@ -774,3 +782,5 @@ alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entr
 alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}}')
 
 plot(shortEvent or longEvent ? eventSwingTarget : planVisible ? point3 : na, "Swing Target", color=color.new(color.white, 100), display=display.none)
+
+plot(tightReversal ? 1 : 0, "Tight Reversal", display=display.none)
