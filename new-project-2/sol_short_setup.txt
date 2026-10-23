@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v27", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v28", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -104,6 +104,14 @@ varip int longFloorTime = na
 // Соседний противоположный свинг не считается P2. До новой P1
 // требуется более высокий high в SHORT / более низкий low в LONG.
 varip float skippedSecond = na
+// Исключённая соседняя пара служит только развороту, не исходному входу.
+varip int reversalDirection = 0
+varip int reversalUntil = na
+varip float reversalFirst = na
+varip float reversalSecond = na
+varip int reversalSecondTime = na
+varip float reversalThird = na
+varip int reversalThirdBar = na
 varip float entry = na
 varip float stop = na
 // Базовая красная линия нужна для прежнего входа; отступ меняет только SL.
@@ -197,7 +205,11 @@ if stage == 6 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar
 // После стопа начинаем новую попытку со следующей M5. Не используем
 // её предшественника задним числом как уже известный фрактал нового плана.
 bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < validUntil and tradingDay
+if stage == 6 or stage == 0 or stage == 7
+    reversalDirection := 0
+
 if retry
+    reversalDirection := 0
     candidateEpoch := candidateEpoch + 1
     retiredStatus := ""
     stage := lockedDirection == 0 ? 1 : 2
@@ -248,6 +260,34 @@ if stage >= 1 and stage <= 5
                     lockedDirection := direction
                 stage := 2
                 breakBar := bar_index
+
+        // Теневая 1–2–3 из запрещённой соседней пары: только обратный план.
+        if reversalDirection != 0
+            if reversalUntil != validUntil or direction != reversalDirection or stage < 2 or stage > 5
+                reversalDirection := 0
+            else
+                bool shadowBreak = direction == -1 ? low < reversalFirst : high > reversalFirst
+                bool shadowCross = direction == -1 ? (barstate.isrealtime ? close > reversalSecond : high > reversalSecond) : (barstate.isrealtime ? close < reversalSecond : low < reversalSecond)
+                bool shadowExtends = shadowBreak and (na(reversalThird) or (direction == -1 ? low < reversalThird : high > reversalThird))
+                if shadowCross and not na(reversalThird)
+                    // Дальше используется прежний механизм разворота по P2.
+                    point2 := reversalSecond
+                    point2Time := reversalSecondTime
+                    point3 := reversalThird
+                    lastExtremeBar := reversalThirdBar
+                    stage := 5
+                    reversalDirection := 0
+                else if shadowCross and shadowBreak
+                    // Первый P3 и пробой на одной M5 не подтверждают разворот.
+                    // Сохраняем P3 и требуем новый пробой P2 на следующей свече.
+                    reversalThird := direction == -1 ? low : high
+                    reversalThirdBar := bar_index
+                else if shadowExtends
+                    reversalThird := direction == -1 ? low : high
+                    reversalThirdBar := bar_index
+                else if shadowCross
+                    // Пробой противоположного уровня раньше P3 отменяет паттерн.
+                    reversalDirection := 0
 
         // После 1–2–3 пробой P2 до входа запускает обратный сетап.
         // На истории нельзя считать этот же бар последующим ретестом.
@@ -430,6 +470,13 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
             if secondPivotBar == point1Bar + 1
                 // После пропущенной соседней вершины более слабые
                 // противоположные свинги тоже не подтверждают диапазон.
+                reversalDirection := direction
+                reversalUntil := validUntil
+                reversalFirst := point1
+                reversalSecond := direction == -1 ? high[1] : low[1]
+                reversalSecondTime := secondPivotTime
+                reversalThird := na
+                reversalThirdBar := na
                 float skippedPrice = direction == -1 ? high[1] : low[1]
                 skippedSecond := na(skippedSecond) ? skippedPrice : direction == -1 ? math.max(skippedSecond, skippedPrice) : math.min(skippedSecond, skippedPrice)
                 // Соседний противоположный свинг не становится P2,

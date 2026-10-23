@@ -1589,23 +1589,26 @@ for(const side of ['SHORT','LONG']){
   });
 }
 
-test('MEXC 22 октября: новый P1 в 16:10, общая вершина P2 в 16:20, без SHORT',async()=>{
+for (const side of ['LONG','SHORT']) {
+ test(`${side}: MEXC22 октября — исключённая соседняя пара даёт разворот, вход16:25 и тейк16:45`,async()=>{
   const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-10-22-case.json',import.meta.url)));
-  const until=Date.parse('2026-10-22T16:30:00+07:00');
-  const data=raw.candles.filter(b=>b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,
-    open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const until=Date.parse('2026-10-22T17:00:00+07:00');
+  const original=raw.candles.filter(b=>b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const data=side==='LONG'?original:mirror(original);
   const ctx=await runDefault(data);
   const at=t=>(Date.parse(`2026-10-22T${t}:00+07:00`)-data[0].openTime)/step;
+  const price=p=>side==='LONG'?p:207-p;
   assert.equal(values(ctx,'Stage')[at('15:55')],3);
-  assert.equal(values(ctx,'Stage')[at('16:15')],3);
-  assert.equal(values(ctx,'Stage')[at('16:20')],3);
-  assert.equal(values(ctx,'Stage')[at('16:25')],4);
-  assert.equal(signalCount(ctx),0);
-  const range=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted');
-  assert.equal(range.left,Date.parse('2026-10-22T16:10:00+07:00'));
-  assert.equal(range.bottom,103.48);
-  assert.equal(range.top,103.99);
-});
+  assert.equal(values(ctx,'Stage')[at('16:10')],3);
+  assert.equal(values(ctx,'Stage')[at('16:15')],5);
+  assert.equal(values(ctx,side)[at('16:15')],0);
+  assert.equal(values(ctx,side)[at('16:25')],1);
+  assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),0);
+  for (const [label,expected] of [['Entry',103.685],['Stop',103.35],['Target',103.96]])
+   assert.ok(Math.abs(values(ctx,`${side} ${label}`)[at('16:25')]-price(expected))<1e-9);
+  assert.equal(values(ctx,'Outcome')[at('16:45')],1);
+ });
+}
 
 for (const side of ['SHORT']) {
   test(`${side}: MEXC 16 октября — только SHORT, без LONG; P1 105.71, P2 107.36`, async () => {
@@ -1925,3 +1928,40 @@ test('MEXC8 сентября: перенос P1 убирает старую Фи
   assert.ok(Math.abs(values(ctx, 'LONG Target')[at('17:25')] - 104.02) < 1e-9);
   assert.equal(values(ctx, 'Outcome')[at('17:40')], -1);
 });
+
+// v28: запрещённая соседняя пара — только источник разворота.
+function adjacentReversalPattern() {
+  return [...hour(),candle(12,102,103,100.5,101.5),
+    candle(13,101,102,100,101),candle(14,101,104,100.6,103),
+    candle(15,103,103.5,101.5,102),candle(16,102,103,99,100),
+    candle(17,100,104.5,99.5,104),candle(18,104,104.2,101,102),
+    candle(19,102,104.5,101.5,104)];
+}
+for (const initial of ['SHORT','LONG']) {
+ const transform=d=>initial==='SHORT'?d:mirror(d);
+ const opposite=initial==='SHORT'?'LONG':'SHORT';
+ const reflect=p=>initial==='SHORT'?p:207-p;
+ test(`${initial}: v28 соседняя пара запрещает исходный вход, но даёт зеркальный разворот 2–3`,async()=>{
+  const ctx=await runDefault(transform(adjacentReversalPattern()));
+  assert.equal(values(ctx,'Stage')[15],3);
+  assert.equal(values(ctx,initial)[16],0);
+  assert.equal(values(ctx,'Direction')[17],initial==='SHORT'?1:-1);
+  assert.equal(values(ctx,opposite)[17],0,'на свече разворота нет ретеста задним числом');
+  assert.equal(values(ctx,opposite)[18],1);
+  assert.equal(signalCount(ctx,initial),0);
+  assert.ok(Math.abs(values(ctx,`${opposite} Entry`)[18]-reflect(101.125))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${opposite} Stop`)[18]-reflect(97.72))<1e-9);
+  assert.ok(Math.abs(values(ctx,`${opposite} Target`)[18]-reflect(104.47))<1e-9);
+  assert.equal(values(ctx,'Outcome')[19],1);
+ });
+ test(`${initial}: v28 без обновления первого экстремума соседняя пара не разворачивает`,async()=>{
+  const d=adjacentReversalPattern().slice(0,18);d[16]=candle(16,102,103,100.2,102);d[17]=candle(17,102,104.5,100.5,104);
+  const ctx=await runDefault(transform(d));
+  assert.equal(signalCount(ctx,opposite),0);
+  assert.equal(values(ctx,'Direction')[17],initial==='SHORT'?-1:1);
+ });
+ test(`${initial}: v28 одновременные новый P3 и пробой P2 не выдумывают порядок`,async()=>{
+  const d=adjacentReversalPattern().slice(0,16);d.push(candle(16,102,104.5,99,103));
+  const ctx=await runDefault(transform(d));assert.equal(values(ctx,'Stage')[16],3);assert.equal(signalCount(ctx),0);
+ });
+}
