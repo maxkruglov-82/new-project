@@ -699,8 +699,8 @@ function reversalToShort() {
 }
 function stoppedThenRetry() {
   return [...complete().slice(0, 20), candle(20, 102, 105.2, 101.5, 104),
-    ...complete().slice(12).map((b, i) => ({ ...b,
-      openTime: start + (21 + i) * step, closeTime: start + (22 + i) * step - 1 }))];
+    candle(21,104,104.2,102,103), candle(22,103,103.5,101.4,102),
+    candle(23,102,105.3,102,105)];
 }
 for (const side of ['SHORT', 'LONG']) {
   const transform = data => side === 'SHORT' ? data : mirror(data);
@@ -737,18 +737,18 @@ for (const side of ['SHORT', 'LONG']) {
     assert.equal(labels(ctx).filter(l => ['SHORT', 'LONG'].includes(l.text)).length, 1);
   });
 
-  test(`${side}: после стопа разрешён новый полноценный сетап в том же диапазоне`, async () => {
+  test(`${side}: после обычного стопа обратный сетап использует прежнюю структуру`, async () => {
     const ctx = await run(transform(stoppedThenRetry()));
     assert.equal(values(ctx, 'Outcome')[20], -1);
-    assert.equal(values(ctx, 'Stage')[21], 2);
+    assert.equal(values(ctx, 'Stage')[21], 5);
     assert.equal(values(ctx, 'Outcome')[21], 0);
-    assert.equal(signalCount(ctx, side), 2);
-    assert.equal(signalCount(ctx, opposite), 0);
+    assert.equal(signalCount(ctx, side), 1);
+    assert.equal(signalCount(ctx, opposite), 1);
     assert.equal(lines(ctx).length, 16);
     assert.equal(positionZones(ctx).length, 4);
     assert.equal(priceLabels(ctx).length, 6);
     assert.deepEqual(lines(ctx).filter(l => l.width === 2).map(l => l.y1),
-      side === 'SHORT' ? [102, 105, 99, 102, 105, 99] : [105, 102, 108, 105, 102, 108]);
+      side === 'SHORT' ? [102, 105, 99, 101.475, 97.75, 105.2] : [105, 102, 108, 105.525, 109.25, 101.8]);
     assert.equal(values(ctx, 'Outcome').at(-1), 1);
     // Плюс у прежнего стопа переживает сброс состояния и новую попытку.
     assert.equal(priceLabels(ctx).filter(l => l.text.startsWith('Стоп:') && l.text.endsWith(' +')).length, 1);
@@ -912,9 +912,7 @@ for (const side of ['SHORT', 'LONG']) {
 
 for (const firstSide of ['SHORT', 'LONG']) {
   test(`${firstSide}: после стопа следующий сигнал может быть противоположным под той же H1`, async () => {
-    const next = mirror(complete().slice(12)).map((b, i) => ({ ...b,
-      openTime: start + (21 + i) * step, closeTime: start + (22 + i) * step - 1 }));
-    const raw = [...complete().slice(0, 20), candle(20, 102, 105.2, 101.5, 104), ...next];
+    const raw = stoppedThenRetry();
     const ctx = await run(firstSide === 'SHORT' ? raw : mirror(raw));
     const secondSide = firstSide === 'SHORT' ? 'LONG' : 'SHORT';
     assert.equal(values(ctx, 'Outcome')[20], -1);
@@ -1149,8 +1147,8 @@ test('LONG: после входа живёт до TP/SL, после стопа �
   assert.equal(values(ctx, 'Stage')[25], 6);
   assert.equal(values(ctx, 'Outcome')[25], 0);
   assert.equal(values(ctx, 'Outcome')[26], -1);
-  assert.equal(values(ctx, 'Stage')[27], 2);
-  assert.equal(values(ctx, 'Direction')[27], 1);
+  assert.equal(values(ctx, 'Stage')[27], 5);
+  assert.equal(values(ctx, 'Direction')[27], -1);
   assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[27]));
 });
 
@@ -1309,7 +1307,7 @@ for (const side of ['SHORT', 'LONG']) {
   });
 }
 
-test('MEXC 28 августа: неудачный ретест, новая P3 104.46, Фибо 2–3, SHORT в 17:30', async () => {
+test('BAG2 MEXC28 августа: свинг без входа и новый P3 отменяют SHORT', async () => {
   const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
   const from = Date.parse('2026-08-28T14:00:00+07:00');
   const until = Date.parse('2026-08-28T20:30:00+07:00');
@@ -1318,13 +1316,9 @@ test('MEXC 28 августа: неудачный ретест, новая P3 104
       open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
   const ctx = await run(data);
   const at = time => (Date.parse(`2026-08-28T${time}:00+07:00`) - from) / step;
-  assert.equal(values(ctx, 'SHORT')[at('17:05')], 0);
-  assert.equal(values(ctx, 'SHORT')[at('17:30')], 1);
-  assert.ok(Math.abs(values(ctx, 'SHORT Stop')[at('17:30')] - 107.085) < 1e-9);
-  assert.ok(Math.abs(values(ctx, 'SHORT Entry')[at('17:30')] - 105.7725) < 1e-9);
-  assert.equal(values(ctx, 'SHORT Target')[at('17:30')], 104.46);
-  assert.equal(signalCount(ctx), 1);
-  assert.equal(values(ctx, 'Outcome').at(-1), 1);
+  assert.equal(signalCount(ctx,'SHORT')+signalCount(ctx,'LONG'),0);
+  assert.ok(values(ctx,'Stage').includes(7));
+  assert.ok(Number.isNaN(values(ctx,'SHORT Entry').at(-1)));
 });
 
 for (const side of ['SHORT', 'LONG']) {
@@ -1494,7 +1488,7 @@ for (const side of ['SHORT', 'LONG']) {
   });
 }
 
-test('MEXC 31 августа: после переноса LONG P1 используем новую Фибо с переносом2–3, вход около103.15', async () => {
+test('BAG2 MEXC31 августа: отмена LONG18:15 без позднего входа', async () => {
   const raw = JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json', import.meta.url)));
   const from = Date.parse('2026-08-31T14:00:00+07:00');
   const until = Date.parse('2026-08-31T20:00:00+07:00');
@@ -1503,15 +1497,9 @@ test('MEXC 31 августа: после переноса LONG P1 использ
       open: b.open, high: b.high, low: b.low, close: b.close, volume: b.vol }));
   const ctx = await runDefault(data);
   const at = time => (Date.parse(`2026-08-31T${time}:00+07:00`) - from) / step;
-  assert.ok(Number.isNaN(values(ctx, 'LONG Floor 0')[at('17:10')]));
-  assert.equal(values(ctx, 'LONG')[at('19:25')], 1);
-  assert.equal(signalCount(ctx, 'LONG'), 1);
-  assert.ok(Math.abs(values(ctx, 'LONG Entry')[at('19:25')] - 103.15125) < 1e-9);
-  assert.ok(Math.abs(values(ctx, 'LONG Stop')[at('19:25')] - 102.1525) < 1e-9);
-  assert.equal(values(ctx, 'LONG Target')[at('19:25')], 104.09);
-  assert.equal(values(ctx, 'Fibo Reanchored')[at('19:25')], 1);
-  const fibs = lines(ctx).filter(l => l.width === 1).map(l => l.y1);
-  for (const n of [102.1825, 102.57, 103.345, 104.12, 104.5075]) assert.ok(fibs.some(v => Math.abs(v-n)<1e-9));
+  assert.equal(values(ctx,'Stage')[at('18:10')],5);
+  assert.equal(values(ctx,'Stage')[at('18:15')],7);
+  assert.equal(signalCount(ctx,'LONG')+signalCount(ctx,'SHORT'),0);
 });
 
 test('разворот до подтверждения первого нижнего свинга не создаёт вымышленный минимум «0»', async () => {
@@ -1622,7 +1610,7 @@ for (const side of ['LONG','SHORT']) {
 }
 
 for (const side of ['SHORT']) {
-  test(`${side}: MEXC 16 октября — только SHORT, без LONG; P1 105.71, P2 107.36`, async () => {
+  test(`${side}: BAG2 MEXC16 октября отменяет недошедший SHORT`, async () => {
     const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
     const from=Date.parse('2026-10-16T14:00:00+07:00');
     const until=Date.parse('2026-10-16T23:00:00+07:00');
@@ -1631,33 +1619,9 @@ for (const side of ['SHORT']) {
     if(side==='LONG') data=mirror(data);
     const ctx=await runDefault(data);
     const at=t=>(Date.parse(`2026-10-16T${t}:00+07:00`)-from)/step;
-    assert.equal(signalCount(ctx,'LONG'),0,'16 октября LONG не допускается');
-    assert.equal(signalCount(ctx,'SHORT'),1,'Сохраняем согласованный SHORT');
-    const direction=side==='SHORT'?-1:1;
-    assert.equal(values(ctx,'Direction')[at('15:05')],0);
-    assert.equal(values(ctx,'Stage')[at('15:05')],1);
-    assert.equal(values(ctx,'Direction')[at('15:55')],1);
-    const longRange=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted'&&b.left===Date.parse('2026-10-16T15:50:00+07:00'));
-    assert.ok(longRange);
-    assert.equal(longRange.top,106.95);
-    for(const t of ['17:15','18:15','19:40','19:45','21:20']) assert.equal(values(ctx,'Direction')[at(t)],direction);
-    assert.equal(values(ctx,'Stage')[at('19:40')],4);
-    assert.equal(values(ctx,'Stage')[at('19:45')],5);
-    assert.equal(values(ctx,side)[at('19:45')],0);
-    assert.equal(values(ctx,side)[at('21:20')],1);
-    assert.equal(values(ctx,'Fibo Reanchored')[at('20:30')],1);
-    assert.ok(Math.abs(values(ctx,`${side} Entry`)[at('21:20')]-106.44875)<1e-9);
-    assert.ok(Math.abs(values(ctx,`${side} Stop`)[at('21:20')]-107.9975)<1e-9);
-    assert.ok(Math.abs(values(ctx,`${side} Target`)[at('21:20')]-104.96)<1e-9);
-    assert.equal(values(ctx,'Swing Target')[at('21:20')],104.93);
-    assert.equal(values(ctx,'Outcome')[at('22:05')],1);
-    const reflect=p=>side==='SHORT'?p:207-p;
-    assert.ok(Math.abs(values(ctx,`${side} Stop`)[at('19:45')]-reflect(107.8025))<1e-9);
-    assert.ok(Math.abs(values(ctx,`${side} Target`)[at('19:45')]-reflect(105.70))<1e-9);
-    const range=ctx.plots.__boxes__.data[0].value.find(b=>b.border_style==='style_dotted'&&b.left===Date.parse('2026-10-16T17:10:00+07:00'));
-    assert.ok(range);
-    assert.equal(side==='SHORT'?range.bottom:range.top,reflect(105.71));
-    assert.equal(side==='SHORT'?range.top:range.bottom,reflect(107.36));
+    assert.equal(signalCount(ctx,'LONG')+signalCount(ctx,'SHORT'),0);
+    assert.ok(values(ctx,'Stage').includes(7));
+    assert.ok(Number.isNaN(values(ctx,'SHORT Entry').at(-1)));
   });
 }
 
@@ -1803,21 +1767,16 @@ for (const side of ['SHORT', 'LONG']) {
 }
 
 for (const side of ['LONG','SHORT']) {
- test(`${side}: MEXC14 октября — вход18:00 до отступов, тейк18:15, после полуночи сохраняется история`,async()=>{
+ test(`${side}: BAG2 MEXC14 октября отменяет недошедший сценарий`,async()=>{
   const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
   const from=Date.parse('2026-10-14T14:00:00+07:00'),until=Date.parse('2026-10-15T01:00:00+07:00');
   let data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
   if(side==='SHORT')data=mirror(data);
   const ctx=await runDefault(data),at=t=>(Date.parse(`2026-10-14T${t}:00+07:00`)-from)/step;
-  const price=p=>side==='LONG'?p:207-p;
-  assert.equal(values(ctx,side)[at('17:30')],0);
-  assert.equal(values(ctx,side)[at('18:00')],1);
-  assert.equal(signalCount(ctx,side),1);
-  assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),0);
-  for(const [label,expected] of [['Entry',106.605],['Stop',106],['Target',107.15]])assert.ok(Math.abs(values(ctx,`${side} ${label}`)[at('18:00')]-price(expected))<1e-9);
-  assert.equal(values(ctx,'Outcome')[at('18:15')],1);
-  assert.ok(positionZones(ctx).length>0);
-  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b=>b.text==='входа не было').length,0);
+  assert.equal(signalCount(ctx,'LONG')+signalCount(ctx,'SHORT'),0);
+  assert.ok(values(ctx,'Stage').includes(7));
+  assert.equal(positionZones(ctx).length,0);
+  assert.equal(ctx.plots.__boxes__.data[0].value.filter(b=>b.text==='входа не было').length,1);
  });
 }
 
@@ -2078,5 +2037,70 @@ for(const side of ['LONG','SHORT']){
   assert.equal(values(ctx,side)[at('17:30')],0);assert.equal(values(ctx,side)[at('18:00')],1);
   for(const [label,expected]of[['Entry',119.39],['Stop',118.88],['Target',119.84]])assert.ok(Math.abs(values(ctx,`${side} ${label}`)[at('18:00')]-price(expected))<1e-9);
   assert.equal(values(ctx,'Outcome')[at('19:25')],1);assert.equal(signalCount(ctx,side),1);
+ });
+}
+
+for (const initial of ['LONG', 'SHORT']) {
+ test(`${initial}: MEXC2 сентября стоп исключения даёт обратный вход на следующем ретесте`, async () => {
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
+  const from=Date.parse('2026-09-02T14:00:00+07:00'),until=Date.parse('2026-09-02T17:00:00+07:00');
+  const data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const ctx=await runDefault(initial==='LONG'?data:mirror(data));
+  const at=t=>data.findIndex(b=>b.openTime===Date.parse(`2026-09-02T${t}:00+07:00`));
+  const opposite=initial==='LONG'?'SHORT':'LONG';
+  assert.equal(values(ctx,initial)[at('16:15')],1);
+  assert.equal(values(ctx,'Outcome')[at('16:20')],-1);
+  assert.equal(values(ctx,opposite)[at('16:20')],0);
+  assert.equal(values(ctx,opposite)[at('16:25')],1);
+  assert.equal(values(ctx,'Tight Reversal')[at('16:25')],0);
+  assert.equal(values(ctx,'Outcome')[at('16:35')],1);
+  assert.equal(signalCount(ctx,initial)+signalCount(ctx,opposite),2);
+ });
+}
+
+for (const side of ['LONG','SHORT']) {
+ test(`${side}: BAG2 31 августа отменяет план18:15 после подтверждённого свинга`, async()=>{
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
+  const from=Date.parse('2026-08-31T14:00:00+07:00'),until=Date.parse('2026-08-31T20:00:00+07:00');
+  const data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const ctx=await runDefault(side==='LONG'?data:mirror(data));
+  const at=t=>data.findIndex(b=>b.openTime===Date.parse(`2026-08-31T${t}:00+07:00`));
+  assert.equal(values(ctx,'Stage')[at('18:10')],5);
+  assert.equal(values(ctx,'Stage')[at('18:15')],7);
+  assert.equal(signalCount(ctx,'LONG')+signalCount(ctx,'SHORT'),0);
+ });
+ test(`${side}: BAG3 полноценная новая1–2 отменяет старую соседнюю пару20 августа`, async()=>{
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-01-01_2026-10-23.json',import.meta.url)));
+  const from=Date.parse('2026-08-20T14:00:00+07:00'),until=Date.parse('2026-08-20T19:10:00+07:00');
+  const data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const ctx=await runDefault(side==='LONG'?data:mirror(data));
+  const at=t=>data.findIndex(b=>b.openTime===Date.parse(`2026-08-20T${t}:00+07:00`));
+  assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),0);
+  assert.equal(values(ctx,side)[at('18:55')],1);
+  assert.equal(values(ctx,'Outcome')[at('19:05')],-1);
+ });
+}
+
+for (const side of ['LONG','SHORT']) {
+ test(`${side}: BAG3 20 августа обычный стоп даёт обратный ретест, защищённый от BAG2`, async()=>{
+  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-01-01_2026-10-23.json',import.meta.url)));
+  const from=Date.parse('2026-08-20T14:00:00+07:00'),until=Date.parse('2026-08-20T23:55:00+07:00');
+  const data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
+  const ctx=await runDefault(side==='LONG'?data:mirror(data));
+  const at=t=>data.findIndex(b=>b.openTime===Date.parse(`2026-08-20T${t}:00+07:00`));
+  const opposite=side==='LONG'?'SHORT':'LONG',price=p=>side==='LONG'?p:207-p;
+  assert.equal(values(ctx,opposite)[at('17:55')],0);
+  assert.equal(values(ctx,side)[at('18:55')],1);
+  assert.equal(values(ctx,'Outcome')[at('19:05')],-1);
+  assert.equal(values(ctx,opposite)[at('19:05')],0);
+  assert.equal(values(ctx,'After Stop Plan')[at('19:10')],1);
+  assert.equal(values(ctx,'Stage')[at('19:45')],5);
+  assert.equal(values(ctx,'Fibo Reanchored')[at('19:45')],0);
+  assert.equal(values(ctx,opposite)[at('20:20')],1);
+  for(const [field,expected] of [['Entry',87.45875],['Stop',88.4375],['Target',86.54]])
+   assert.ok(Math.abs(values(ctx,`${opposite} ${field}`)[at('20:20')]-price(expected))<1e-9);
+  assert.equal(values(ctx,'Outcome')[at('20:30')],1);
+  assert.equal(signalCount(ctx,side),1);
+  assert.equal(signalCount(ctx,opposite),1);
  });
 }

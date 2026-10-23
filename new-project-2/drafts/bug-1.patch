@@ -1,0 +1,110 @@
+diff --git a/new-project-2/sol_short_setup.pine b/new-project-2/sol_short_setup.pine
+index d6ec57b..145ed7a 100644
+--- a/new-project-2/sol_short_setup.pine
++++ b/new-project-2/sol_short_setup.pine
+@@ -219,6 +219,17 @@ if stage == 6 or stage == 0 or stage == 7
+     reversalDirection := 0
+ 
+ if retry
++    // Стоп по исключению разрешает обратную попытку по уже известной 2–3.
++    // Сам стоп не является входом; ретест возможен только со следующей M5.
++    bool reverseStoppedException = tightReversal
++    float retryFirst = point2
++    int retryFirstTime = point2Time
++    float retrySecond = point3
++    int retrySecondTime = time[bar_index - lastExtremeBar]
++    float retryThird = direction == 1 ? low[bar_index - outcomeBar] : high[bar_index - outcomeBar]
++    int retryThirdBar = outcomeBar
++    if reverseStoppedException
++        lockedDirection := -direction
+     longOriginGuard := na
+     tightReversal := false
+     reversalDirection := 0
+@@ -247,6 +258,19 @@ if retry
+     lastExtremeBar := na
+     drawingRight := na
+     positionLeft := na
++    if reverseStoppedException
++        point1 := retryFirst
++        point1Time := retryFirstTime
++        point1Bar := bar_index - int((time - retryFirstTime) / 300000)
++        point2 := retrySecond
++        point2Time := retrySecondTime
++        point3 := retryThird
++        lastExtremeBar := retryThirdBar
++        stopFibo := point1 + 1.25 * (point2 - point1)
++        stop := stopFibo - direction * stopOffset
++        entry := (stopFibo + point3) / 2.0
++        positionLeft := time[bar_index - retryThirdBar]
++        stage := 5
+ 
+ // Старый ожидающий сетап прекращается при новой опорной H1.
+ if stage >= 1 and stage <= 5
+diff --git a/new-project-2/sol_short_setup.txt b/new-project-2/sol_short_setup.txt
+index d6ec57b..145ed7a 100644
+--- a/new-project-2/sol_short_setup.txt
++++ b/new-project-2/sol_short_setup.txt
+@@ -219,6 +219,17 @@ if stage == 6 or stage == 0 or stage == 7
+     reversalDirection := 0
+ 
+ if retry
++    // Стоп по исключению разрешает обратную попытку по уже известной 2–3.
++    // Сам стоп не является входом; ретест возможен только со следующей M5.
++    bool reverseStoppedException = tightReversal
++    float retryFirst = point2
++    int retryFirstTime = point2Time
++    float retrySecond = point3
++    int retrySecondTime = time[bar_index - lastExtremeBar]
++    float retryThird = direction == 1 ? low[bar_index - outcomeBar] : high[bar_index - outcomeBar]
++    int retryThirdBar = outcomeBar
++    if reverseStoppedException
++        lockedDirection := -direction
+     longOriginGuard := na
+     tightReversal := false
+     reversalDirection := 0
+@@ -247,6 +258,19 @@ if retry
+     lastExtremeBar := na
+     drawingRight := na
+     positionLeft := na
++    if reverseStoppedException
++        point1 := retryFirst
++        point1Time := retryFirstTime
++        point1Bar := bar_index - int((time - retryFirstTime) / 300000)
++        point2 := retrySecond
++        point2Time := retrySecondTime
++        point3 := retryThird
++        lastExtremeBar := retryThirdBar
++        stopFibo := point1 + 1.25 * (point2 - point1)
++        stop := stopFibo - direction * stopOffset
++        entry := (stopFibo + point3) / 2.0
++        positionLeft := time[bar_index - retryThirdBar]
++        stage := 5
+ 
+ // Старый ожидающий сетап прекращается при новой опорной H1.
+ if stage >= 1 and stage <= 5
+diff --git a/new-project-2/tests/pine.test.mjs b/new-project-2/tests/pine.test.mjs
+index e7e2bff..2c4d7ea 100644
+--- a/new-project-2/tests/pine.test.mjs
++++ b/new-project-2/tests/pine.test.mjs
+@@ -2080,3 +2080,21 @@ for(const side of ['LONG','SHORT']){
+   assert.equal(values(ctx,'Outcome')[at('19:25')],1);assert.equal(signalCount(ctx,side),1);
+  });
+ }
++
++for (const initial of ['LONG', 'SHORT']) {
++ test(`${initial}: MEXC2 сентября стоп исключения даёт обратный вход на следующем ретесте`, async () => {
++  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
++  const from=Date.parse('2026-09-02T14:00:00+07:00'),until=Date.parse('2026-09-02T17:00:00+07:00');
++  const data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
++  const ctx=await runDefault(initial==='LONG'?data:mirror(data));
++  const at=t=>data.findIndex(b=>b.openTime===Date.parse(`2026-09-02T${t}:00+07:00`));
++  const opposite=initial==='LONG'?'SHORT':'LONG';
++  assert.equal(values(ctx,initial)[at('16:15')],1);
++  assert.equal(values(ctx,'Outcome')[at('16:20')],-1);
++  assert.equal(values(ctx,opposite)[at('16:20')],0);
++  assert.equal(values(ctx,opposite)[at('16:25')],1);
++  assert.equal(values(ctx,'Tight Reversal')[at('16:25')],0);
++  assert.equal(values(ctx,'Outcome')[at('16:35')],1);
++  assert.equal(signalCount(ctx,initial)+signalCount(ctx,opposite),2);
++ });
++}

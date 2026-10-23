@@ -1,0 +1,75 @@
+{
+  "audit": "PASS",
+  "candles": 52536,
+  "summary": {
+    "calendarReferenceDays": 183,
+    "excludedWeekendDays": 52,
+    "referenceDays": 131,
+    "enteredTrades": 108,
+    "targets": 65,
+    "stops": 40,
+    "ambiguous": 0,
+    "unresolved": 3,
+    "totalTrades": 105,
+    "knownOutcomes": 105,
+    "winRateKnown": 0.6190476190476191,
+    "daysWithEntry": 81,
+    "daysWithoutEntry": 50,
+    "daysWithTarget": 65,
+    "daysWithStopsAndNoTarget": 14,
+    "netRKnownBeforeCosts": 15.450118777947544
+  },
+  "monthly": [
+    {
+      "month": "2026-04",
+      "closed": 8,
+      "targets": 5,
+      "stops": 3,
+      "win_rate": 62.5
+    },
+    {
+      "month": "2026-05",
+      "closed": 15,
+      "targets": 8,
+      "stops": 7,
+      "win_rate": 53.33
+    },
+    {
+      "month": "2026-06",
+      "closed": 17,
+      "targets": 14,
+      "stops": 3,
+      "win_rate": 82.35
+    },
+    {
+      "month": "2026-07",
+      "closed": 17,
+      "targets": 10,
+      "stops": 7,
+      "win_rate": 58.82
+    },
+    {
+      "month": "2026-08",
+      "closed": 15,
+      "targets": 7,
+      "stops": 8,
+      "win_rate": 46.67
+    },
+    {
+      "month": "2026-09",
+      "closed": 22,
+      "targets": 10,
+      "stops": 12,
+      "win_rate": 45.45
+    },
+    {
+      "month": "2026-10",
+      "closed": 11,
+      "targets": 11,
+      "stops": 0,
+      "win_rate": 100.0
+    }
+  ],
+  "sourceSha256": "2e5a9d0a6b0c862a75007e20341ca5b92b736327d2a8b09012cf9d5e003ec176",
+  "inputSha256": "ac787fd5874126d80789b5649bd1dec973bbf49e2c31ccdc9683c76c90c411d5"
+}

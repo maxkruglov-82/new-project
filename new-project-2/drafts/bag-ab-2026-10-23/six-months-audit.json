@@ -1,0 +1,272 @@
+{
+  "audit": "PASS",
+  "candles": 52536,
+  "summary": [
+    {
+      "variant": "base",
+      "closed": 115,
+      "targets": 75,
+      "stops": 40,
+      "win_rate_percent": 65.22,
+      "net_r": 23.6527,
+      "unresolved": 1,
+      "ambiguous": 0
+    },
+    {
+      "variant": "bag1",
+      "closed": 121,
+      "targets": 77,
+      "stops": 44,
+      "win_rate_percent": 63.64,
+      "net_r": 21.4558,
+      "unresolved": 1,
+      "ambiguous": 0
+    },
+    {
+      "variant": "bag2",
+      "closed": 89,
+      "targets": 59,
+      "stops": 30,
+      "win_rate_percent": 66.29,
+      "net_r": 19.3234,
+      "unresolved": 1,
+      "ambiguous": 0
+    },
+    {
+      "variant": "bag1-bag2",
+      "closed": 91,
+      "targets": 60,
+      "stops": 31,
+      "win_rate_percent": 65.93,
+      "net_r": 19.1893,
+      "unresolved": 1,
+      "ambiguous": 0
+    }
+  ],
+  "monthly": [
+    {
+      "variant": "base",
+      "month": "2026-04",
+      "closed": 8,
+      "targets": 4,
+      "stops": 4,
+      "win_rate_percent": 50.0
+    },
+    {
+      "variant": "base",
+      "month": "2026-05",
+      "closed": 22,
+      "targets": 11,
+      "stops": 11,
+      "win_rate_percent": 50.0
+    },
+    {
+      "variant": "base",
+      "month": "2026-06",
+      "closed": 19,
+      "targets": 16,
+      "stops": 3,
+      "win_rate_percent": 84.21
+    },
+    {
+      "variant": "base",
+      "month": "2026-07",
+      "closed": 18,
+      "targets": 12,
+      "stops": 6,
+      "win_rate_percent": 66.67
+    },
+    {
+      "variant": "base",
+      "month": "2026-08",
+      "closed": 15,
+      "targets": 10,
+      "stops": 5,
+      "win_rate_percent": 66.67
+    },
+    {
+      "variant": "base",
+      "month": "2026-09",
+      "closed": 19,
+      "targets": 9,
+      "stops": 10,
+      "win_rate_percent": 47.37
+    },
+    {
+      "variant": "base",
+      "month": "2026-10",
+      "closed": 14,
+      "targets": 13,
+      "stops": 1,
+      "win_rate_percent": 92.86
+    },
+    {
+      "variant": "bag1",
+      "month": "2026-04",
+      "closed": 8,
+      "targets": 4,
+      "stops": 4,
+      "win_rate_percent": 50.0
+    },
+    {
+      "variant": "bag1",
+      "month": "2026-05",
+      "closed": 23,
+      "targets": 11,
+      "stops": 12,
+      "win_rate_percent": 47.83
+    },
+    {
+      "variant": "bag1",
+      "month": "2026-06",
+      "closed": 19,
+      "targets": 16,
+      "stops": 3,
+      "win_rate_percent": 84.21
+    },
+    {
+      "variant": "bag1",
+      "month": "2026-07",
+      "closed": 19,
+      "targets": 13,
+      "stops": 6,
+      "win_rate_percent": 68.42
+    },
+    {
+      "variant": "bag1",
+      "month": "2026-08",
+      "closed": 18,
+      "targets": 10,
+      "stops": 8,
+      "win_rate_percent": 55.56
+    },
+    {
+      "variant": "bag1",
+      "month": "2026-09",
+      "closed": 20,
+      "targets": 10,
+      "stops": 10,
+      "win_rate_percent": 50.0
+    },
+    {
+      "variant": "bag1",
+      "month": "2026-10",
+      "closed": 14,
+      "targets": 13,
+      "stops": 1,
+      "win_rate_percent": 92.86
+    },
+    {
+      "variant": "bag2",
+      "month": "2026-04",
+      "closed": 8,
+      "targets": 4,
+      "stops": 4,
+      "win_rate_percent": 50.0
+    },
+    {
+      "variant": "bag2",
+      "month": "2026-05",
+      "closed": 15,
+      "targets": 8,
+      "stops": 7,
+      "win_rate_percent": 53.33
+    },
+    {
+      "variant": "bag2",
+      "month": "2026-06",
+      "closed": 17,
+      "targets": 15,
+      "stops": 2,
+      "win_rate_percent": 88.24
+    },
+    {
+      "variant": "bag2",
+      "month": "2026-07",
+      "closed": 12,
+      "targets": 7,
+      "stops": 5,
+      "win_rate_percent": 58.33
+    },
+    {
+      "variant": "bag2",
+      "month": "2026-08",
+      "closed": 9,
+      "targets": 6,
+      "stops": 3,
+      "win_rate_percent": 66.67
+    },
+    {
+      "variant": "bag2",
+      "month": "2026-09",
+      "closed": 17,
+      "targets": 8,
+      "stops": 9,
+      "win_rate_percent": 47.06
+    },
+    {
+      "variant": "bag2",
+      "month": "2026-10",
+      "closed": 11,
+      "targets": 11,
+      "stops": 0,
+      "win_rate_percent": 100.0
+    },
+    {
+      "variant": "bag1-bag2",
+      "month": "2026-04",
+      "closed": 8,
+      "targets": 4,
+      "stops": 4,
+      "win_rate_percent": 50.0
+    },
+    {
+      "variant": "bag1-bag2",
+      "month": "2026-05",
+      "closed": 15,
+      "targets": 8,
+      "stops": 7,
+      "win_rate_percent": 53.33
+    },
+    {
+      "variant": "bag1-bag2",
+      "month": "2026-06",
+      "closed": 17,
+      "targets": 15,
+      "stops": 2,
+      "win_rate_percent": 88.24
+    },
+    {
+      "variant": "bag1-bag2",
+      "month": "2026-07",
+      "closed": 12,
+      "targets": 7,
+      "stops": 5,
+      "win_rate_percent": 58.33
+    },
+    {
+      "variant": "bag1-bag2",
+      "month": "2026-08",
+      "closed": 10,
+      "targets": 6,
+      "stops": 4,
+      "win_rate_percent": 60.0
+    },
+    {
+      "variant": "bag1-bag2",
+      "month": "2026-09",
+      "closed": 18,
+      "targets": 9,
+      "stops": 9,
+      "win_rate_percent": 50.0
+    },
+    {
+      "variant": "bag1-bag2",
+      "month": "2026-10",
+      "closed": 11,
+      "targets": 11,
+      "stops": 0,
+      "win_rate_percent": 100.0
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+--- a/new-project-2/sol_short_setup.pine
++++ b/new-project-2/sol_short_setup.pine
+@@ -96,6 +96,8 @@
+ varip float point3 = na
+ // После неполного ретеста и нового экстремума Фибо переносится на 2–3.
+ varip bool partialRetest = false
++// Bug 2: подтверждённый свинг отката, не достигший входа.
++varip bool missedSwingRetest = false
+ varip bool fibReanchored = false
+ // Только исключение из соседней пары: стоп за прежним P3, вход до отступов по базовому RR1:1.
+ varip bool tightReversal = false
+@@ -247,6 +249,7 @@
+     point2Time := na
+     point3 := na
+     partialRetest := false
++    missedSwingRetest := false
+     fibReanchored := false
+     longFloor0 := na
+     longFloorTime := na
+@@ -346,6 +349,7 @@
+             skippedSecond := na
+             equalFirstLow := false
+             partialRetest := false
++            missedSwingRetest := false
+             fibReanchored := false
+             tightReversal := shadowReversalNow
+             point3 := direction == -1 ? low : high
+@@ -386,6 +390,7 @@
+             point2Time := na
+             point3 := na
+             partialRetest := false
++            missedSwingRetest := false
+             fibReanchored := false
+             entry := na
+             stop := na
+@@ -431,13 +436,24 @@
+                 seededPoint3 := true
+ 
+         if stage == 5
++            // Свинг подтверждается закрытой правой свечой. Откат должен
++            // начаться после P3 и остаться целиком перед старым входом.
++            bool missedSwingNow = barstate.isconfirmed and bar_index >= 2 and bar_index - 1 > lastExtremeBar and (direction == 1 ? lowRunHasHigherLeft and low > low[1] and low[1] > entry and low[1] < point3 : highRunHasLowerLeft and high < high[1] and high[1] < entry and high[1] > point3)
++            missedSwingRetest := missedSwingRetest or missedSwingNow
+             bool extendedExtreme = (direction == -1 and low < point3) or (direction == 1 and high > point3)
+-            if extendedExtreme
++            if extendedExtreme and missedSwingRetest
++                // Bug 2: новый P3 после подтверждённого недошедшего
++                // свинга отменяет сценарий, не переносит его вход.
++                stage := 7
++                reversalDirection := 0
++                retiredStatus := "Отмена после свинга · Без входа"
++            else if extendedExtreme
+                 // Одного продолжения импульса недостаточно: до переноса
+                 // должен быть наблюдавшийся ретест без касания старого входа.
+                 // В разворотном LONG сохраняем опорную Фибо от «0» до «1».
+                 fibReanchored := not tightReversal and (fibReanchored or (partialRetest and na(longFloor0)))
+                 partialRetest := false
++                missedSwingRetest := false
+                 point3 := direction == -1 ? low : high
+                 if fibReanchored
+                     stopFibo := point2 - 0.25 * (point3 - point2)
+@@ -777,6 +793,7 @@
+         point2Time := na
+         point3 := na
+         partialRetest := false
++        missedSwingRetest := false
+         fibReanchored := false
+         longFloor0 := na
+         longFloorTime := na
+--- a/new-project-2/sol_short_setup.txt
++++ b/new-project-2/sol_short_setup.txt
+@@ -96,6 +96,8 @@
+ varip float point3 = na
+ // После неполного ретеста и нового экстремума Фибо переносится на 2–3.
+ varip bool partialRetest = false
++// Bug 2: подтверждённый свинг отката, не достигший входа.
++varip bool missedSwingRetest = false
+ varip bool fibReanchored = false
+ // Только исключение из соседней пары: стоп за прежним P3, вход до отступов по базовому RR1:1.
+ varip bool tightReversal = false
+@@ -247,6 +249,7 @@
+     point2Time := na
+     point3 := na
+     partialRetest := false
++    missedSwingRetest := false
+     fibReanchored := false
+     longFloor0 := na
+     longFloorTime := na
+@@ -346,6 +349,7 @@
+             skippedSecond := na
+             equalFirstLow := false
+             partialRetest := false
++            missedSwingRetest := false
+             fibReanchored := false
+             tightReversal := shadowReversalNow
+             point3 := direction == -1 ? low : high
+@@ -386,6 +390,7 @@
+             point2Time := na
+             point3 := na
+             partialRetest := false
++            missedSwingRetest := false
+             fibReanchored := false
+             entry := na
+             stop := na
+@@ -431,13 +436,24 @@
+                 seededPoint3 := true
+ 
+         if stage == 5
++            // Свинг подтверждается закрытой правой свечой. Откат должен
++            // начаться после P3 и остаться целиком перед старым входом.
++            bool missedSwingNow = barstate.isconfirmed and bar_index >= 2 and bar_index - 1 > lastExtremeBar and (direction == 1 ? lowRunHasHigherLeft and low > low[1] and low[1] > entry and low[1] < point3 : highRunHasLowerLeft and high < high[1] and high[1] < entry and high[1] > point3)
++            missedSwingRetest := missedSwingRetest or missedSwingNow
+             bool extendedExtreme = (direction == -1 and low < point3) or (direction == 1 and high > point3)
+-            if extendedExtreme
++            if extendedExtreme and missedSwingRetest
++                // Bug 2: новый P3 после подтверждённого недошедшего
++                // свинга отменяет сценарий, не переносит его вход.
++                stage := 7
++                reversalDirection := 0
++                retiredStatus := "Отмена после свинга · Без входа"
++            else if extendedExtreme
+                 // Одного продолжения импульса недостаточно: до переноса
+                 // должен быть наблюдавшийся ретест без касания старого входа.
+                 // В разворотном LONG сохраняем опорную Фибо от «0» до «1».
+                 fibReanchored := not tightReversal and (fibReanchored or (partialRetest and na(longFloor0)))
+                 partialRetest := false
++                missedSwingRetest := false
+                 point3 := direction == -1 ? low : high
+                 if fibReanchored
+                     stopFibo := point2 - 0.25 * (point3 - point2)
+@@ -777,6 +793,7 @@
+         point2Time := na
+         point3 := na
+         partialRetest := false
++        missedSwingRetest := false
+         fibReanchored := false
+         longFloor0 := na
+         longFloorTime := na
+--- a/new-project-2/tests/pine.test.mjs
++++ b/new-project-2/tests/pine.test.mjs
+@@ -2098,3 +2098,17 @@
+   assert.equal(signalCount(ctx,initial)+signalCount(ctx,opposite),2);
+  });
+ }
++
++for (const side of ['LONG','SHORT']) {
++ test(`Bug 2 ${side}: MEXC31 августа подтверждённый недошедший свинг и новый P3 отменяют вход`,async()=>{
++  const raw=JSON.parse(readFileSync(new URL('../reports/mexc-sol-usdt-m5-2026-08-23_2026-10-22.json',import.meta.url)));
++  const from=Date.parse('2026-08-31T14:00:00+07:00'),until=Date.parse('2026-08-31T20:00:00+07:00');
++  const data=raw.candles.filter(b=>b.time*1000>=from&&b.time*1000<until).map(b=>({openTime:b.time*1000,closeTime:b.time*1000+step-1,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.vol}));
++  const ctx=await runDefault(side==='LONG'?data:mirror(data));
++  const at=t=>data.findIndex(b=>b.openTime===Date.parse(`2026-08-31T${t}:00+07:00`));
++  assert.equal(values(ctx,'Stage')[at('18:10')],5);
++  assert.equal(values(ctx,'Stage')[at('18:15')],7);
++  assert.equal(signalCount(ctx,side),0);
++  assert.equal(signalCount(ctx,side==='LONG'?'SHORT':'LONG'),0);
++ });
++}

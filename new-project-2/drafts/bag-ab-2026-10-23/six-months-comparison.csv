@@ -1,0 +1,5 @@
+﻿variant,closed,targets,stops,win_rate_percent,net_r,unresolved,ambiguous
+base,115,75,40,65.22,23.6527,1,0
+bag1,121,77,44,63.64,21.4558,1,0
+bag2,89,59,30,66.29,19.3234,1,0
+bag1-bag2,91,60,31,65.93,19.1893,1,0

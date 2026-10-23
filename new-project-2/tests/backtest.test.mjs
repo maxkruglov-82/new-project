@@ -38,13 +38,13 @@ test('журнал реального Pine: один SHORT, точные E/S/T, 
 });
 
 test('после стопа журнал сохраняет обе сделки и противоположную новую сторону', async () => {
-  const next = entered().slice(12).map((b, i) => c(21 + i, 207 - b.open, 207 - b.low, 207 - b.high, 207 - b.close));
-  const { summary, trades } = await run([...entered(), c(20, 102, 105.2, 101.5, 104), ...next, c(29, 105, 109, 104, 108)]);
+  const { summary, trades } = await run([...entered(),c(20,102,105.2,101.5,104),
+    c(21,104,104.2,102,103),c(22,103,103.5,101.4,102),c(23,102,105.3,102,105)]);
   assert.equal(summary.enteredTrades, 2);
   assert.equal(summary.totalTrades, 2);
   assert.equal(summary.targets, 1);
   assert.equal(summary.stops, 1);
-  assert.ok(Math.abs(summary.netRKnownBeforeCosts - (2.97/3.03 - 1)) < 1e-9);
+  assert.ok(Math.abs(summary.netRKnownBeforeCosts - (3.695/3.755 - 1)) < 1e-9);
   assert.deepEqual(trades.map(t => [t.side, t.status]), [['SHORT', 'stop'], ['LONG', 'target']]);
 });
 
