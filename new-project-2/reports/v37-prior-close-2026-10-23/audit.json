@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "sourceSha256": "55c98cfcf979f374cd0947ff099a3065c8c3a6f5d08098bfc5754904e5fca8b5",
+  "inputSha256": "d577f10284f1aa9e64cbe97111b98948fe10990757a789657bddae5c39111681",
+  "candles": 52536,
+  "verifiedP1Events": 255,
+  "verifiedTrades": 106,
+  "changedReferenceDaysVsTake003": 98,
+  "tests": "27 passed,0 failed",
+  "checks": [
+    "Every original P1 and replacement has a confirmed close on its candle or earlier; first qualifying close independently reconstructed from raw OHLC",
+    "No future right-confirming candle qualifies old P1",
+    "Qualifying close belongs to the same current reference H1",
+    "Continuous M5 and complete reference H1",
+    "Entry times and prices, unchanged RR and SL/TP buffers",
+    "First subsequent OHLC SL/TP exit independently reconstructed for every trade",
+    "No further entry after target",
+    "Monthly sums; comparison uses identical data"
+  ],
+  "publishedSourceSha256": "3d8dfb6dd1490026458430db6a9a8eee805bac5e7b651a770a93792260925f69",
+  "sourceEquivalence": "Published executable equals calculated candidate except indicator title.",
+  "publicationTests": {
+    "passed": 306,
+    "failed": 0
+  }
+}

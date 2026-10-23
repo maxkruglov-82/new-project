@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v36", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v37", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -8,7 +8,7 @@ indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v36", over
 string tz = "Asia/Krasnoyarsk"
 bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
 float stopOffset = input.float(0.03, "Отступ стопа за Фибо (USDT)", minval=0.0, step=0.01)
-float takeOffset = input.float(0.03, "Отступ тейка перед целью (USDT)", minval=0.0, step=0.01)
+float takeOffset = input.float(0.10, "Отступ тейка перед целью (USDT)", minval=0.0, step=0.01)
 float h1BreakOffset = input.float(0.02, "Минимальный пробой H1 (USDT)", minval=0.0, step=0.01)
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
 bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
@@ -87,6 +87,10 @@ varip bool drawReference = false
 varip float h1High = na
 varip float h1Low = na
 varip int validUntil = na
+// Первое подтверждённое закрытие за каждой стороной текущей опорной H1.
+// Сам свинг P1 может закрыться внутри: достаточно закрепления до/на его свече.
+varip int h1AboveCloseBar = na
+varip int h1BelowCloseBar = na
 varip int breakBar = na
 varip float point1 = na
 varip int point1Bar = na
@@ -197,6 +201,14 @@ bool tradingDay = not skipWeekends or (not barIsWeekend and (not barstate.isreal
 int searchStart = validUntil - 86400000
 int searchEnd = validUntil - 54000000
 bool searchWindow = not na(validUntil) and time >= searchStart and time < searchEnd and (not barstate.isrealtime or (timenow >= searchStart and timenow < searchEnd))
+
+// Запоминаем только состоявшиеся закрытия в текущем дневном окне.
+// Бар правого подтверждения P1 не может задним числом разрешить старый свинг.
+if barstate.isconfirmed and tradingDay and searchWindow
+    if close > h1High and na(h1AboveCloseBar)
+        h1AboveCloseBar := bar_index
+    if close < h1Low and na(h1BelowCloseBar)
+        h1BelowCloseBar := bar_index
 
 // Пока вход активен, противоположный выход H1 не создаёт вторую сделку.
 // Исторический бар входа не доказывает последующий TP/SL: порядок неизвестен.
@@ -476,7 +488,7 @@ int secondPivotTime = time[1]
 // Новый подтверждённый уровень не используется задним числом внутри неё.
 if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
     lastPivotBar := bar_index
-    bool firstPivot = direction == -1 ? lowerPivot and belowH1(low[1], h1Low) and close[1] < h1Low : upperPivot and aboveH1(high[1], h1High) and close[1] > h1High
+    bool firstPivot = direction == -1 ? lowerPivot and belowH1(low[1], h1Low) and not na(h1BelowCloseBar) and h1BelowCloseBar <= firstPivotBar : upperPivot and aboveH1(high[1], h1High) and not na(h1AboveCloseBar) and h1AboveCloseBar <= firstPivotBar
     bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 and highRunLow >= point1 : lowerPivot and low[1] < point1 and lowRunHigh <= point1
     if stage == 2 and firstPivot and firstPivotBar >= breakBar
         point1 := direction == -1 ? low[1] : high[1]
@@ -749,6 +761,8 @@ if barstate.isconfirmed and hh == 14
         h1High := collectedHigh
         h1Low := collectedLow
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
+        h1AboveCloseBar := na
+        h1BelowCloseBar := na
         stage := skipWeekends and barIsWeekend ? 0 : 1
         tightReversal := false
         direction := 0

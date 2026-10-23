@@ -1,0 +1,36 @@
+{
+  "version": "v37",
+  "baseVersion": "v36",
+  "baseCommit": "27d4c0435c544d88dfba9c8e97a5b99b49d26f5b",
+  "publishedBaseSha256": "ed7fa55d3f38c078105b77ffeb7f775149903939c65c46d60f7dcf5d6a6d45c8",
+  "baseSourceSha256": "08b991b2fdca98940ea2494b69ca3229f9eb000d9733088ee4522e6afa8b9c2d",
+  "sourceSha256": "3d8dfb6dd1490026458430db6a9a8eee805bac5e7b651a770a93792260925f69",
+  "calculatedCandidateSha256": "55c98cfcf979f374cd0947ff099a3065c8c3a6f5d08098bfc5754904e5fca8b5",
+  "calculatedTitle": "1:1 v36 — предыдущее закрепление P1, TP перед целью0.10 (черновик)",
+  "publishedTitle": "1:1 v37",
+  "rules": [
+    "Any earlier confirmed M5 close strictly outside the current H1 side, on/before the pivot candle, qualifies P1; its own close may be inside. No future right-confirming candle. Reset at new reference H1.",
+    "TP BEFORE target: SHORT raw P3+0.10 USDT,LONG raw P3-0.10 USDT. Entry/SL unchanged; P3 still wick-based."
+  ],
+  "example": {
+    "SHORT": {
+      "rawTarget": 107.4,
+      "take": 107.5
+    },
+    "LONG": {
+      "rawTarget": 107.4,
+      "take": 107.3
+    }
+  },
+  "equivalence": "Published executable equals calculated candidate except indicator title.",
+  "authorization": "Final explicit user instruction: SHORT0.1 above target,LONG0.1 below; save and publish. Supersedes all earlier TP proposals.",
+  "comparisonDisclosed": "Win rate70.87% vs66.35%,netR17.75 vs22.84 with prior0.03 take; disclosed before publication.",
+  "validation": {
+    "totalPassed": 306,
+    "currentAndV36": 42,
+    "historicalAndNear": 264,
+    "failed": 0,
+    "sep29Control": "P1 16:15 after first qualifying close16:05; earlier lows rejected",
+    "halfyear": "103 closed,73 targets,30 stops;3 unresolved"
+  }
+}
