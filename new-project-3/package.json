@@ -1,0 +1,12 @@
+{
+  "name": "sol-binance-h4-m15-rr2",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "pinets": "0.12.0"
+  }
+}

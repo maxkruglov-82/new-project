@@ -1,0 +1,425 @@
+//@version=5
+indicator("SOL/USDT Binance — H4 11–15, M15, RR 1:2 v1", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+// Отдельный проект3. Подтверждённые правила H4/M15; не наследует стратегиюM5.
+// H4 11:00–15:00 Красноярск = 04:00–08:00 UTC Binance Futures.
+string tz = "Asia/Krasnoyarsk"
+// Реальный шаг цены выбранного контракта; это не фиксированный отступ.
+float oneTick = syminfo.mintick
+if barstate.isfirst and (na(oneTick) or oneTick <= 0)
+    runtime.error("Не удалось определить минимальный тик контракта. Выберите SOL/USDT Binance Futures.")
+bool showFibo = input.bool(true, "Показывать Фибоначчи")
+bool showPosition = input.bool(true, "Показывать длинную/короткую позицию")
+bool showMarks = input.bool(true, "Показывать сигналы и цены")
+int positionBars = input.int(16, "Ширина позиции (свечей M15)", minval=2, maxval=96)
+int historyDays = input.int(60, "История: опорных дней", minval=1, maxval=60)
+if barstate.isfirst and timeframe.period != "15"
+    runtime.error("Выберите таймфрейм 15 минут. Диапазон H4 собирается автоматически.")
+
+above(float price, float edge) =>
+    price > edge
+below(float price, float edge) =>
+    price < edge
+level(line id, int leftTime, int rightTime, float price, color ink, int width) =>
+    line result = id
+    if na(result)
+        result := line.new(leftTime, price, rightTime, price, xloc=xloc.bar_time, color=ink, width=width)
+    else
+        line.set_xy1(result, leftTime, price)
+        line.set_xy2(result, rightTime, price)
+    result
+zone(box id, int leftTime, int rightTime, float p1, float p2, color ink) =>
+    box result = id
+    if na(result)
+        result := box.new(left=leftTime, top=math.max(p1,p2), right=rightTime, bottom=math.min(p1,p2), xloc=xloc.bar_time, border_color=ink, bgcolor=color.new(ink,85))
+    else
+        box.set_left(result,leftTime)
+        box.set_right(result,rightTime)
+        box.set_top(result,math.max(p1,p2))
+        box.set_bottom(result,math.min(p1,p2))
+    result
+priceLabel(label id, int atTime, float price, string caption, color ink) =>
+    label result = id
+    if na(result)
+        result := label.new(atTime,price,caption,xloc=xloc.bar_time,yloc=yloc.price,style=label.style_label_left,color=color.new(color.white,100),textcolor=ink,size=size.small)
+    else
+        label.set_xy(result,atTime,price)
+        label.set_text(result,caption)
+    result
+
+// 0 нет H4; 1 пробой; 2 первый свинг; 7 второй свинг; 8 пробой P1;
+// 3 отдельный ретест; 4 открытая позиция; 5 исход; 6 порядок неизвестен.
+varip int stage = 0
+varip int direction = 0
+varip float h4High = na
+varip float h4Low = na
+varip int referenceClose = na
+varip bool hadEntry = false
+varip float candidate = na
+varip int candidateBar = na
+varip int candidateTime = na
+varip int breakBar = na
+varip bool requireOutside = true
+varip float point1 = na
+varip int point1Bar = na
+varip int point1Time = na
+varip float point2 = na
+varip int point2Bar = na
+varip int point2Time = na
+varip float point3 = na
+varip float anchor = na
+varip float target = na
+varip float stop = na
+varip float entry = na
+varip int planBar = na
+varip int planTime = na
+varip int planReferenceClose = na
+varip int positionEndTime = na
+varip int signalBar = na
+varip int signalTime = na
+varip int outcome = 0
+varip int outcomeBar = na
+varip int epoch = 0
+varip float previousQuote = na
+var int collectedDay = na
+var int collectedTime = na
+var int collectedCount = 0
+var float collectedOpen = na
+var float collectedHigh = na
+var float collectedLow = na
+var int publishedDay = na
+var box h4Box = na
+var h4History = array.new_box()
+var historyLines = array.new_line()
+var historyBoxes = array.new_box()
+var historyLabels = array.new_label()
+var int drawingEpoch = -1
+var bool drawingEntered = false
+var line fMinus = na
+var line fZero = na
+var line fHalf = na
+var line fOne = na
+var line fStop = na
+var line eLine = na
+var line sLine = na
+var line tLine = na
+var box reward = na
+var box risk = na
+var label eLabel = na
+var label sLabel = na
+var label tLabel = na
+var label mark = na
+
+int yy = year(time,tz)
+int mm = month(time,tz)
+int dd = dayofmonth(time,tz)
+int hh = hour(time,tz)
+int mi = minute(time,tz)
+int dayKey = yy*10000+mm*100+dd
+// Отдельное правило временного отсечения и фильтр выходных не согласованы.
+// После закрытия H4 поиск начинается с первой M15 15:00–15:15.
+bool searchWindow = not na(referenceClose) and time >= referenceClose and (not barstate.isrealtime or timenow >= referenceClose)
+bool longEvent = false
+bool shortEvent = false
+float eventEntry = na
+float eventStop = na
+float eventTarget = na
+
+// Открытый вход не меняет сторону, стоп, цель или RR. На историческом
+// баре входа последовательность до/после касания неизвестна: исход не приписываем.
+if stage == 4 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar)
+    float reachedHigh = bar_index > signalBar ? high : close
+    float reachedLow = bar_index > signalBar ? low : close
+    bool stopHit = direction == 1 ? reachedLow <= stop : reachedHigh >= stop
+    bool targetHit = direction == 1 ? reachedHigh >= target : reachedLow <= target
+    if stopHit or targetHit
+        outcome := stopHit and targetHit ? 2 : targetHit ? 1 : -1
+        outcomeBar := bar_index
+        positionEndTime := math.max(positionEndTime,time_close)
+// Стоп меняет только приоритет. Новый вход требует свежей структуры,
+// начиная со следующей M15. Автоматического входа на стоповой свече нет.
+if stage == 4 and outcome == 2
+    stage := 6
+else if stage == 4 and (outcome == 1 or outcome == -1)
+    stage := 5
+if stage == 5 and outcome == -1 and bar_index > outcomeBar and searchWindow
+    direction := -direction
+    stage := 2
+    breakBar := bar_index
+    requireOutside := false
+    point1 := na
+    point2 := na
+    point3 := na
+    candidate := na
+    target := na
+    stop := na
+    entry := na
+    signalBar := na
+    signalTime := na
+    outcome := 0
+    outcomeBar := na
+    epoch := epoch + 1
+
+bool waitingStructure = stage == 2 or stage == 7 or stage == 8 or stage == 3
+if searchWindow and (stage == 1 or waitingStructure)
+    bool upperBreak = above(barstate.isrealtime ? close : high,h4High)
+    bool lowerBreak = below(barstate.isrealtime ? close : low,h4Low)
+    // После принудительной смены по SL пребывание цены за старой границей
+    // не означает новый обратный пробой. Требуется фактическое новое пересечение.
+    bool newLowerCross = barstate.isrealtime ? not na(previousQuote) and previousQuote >= h4Low and close < h4Low : low < h4Low and low[1] >= h4Low
+    bool newUpperCross = barstate.isrealtime ? not na(previousQuote) and previousQuote <= h4High and close > h4High : high > h4High and high[1] <= h4High
+    bool switchPriority = waitingStructure and (direction == 1 ? newLowerCross : newUpperCross)
+    if stage == 1 or switchPriority
+        if stage == 1 and upperBreak and lowerBreak and not barstate.isrealtime
+            stage := 6
+            epoch := epoch + 1
+        else
+            int newSide = switchPriority ? -direction : upperBreak ? 1 : lowerBreak ? -1 : 0
+            if newSide != 0
+                direction := newSide
+                breakBar := bar_index
+                requireOutside := true
+                point1 := na
+                point2 := na
+                point3 := na
+                candidate := na
+                target := na
+                stop := na
+                entry := na
+                signalBar := na
+                signalTime := na
+                stage := 2
+                epoch := epoch + 1
+
+    // Трёхсвечный M15-свинг подтверждается только закрытой правой свечой.
+    // Подтверждённые точки становятся известны после её закрытия.
+    bool lowPivot = barstate.isconfirmed and bar_index >= 2 and low[1] < low[2] and low[1] < low
+    bool highPivot = barstate.isconfirmed and bar_index >= 2 and high[1] > high[2] and high[1] > high
+    int pivotBar = bar_index - 1
+    bool firstPivot = direction == 1 ? highPivot : lowPivot
+    float firstPrice = direction == 1 ? high[1] : low[1]
+    bool firstOutside = direction == 1 ? firstPrice > h4High : firstPrice < h4Low
+    bool secondPivot = direction == 1 ? lowPivot : highPivot
+    float secondPrice = direction == 1 ? low[1] : high[1]
+    if stage == 2 and firstPivot and pivotBar >= breakBar and (not requireOutside or firstOutside)
+        point1 := firstPrice
+        point1Bar := pivotBar
+        point1Time := time[1]
+        candidate := firstPrice
+        stage := 7
+    else if stage == 7
+        if firstPivot and pivotBar > point1Bar and (direction == 1 ? firstPrice > point1 : firstPrice < point1)
+            point1 := firstPrice
+            point1Bar := pivotBar
+            point1Time := time[1]
+            candidate := firstPrice
+        else if secondPivot and pivotBar > point1Bar + 1
+            // Между свечами 1 и2 обязательно есть промежуточная свеча.
+            bool validSecond = direction == 1 ? secondPrice < point1 and secondPrice >= h4Low : secondPrice > point1 and secondPrice <= h4High
+            // После стопа обратный поиск может начинаться вне H4;
+            // переход через противоположную границу обработан выше.
+            if not requireOutside
+                validSecond := direction == 1 ? secondPrice < point1 : secondPrice > point1
+            if validSecond
+                point2 := secondPrice
+                point2Bar := pivotBar
+                point2Time := time[1]
+                stage := 8
+    else if stage == 8 and secondPivot and pivotBar > point2Bar and (direction == 1 ? secondPrice < point2 : secondPrice > point2)
+        point2 := secondPrice
+        point2Bar := pivotBar
+        point2Time := time[1]
+
+    // P3 — экстремум закрытой свечи строгого пробоя P1. Даже если
+    // свеча подтверждения P2 уже пробила P1, вход на ней не дорисовываем.
+    bool thirdBreak = stage == 8 and barstate.isconfirmed and (direction == 1 ? high > point1 : low < point1)
+    if thirdBreak
+        point3 := direction == 1 ? high : low
+        target := point3
+        anchor := point2
+        stop := point2 - direction*oneTick
+        entry := (2.0*stop+target)/3.0
+        planBar := bar_index
+        planTime := time_close
+        planReferenceClose := point2Time
+        positionEndTime := na
+        signalBar := na
+        signalTime := na
+        outcome := 0
+        outcomeBar := na
+        stage := 3
+        epoch := epoch + 1
+    // После расчёта план фиксирован. Перенос P3 до входа не добавлен
+    // автоматически: этот пункт ещё отдельно не согласован пользователем.
+    if stage == 3 and bar_index > planBar
+        bool liveTouch = barstate.isrealtime and not na(previousQuote) and (direction == 1 ? previousQuote > entry and close <= entry : previousQuote < entry and close >= entry)
+        bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and (direction == 1 ? open >= entry and low <= entry : open <= entry and high >= entry)
+        if liveTouch or historyTouch
+            stage := 4
+            signalBar := bar_index
+            signalTime := time
+            positionEndTime := time + positionBars*900000
+            hadEntry := true
+            longEvent := direction == 1
+            shortEvent := direction == -1
+            eventEntry := entry
+            eventStop := stop
+            eventTarget := target
+
+// 16 последовательных закрытых M15, без данных из незакрытой H4.
+if barstate.isconfirmed and hh >= 11 and hh < 15
+    if hh == 11 and mi == 0
+        collectedDay := dayKey
+        collectedTime := time
+        collectedCount := 1
+        collectedOpen := open
+        collectedHigh := high
+        collectedLow := low
+    else if collectedDay == dayKey and time-collectedTime == 900000
+        collectedTime := time
+        collectedCount := collectedCount + 1
+        collectedHigh := math.max(collectedHigh,high)
+        collectedLow := math.min(collectedLow,low)
+    else
+        collectedCount := 0
+    if hh == 14 and mi == 45 and collectedCount == 16 and (na(publishedDay) or publishedDay != dayKey)
+        if not na(h4Box) and not hadEntry
+            box.set_text(h4Box,"входа не было")
+        publishedDay := dayKey
+        h4High := collectedHigh
+        h4Low := collectedLow
+        referenceClose := timestamp(tz,yy,mm,dd,15,0)
+        // Вход прошлого дня продолжает жить до TP/SL, даже при новой H4.
+        bool keepPosition = stage == 4 and outcome == 0
+        hadEntry := keepPosition
+        if not keepPosition
+            stage := 1
+            direction := 0
+            candidate := na
+            candidateBar := na
+            breakBar := na
+            requireOutside := true
+            point1 := na
+            point2 := na
+            point3 := na
+            entry := na
+            stop := na
+            target := na
+            outcome := 0
+            outcomeBar := na
+            epoch := epoch + 1
+        bool drawReference = referenceClose >= last_bar_time-historyDays*86400000
+        h4Box := na
+        if drawReference
+            if array.size(h4History) >= historyDays
+                box.delete(array.shift(h4History))
+            color border = close < collectedOpen ? color.red : close > collectedOpen ? color.green : color.gray
+            h4Box := box.new(left=timestamp(tz,yy,mm,dd,11,0),top=h4High,right=timestamp(tz,yy,mm,dd,22,0),bottom=h4Low,xloc=xloc.bar_time,border_color=border,bgcolor=na,text_color=color.gray)
+            array.push(h4History,h4Box)
+
+// Незавершённый план удаляем; состоявшиеся позиции храним отдельными группами.
+if drawingEpoch != epoch
+    if not drawingEntered
+        line.delete(fMinus)
+        line.delete(fZero)
+        line.delete(fHalf)
+        line.delete(fOne)
+        line.delete(fStop)
+        line.delete(eLine)
+        line.delete(sLine)
+        line.delete(tLine)
+        box.delete(reward)
+        box.delete(risk)
+        label.delete(eLabel)
+        label.delete(sLabel)
+        label.delete(tLabel)
+        label.delete(mark)
+    else
+        array.push(historyLines,fMinus)
+        array.push(historyLines,fZero)
+        array.push(historyLines,fHalf)
+        array.push(historyLines,fOne)
+        array.push(historyLines,fStop)
+        array.push(historyLines,eLine)
+        array.push(historyLines,sLine)
+        array.push(historyLines,tLine)
+        array.push(historyBoxes,reward)
+        array.push(historyBoxes,risk)
+        array.push(historyLabels,eLabel)
+        array.push(historyLabels,sLabel)
+        array.push(historyLabels,tLabel)
+        array.push(historyLabels,mark)
+        if array.size(historyLines) > 59*8
+            for i = 0 to 7
+                line.delete(array.shift(historyLines))
+            for i = 0 to 1
+                box.delete(array.shift(historyBoxes))
+            for i = 0 to 3
+                label.delete(array.shift(historyLabels))
+    drawingEpoch := epoch
+    drawingEntered := false
+    fMinus := na
+    fZero := na
+    fHalf := na
+    fOne := na
+    fStop := na
+    eLine := na
+    sLine := na
+    tLine := na
+    reward := na
+    risk := na
+    eLabel := na
+    sLabel := na
+    tLabel := na
+    mark := na
+if stage == 4 or stage == 5 or (stage == 6 and not na(signalBar))
+    drawingEntered := true
+bool planVisible = stage == 3 or stage == 4 or stage == 5 or (stage == 6 and not na(signalBar))
+bool drawPlan = planVisible and not na(h4Box) and not na(planTime)
+if drawPlan
+    if stage == 4 and outcome == 0
+        positionEndTime := math.max(positionEndTime,time_close)
+    int rightTime = na(signalTime) ? time_close+positionBars*900000 : positionEndTime
+    float span = anchor-target
+    if showFibo
+        fMinus := level(fMinus,planReferenceClose,rightTime,target-0.25*span,color.red,1)
+        fZero := level(fZero,planReferenceClose,rightTime,target,color.gray,1)
+        fHalf := level(fHalf,planReferenceClose,rightTime,target+0.5*span,color.gray,1)
+        fOne := level(fOne,planReferenceClose,rightTime,anchor,color.gray,1)
+        fStop := level(fStop,planReferenceClose,rightTime,target+1.25*span,color.red,1)
+    eLine := level(eLine,planTime,rightTime,entry,color.blue,2)
+    sLine := level(sLine,planTime,rightTime,stop,color.red,2)
+    tLine := level(tLine,planTime,rightTime,target,color.teal,2)
+    if showPosition
+        reward := zone(reward,planTime,rightTime,target,entry,color.teal)
+        risk := zone(risk,planTime,rightTime,stop,entry,color.red)
+        box.set_text(reward,"RR 1:2")
+        box.set_text_color(reward,color.white)
+    if showMarks
+        eLabel := priceLabel(eLabel,rightTime,entry,"Вход: "+str.tostring(entry,"#.####"),color.blue)
+        sLabel := priceLabel(sLabel,rightTime,stop,"Стоп: "+str.tostring(stop,"#.####")+(outcome == -1 ? " +" : ""),color.red)
+        tLabel := priceLabel(tLabel,rightTime,target,"Цель: "+str.tostring(target,"#.####")+(outcome == 1 ? " +" : ""),color.teal)
+        if stage == 4 and not na(signalTime) and na(mark)
+            mark := label.new(signalTime,direction == 1 ? low : high,direction == 1 ? "LONG 1:2" : "SHORT 1:2",xloc=xloc.bar_time,yloc=direction == 1 ? yloc.belowbar : yloc.abovebar,style=direction == 1 ? label.style_label_up : label.style_label_down,color=direction == 1 ? color.green : color.red,textcolor=color.white,size=size.small)
+previousQuote := close
+plot(h4High,"H4 High",color=color.new(color.white,100),display=display.data_window)
+plot(h4Low,"H4 Low",color=color.new(color.white,100),display=display.data_window)
+plot(stage,"Stage",color=color.new(color.white,100),display=display.data_window)
+plot(direction,"Direction",color=color.new(color.white,100),display=display.data_window)
+plot(candidate,"Swing Candidate",color=color.new(color.white,100),display=display.none)
+plot(planVisible ? target : na,"Swing Target",color=color.new(color.white,100),display=display.none)
+plot(longEvent ? 1 : 0,"LONG",color=color.new(color.white,100),display=display.none)
+plot(shortEvent ? 1 : 0,"SHORT",color=color.new(color.white,100),display=display.none)
+plot(longEvent ? eventEntry : planVisible and direction == 1 ? entry : na,"LONG Entry",color=color.new(color.white,100),display=display.none)
+plot(longEvent ? eventStop : planVisible and direction == 1 ? stop : na,"LONG Stop",color=color.new(color.white,100),display=display.none)
+plot(longEvent ? eventTarget : planVisible and direction == 1 ? target : na,"LONG Target",color=color.new(color.white,100),display=display.none)
+plot(shortEvent ? eventEntry : planVisible and direction == -1 ? entry : na,"SHORT Entry",color=color.new(color.white,100),display=display.none)
+plot(shortEvent ? eventStop : planVisible and direction == -1 ? stop : na,"SHORT Stop",color=color.new(color.white,100),display=display.none)
+plot(shortEvent ? eventTarget : planVisible and direction == -1 ? target : na,"SHORT Target",color=color.new(color.white,100),display=display.none)
+plot(outcome,"Outcome",color=color.new(color.white,100),display=display.data_window)
+alertcondition(longEvent,"LONG",'LONG {{ticker}} RR1:2 | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}}')
+alertcondition(shortEvent,"SHORT",'SHORT {{ticker}} RR1:2 | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}}')
+
+plot(point1,"Point 1",color=color.new(color.white,100),display=display.data_window)
+plot(point2,"Point 2",color=color.new(color.white,100),display=display.data_window)
+plot(point3,"Point 3",color=color.new(color.white,100),display=display.data_window)
+plot(oneTick,"One Tick",color=color.new(color.white,100),display=display.data_window)
