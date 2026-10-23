@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v33", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v32", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -96,10 +96,6 @@ varip int point2Time = na
 varip float point3 = na
 // После неполного ретеста и нового экстремума Фибо переносится на 2–3.
 varip bool partialRetest = false
-// Bug 2: подтверждённый свинг отката, не достигший входа.
-varip bool missedSwingRetest = false
-// После стопа обратный план ждёт ретест без отмены BAG 2.
-varip bool afterStopPlan = false
 varip bool fibReanchored = false
 // Только исключение из соседней пары: стоп за прежним P3, вход до отступов по базовому RR1:1.
 varip bool tightReversal = false
@@ -223,20 +219,8 @@ if stage == 6 or stage == 0 or stage == 7
     reversalDirection := 0
 
 if retry
-    // BAG 1/3: любой определённый стоп разрешает обратную попытку по известной 2–3.
-    // Сам стоп не является входом; ретест возможен только со следующей M5.
-    bool reverseStoppedPosition = not na(point2) and not na(point3)
-    float retryFirst = point2
-    int retryFirstTime = point2Time
-    float retrySecond = point3
-    int retrySecondTime = time[bar_index - lastExtremeBar]
-    float retryThird = direction == 1 ? low[bar_index - outcomeBar] : high[bar_index - outcomeBar]
-    int retryThirdBar = outcomeBar
-    if reverseStoppedPosition
-        lockedDirection := -direction
     longOriginGuard := na
     tightReversal := false
-    afterStopPlan := false
     reversalDirection := 0
     candidateEpoch := candidateEpoch + 1
     retiredStatus := ""
@@ -252,7 +236,6 @@ if retry
     point2Time := na
     point3 := na
     partialRetest := false
-    missedSwingRetest := false
     fibReanchored := false
     longFloor0 := na
     longFloorTime := na
@@ -264,20 +247,6 @@ if retry
     lastExtremeBar := na
     drawingRight := na
     positionLeft := na
-    if reverseStoppedPosition
-        point1 := retryFirst
-        point1Time := retryFirstTime
-        point1Bar := bar_index - int((time - retryFirstTime) / 300000)
-        point2 := retrySecond
-        point2Time := retrySecondTime
-        point3 := retryThird
-        lastExtremeBar := retryThirdBar
-        stopFibo := point1 + 1.25 * (point2 - point1)
-        stop := stopFibo - direction * stopOffset
-        entry := (stopFibo + point3) / 2.0
-        positionLeft := time[bar_index - retryThirdBar]
-        stage := 5
-        afterStopPlan := true
 
 // Старый ожидающий сетап прекращается при новой опорной H1.
 if stage >= 1 and stage <= 5
@@ -353,9 +322,7 @@ if stage >= 1 and stage <= 5
             skippedSecond := na
             equalFirstLow := false
             partialRetest := false
-            missedSwingRetest := false
             fibReanchored := false
-            afterStopPlan := false
             tightReversal := shadowReversalNow
             point3 := direction == -1 ? low : high
             stopFibo := tightReversal ? point2 : point1 + 1.25 * (point2 - point1)
@@ -377,7 +344,6 @@ if stage >= 1 and stage <= 5
         bool brokenLongOrigin = lockedDirection == 1 and not na(longOriginGuard) and low < longOriginGuard
         if stage >= 2 and stage <= 5 and ((lockedDirection == 0 and ((direction == -1 and above) or (direction == 1 and longInvalid))) or brokenLongOrigin)
             tightReversal := false
-            afterStopPlan := false
             bool unbrokenShort = direction == -1 and stage >= 3 and stage <= 4 and not na(point1) and low >= point1
             longOriginGuard := unbrokenShort ? point1 : na
             longFloor0 := unbrokenShort ? point1 : na
@@ -396,7 +362,6 @@ if stage >= 1 and stage <= 5
             point2Time := na
             point3 := na
             partialRetest := false
-            missedSwingRetest := false
             fibReanchored := false
             entry := na
             stop := na
@@ -442,24 +407,13 @@ if stage >= 1 and stage <= 5
                 seededPoint3 := true
 
         if stage == 5
-            // Свинг подтверждается закрытой правой свечой. Откат должен
-            // начаться после P3 и остаться целиком перед старым входом.
-            bool missedSwingNow = barstate.isconfirmed and bar_index >= 2 and bar_index - 1 > lastExtremeBar and (direction == 1 ? lowRunHasHigherLeft and low > low[1] and low[1] > entry and low[1] < point3 : highRunHasLowerLeft and high < high[1] and high[1] < entry and high[1] > point3)
-            missedSwingRetest := missedSwingRetest or missedSwingNow
             bool extendedExtreme = (direction == -1 and low < point3) or (direction == 1 and high > point3)
-            if extendedExtreme and missedSwingRetest and not afterStopPlan
-                // Bug 2: новый P3 после подтверждённого недошедшего
-                // свинга отменяет сценарий, не переносит его вход.
-                stage := 7
-                reversalDirection := 0
-                retiredStatus := "Отмена после свинга · Без входа"
-            else if extendedExtreme
+            if extendedExtreme
                 // Одного продолжения импульса недостаточно: до переноса
                 // должен быть наблюдавшийся ретест без касания старого входа.
                 // В разворотном LONG сохраняем опорную Фибо от «0» до «1».
-                fibReanchored := not tightReversal and not afterStopPlan and (fibReanchored or (partialRetest and na(longFloor0)))
+                fibReanchored := not tightReversal and (fibReanchored or (partialRetest and na(longFloor0)))
                 partialRetest := false
-                missedSwingRetest := false
                 point3 := direction == -1 ? low : high
                 if fibReanchored
                     stopFibo := point2 - 0.25 * (point3 - point2)
@@ -550,8 +504,6 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
             else if na(skippedSecond) or (direction == -1 ? high[1] > skippedSecond : low[1] < skippedSecond)
                 point2 := direction == -1 ? high[1] : low[1]
                 point2Time := secondPivotTime
-                // BAG 3: полноценная новая 1–2 заменяет старую теневую пару.
-                reversalDirection := 0
                 // После смены SHORT→LONG допустимая P2 создаёт собственную Фибо1–2.
                 // Равенство прежнему минимуму разрешено; строгий пробой отменяется выше.
                 if direction == 1 and not na(longOriginGuard) and point2 >= longOriginGuard
@@ -788,7 +740,6 @@ if barstate.isconfirmed and hh == 14
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
         stage := skipWeekends and barIsWeekend ? 0 : 1
         tightReversal := false
-        afterStopPlan := false
         direction := 0
         lockedDirection := 0
         firstDirection := 0
@@ -802,7 +753,6 @@ if barstate.isconfirmed and hh == 14
         point2Time := na
         point3 := na
         partialRetest := false
-        missedSwingRetest := false
         fibReanchored := false
         longFloor0 := na
         longFloorTime := na
@@ -853,5 +803,3 @@ plot(shortEvent or longEvent ? eventSwingTarget : planVisible ? point3 : na, "Sw
 plot(tightReversal ? 1 : 0, "Tight Reversal", display=display.none)
 
 plot(longOriginGuard, "LONG Origin Guard", display=display.none)
-
-plot(afterStopPlan ? 1 : 0, "After Stop Plan", display=display.none)
