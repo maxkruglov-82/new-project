@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v30", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v31", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -190,6 +190,11 @@ bool barIsWeekend = dayofweek(time, tz) == dayofweek.saturday or dayofweek(time,
 bool clockIsWeekend = dayofweek(timenow, tz) == dayofweek.saturday or dayofweek(timenow, tz) == dayofweek.sunday
 // В потоке учитываем переход в субботу даже внутри пятничной M5 23:55.
 bool tradingDay = not skipWeekends or (not barIsWeekend and (not barstate.isrealtime or not clockIsWeekend))
+// Поиск только между текущим H1 в15:00 и полуночью Красноярска.
+// validUntil сохраняет прежний срок контекста; открытые позиции не отменяем в00:00.
+int searchStart = validUntil - 86400000
+int searchEnd = validUntil - 54000000
+bool searchWindow = not na(validUntil) and time >= searchStart and time < searchEnd and (not barstate.isrealtime or (timenow >= searchStart and timenow < searchEnd))
 
 // Пока вход активен, противоположный выход H1 не создаёт вторую сделку.
 // Исторический бар входа не доказывает последующий TP/SL: порядок неизвестен.
@@ -207,7 +212,7 @@ if stage == 6 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar
 
 // После стопа начинаем новую попытку со следующей M5. Не используем
 // её предшественника задним числом как уже известный фрактал нового плана.
-bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < validUntil and tradingDay
+bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < validUntil and tradingDay and searchWindow
 if stage == 6 or stage == 0 or stage == 7
     reversalDirection := 0
 
@@ -242,7 +247,7 @@ if retry
 
 // Старый ожидающий сетап прекращается при новой опорной H1.
 if stage >= 1 and stage <= 5
-    if time >= validUntil or not tradingDay
+    if time >= validUntil or not tradingDay or not searchWindow
         stage := 0
         longFloor0 := na
         longFloorTime := na
