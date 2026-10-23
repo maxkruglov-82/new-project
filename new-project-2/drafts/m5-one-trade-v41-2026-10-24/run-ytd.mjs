@@ -1,0 +1,32 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import {mock} from 'node:test';
+import {execute,sha256} from './observed.mjs';
+const root=new URL('../../',import.meta.url),folder=new URL('drafts/m5-one-trade-v41-2026-10-24/',root);
+const read=n=>readFileSync(new URL(n,root),'utf8');
+mkdirSync(folder,{recursive:true});
+const input=read('reports/mexc-sol-usdt-m5-2026-01-01_2026-10-23.json'),raw=JSON.parse(input),source=read('drafts/m5-one-trade-v41-2026-10-24/sol_one_trade.pine');
+assert.equal(source,read('drafts/m5-one-trade-v41-2026-10-24/sol_one_trade.txt'));
+assert.equal(sha256(input),'6c236ab57c7e112f40ea4e456ac7c7d75e5fb05f845e1aa2bb7bc33bdf7f0739');
+assert.equal(raw.candles.length,84792);
+for(let i=1;i<raw.candles.length;i++)assert.equal(raw.candles[i].time-raw.candles[i-1].time,300);
+mock.timers.enable({apis:['Date'],now:Date.parse(raw.endExclusive)+1000});
+console.log('Running draft v41 on 84792 MEXC M5 candles');
+const report=await execute(source,raw,Date.parse(raw.start),Date.parse(raw.endExclusive));
+const stats=ts=>{const closed=ts.filter(t=>['target','stop'].includes(t.status)),wins=closed.filter(t=>t.status==='target').length;return {entries:ts.length,closed:closed.length,wins,losses:closed.length-wins,winRate:closed.length?100*wins/closed.length:null,netR:closed.reduce((s,t)=>s+t.r,0),unresolved:ts.filter(t=>t.status.startsWith('unresolved')).length,ambiguous:ts.filter(t=>t.status==='ambiguous').length};};
+const monthly=Array.from({length:10},(_,i)=>{const month=`2026-${String(i+1).padStart(2,'0')}`;return {month,...stats(report.trades.filter(t=>t.referenceDate.startsWith(month)))};});
+const prev=JSON.parse(read('reports/v40-ytd-2026-10-24/result.json'));
+const norm=ts=>ts.map(({id,volumeMultiplier,...t})=>t);
+const first=new Map();for(const t of prev.trades)if(!first.has(t.referenceDate))first.set(t.referenceDate,t);
+assert.deepEqual(norm(report.trades),norm([...first.values()]));
+assert.equal(new Set(report.trades.map(t=>t.referenceDate)).size,report.trades.length);
+for(const m of monthly){let weekdays=0;for(let d=1;d<=31;d++){const date=new Date(`${m.month}-${String(d).padStart(2,'0')}T12:00:00Z`);if(date.toISOString().slice(0,7)!==m.month||date.toISOString().slice(0,10)>'2026-10-22')continue;if(![0,6].includes(date.getUTCDay()))weekdays++;}m.weekdays=weekdays;assert.ok(m.entries<=weekdays);}
+assert.equal(monthly.reduce((s,m)=>s+m.closed,0),report.summary.totalTrades);
+let multiplier=1,maxMultiplier=1,weightedPnlPerBaseSol=0,unweightedPnlPerSol=0;
+for(const t of report.trades){assert.equal(t.volumeMultiplier,multiplier);maxMultiplier=Math.max(maxMultiplier,multiplier);if(t.status==='stop'||t.status==='target'){const pnl=(t.side==='LONG'?1:-1)*(t.exitPrice-t.entry);unweightedPnlPerSol+=pnl;weightedPnlPerBaseSol+=pnl*multiplier;multiplier=t.status==='stop'?multiplier*2:1;}}
+const sizing={rule:'SOL quantity doubles after each confirmed stop; resets after target; no-signal days and unresolved outcomes leave multiplier unchanged',baseQuantitySol:1,maxMultiplier,nextMultiplier:multiplier,knownPnlUsdt:weightedPnlPerBaseSol,fixedQuantityKnownPnlUsdt:unweightedPnlPerSol,unresolvedExcluded:true,costsIncluded:false};
+const result={sizing,version:41,sourceSha256:sha256(source),inputSha256:sha256(input),period:{start:raw.start,endExclusive:raw.endExclusive,timezone:'UTC+7'},method:'Exact draft Pine on M5; no entry-bar exit; unresolved and ambiguous excluded from win rate; no commission/funding/slippage; grouped by reference date',performance:stats(report.trades),monthly,...report};
+writeFileSync(new URL('result.json',folder),JSON.stringify(result,null,2)+'\n');
+const csv=rows=>{const keys=Object.keys(rows[0]);return '\uFEFF'+[keys.join(','),...rows.map(r=>keys.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n')+'\n';};
+writeFileSync(new URL('monthly.csv',folder),csv(monthly));writeFileSync(new URL('trades.csv',folder),csv(report.trades));
+console.log(JSON.stringify({performance:result.performance,monthly,firstTradesMatchV40:true},null,2));

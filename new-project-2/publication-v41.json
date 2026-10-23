@@ -1,0 +1,9 @@
+{
+  "version": 41,
+  "date": "2026-10-24",
+  "sourceSha256": "cb7169581efbb2201ae7a167aa1fa0c766fd3e0d07469972e179d27cf6106ee5",
+  "validatedDraftSha256": "195af551f38aad6d7d9a64ab4b44f7081b76333b328af4cdd1d44cc1fc609429",
+  "oneEntryPerReferenceDay": true,
+  "volumeRule": "After each confirmed SL double SOL quantity multiplier; TP resets to 1; no-signal days and unresolved outcomes do not change multiplier",
+  "baseVolumeMultiplier": 1
+}

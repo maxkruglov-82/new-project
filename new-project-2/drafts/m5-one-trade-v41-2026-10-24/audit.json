@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "sourceSha256": "195af551f38aad6d7d9a64ab4b44f7081b76333b328af4cdd1d44cc1fc609429",
+  "inputSha256": "6c236ab57c7e112f40ea4e456ac7c7d75e5fb05f845e1aa2bb7bc33bdf7f0739",
+  "candles": 84792,
+  "trades": 166,
+  "p1Events": 398,
+  "checks": [
+    "Continuous candles",
+    "H1 ranges",
+    "P1 prior closes",
+    "Entry price/time",
+    "SL/TP formulas",
+    "First subsequent M5 exit",
+    "Monthly totals",
+    "Each trade matches first v40 trade per day; weekday and size checks in runner"
+  ]
+}

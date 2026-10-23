@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v40 — новая структура 3–4–5", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v41 — одна сделка в день", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -81,6 +81,8 @@ varip int direction = 0
 // Последний приоритет сохраняется до следующего противоположного пробоя H1.
 varip int lockedDirection = 0
 varip int firstDirection = 0
+varip float nextVolumeMultiplier = 1.0
+varip float tradeVolumeMultiplier = 1.0
 varip bool referenceHadEntry = false
 varip bool drawReference = false
 varip float h1High = na
@@ -229,13 +231,19 @@ if stage == 6 and outcome == 0 and (barstate.isrealtime or bar_index > signalBar
     if stopHit or targetHit
         outcome := stopHit and targetHit ? 2 : targetHit ? 1 : -1
         outcomeBar := bar_index
+        if outcome == -1
+            nextVolumeMultiplier := tradeVolumeMultiplier * 2.0
+        else if outcome == 1
+            nextVolumeMultiplier := 1.0
 
 if stage != 5
     pendingEntryTouched := false
 
 // После стопа начинаем новую попытку со следующей M5. Не используем
 // её предшественника задним числом как уже известный фрактал нового плана.
-bool retry = stage == 6 and outcome == -1 and bar_index > outcomeBar and time < validUntil and tradingDay and searchWindow
+// После первого SL автоматический поиск закрыт до следующей опорной H1.
+// Развороты и повторные входы после SL разрешены только вручную.
+bool retry = false
 if stage == 6 or stage == 0 or stage == 7
     reversalDirection := 0
 
@@ -270,7 +278,7 @@ if retry
     positionLeft := na
 
 // Старый ожидающий сетап прекращается при новой опорной H1.
-if stage >= 1 and stage <= 5
+if stage >= 1 and stage <= 5 and not referenceHadEntry
     if time >= validUntil or not tradingDay or not searchWindow
         longOriginGuard := na
         stage := 0
@@ -459,7 +467,8 @@ if stage >= 1 and stage <= 5
             // Без тиков на истории пропускаем неоднозначный порядок low/high.
             bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? open <= entry and high >= entry : open >= entry and low <= entry)
             bool profitableTake = direction == -1 ? point3 + takeOffset < entry : point3 - takeOffset > entry
-            if stage == 5 and profitableTake and (liveTouch or historyTouch)
+            if stage == 5 and not referenceHadEntry and profitableTake and (liveTouch or historyTouch)
+                tradeVolumeMultiplier := nextVolumeMultiplier
                 stage := 6
                 outcome := 0
                 outcomeBar := na
@@ -697,7 +706,7 @@ if array.size(archivedExpiry) > 0
 // Метка входит в ту же группу, что Фибо и позиция: при лимите истории
 // удаляется вместе с ней, не оставляя одиночного SHORT/LONG без разметки.
 if drawReference and showMarks and stage == 6 and not na(signalBar) and na(signalMark)
-    signalMark := label.new(time, direction == -1 ? high : low, direction == -1 ? "SHORT" : "LONG", xloc=xloc.bar_time, yloc=direction == -1 ? yloc.abovebar : yloc.belowbar, style=direction == -1 ? label.style_label_down : label.style_label_up, color=direction == -1 ? color.red : color.green, textcolor=color.white, size=size.small)
+    signalMark := label.new(time, direction == -1 ? high : low, (direction == -1 ? "SHORT ×" : "LONG ×") + str.tostring(tradeVolumeMultiplier, "#.##"), xloc=xloc.bar_time, yloc=direction == -1 ? yloc.abovebar : yloc.belowbar, style=direction == -1 ? label.style_label_down : label.style_label_up, color=direction == -1 ? color.red : color.green, textcolor=color.white, size=size.small)
 
 // Рабочий диапазон M5. Его правый край сопровождает расчёт до сигнала/отмены.
 if drawReference and not hideUnentered and stage >= 4 and stage <= 6 and not na(point1) and not na(point2)
@@ -852,11 +861,14 @@ plot(longFloor0, "LONG Floor 0", color=color.new(color.white, 100), display=disp
 plot(outcome, "Outcome", color=color.new(color.white, 100), display=display.data_window)
 plot(showMarks and ((shortEvent and eventDraw) or (drawReference and direction == -1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "SHORT", color=color.new(color.white, 100), display=display.none)
 plot(showMarks and ((longEvent and eventDraw) or (drawReference and direction == 1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "LONG", color=color.new(color.white, 100), display=display.none)
-alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}}')
-alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}}')
+alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}} | Volume x{{plot("Position Multiplier")}}')
+alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}} | Volume x{{plot("Position Multiplier")}}')
 
 plot(shortEvent or longEvent ? eventSwingTarget : planVisible ? point3 : na, "Swing Target", color=color.new(color.white, 100), display=display.none)
 
 plot(tightReversal ? 1 : 0, "Tight Reversal", display=display.none)
 
 plot(longOriginGuard, "LONG Origin Guard", display=display.none)
+
+plot(shortEvent or longEvent ? tradeVolumeMultiplier : na, "Position Multiplier", display=display.data_window)
+plot(nextVolumeMultiplier, "Next Position Multiplier", display=display.data_window)
