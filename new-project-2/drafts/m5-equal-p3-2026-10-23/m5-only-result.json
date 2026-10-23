@@ -1,0 +1,158 @@
+{
+  "sourceSha256": "8383e1195dc415e94c42a81bfd144bcdf5d1670466de6a28f21f615b73b56a12",
+  "method": "Exact Pine on closed M5; intrabar retest not inferred",
+  "summary": {
+    "calendarReferenceDays": 1,
+    "excludedWeekendDays": 0,
+    "referenceDays": 1,
+    "enteredTrades": 2,
+    "targets": 0,
+    "stops": 2,
+    "ambiguous": 0,
+    "unresolved": 0,
+    "totalTrades": 2,
+    "knownOutcomes": 2,
+    "winRateKnown": 0,
+    "daysWithEntry": 1,
+    "daysWithoutEntry": 0,
+    "daysWithTarget": 0,
+    "daysWithStopsAndNoTarget": 1,
+    "netRKnownBeforeCosts": -2
+  },
+  "days": [
+    {
+      "date": "2026-10-22",
+      "referenceClose": "2026-10-22T15:00:00.000+07:00",
+      "high": 104.62,
+      "low": 104.16,
+      "endingStage": null,
+      "trades": 2,
+      "targets": 0,
+      "stops": 2,
+      "ambiguous": 0,
+      "unresolved": 0
+    }
+  ],
+  "trades": [
+    {
+      "id": 1,
+      "referenceDate": "2026-10-22",
+      "side": "SHORT",
+      "tightReversal": false,
+      "entryBarStart": "2026-10-22T16:30:00.000+07:00",
+      "entryBarEnd": "2026-10-22T16:35:00.000+07:00",
+      "fiboStop": 103.9475,
+      "swingTarget": 103.48,
+      "entry": 103.71375,
+      "stop": 103.9775,
+      "target": 103.58,
+      "status": "stop",
+      "exitBarStart": "2026-10-22T16:45:00.000+07:00",
+      "exitBarEnd": "2026-10-22T16:50:00.000+07:00",
+      "exitPrice": 103.9775,
+      "r": -1,
+      "rewardRisk": 0.5071090047393569
+    },
+    {
+      "id": 2,
+      "referenceDate": "2026-10-22",
+      "side": "LONG",
+      "tightReversal": false,
+      "entryBarStart": "2026-10-22T23:10:00.000+07:00",
+      "entryBarEnd": "2026-10-22T23:15:00.000+07:00",
+      "fiboStop": 104.045,
+      "swingTarget": 104.88,
+      "entry": 104.4625,
+      "stop": 104.015,
+      "target": 104.78,
+      "status": "stop",
+      "exitBarStart": "2026-10-22T23:45:00.000+07:00",
+      "exitBarEnd": "2026-10-22T23:50:00.000+07:00",
+      "exitPrice": 104.015,
+      "r": -1,
+      "rewardRisk": 0.7094972067038924
+    }
+  ],
+  "p1Audit": [
+    {
+      "confirmedAt": "2026-10-22T15:25:00.000+07:00",
+      "pivotAt": "2026-10-22T15:20:00.000+07:00",
+      "priorCloseAt": "2026-10-22T15:05:00.000+07:00",
+      "side": -1,
+      "pivotClose": 103.91,
+      "priorClose": 104.07,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    },
+    {
+      "confirmedAt": "2026-10-22T15:40:00.000+07:00",
+      "pivotAt": "2026-10-22T15:35:00.000+07:00",
+      "priorCloseAt": "2026-10-22T15:05:00.000+07:00",
+      "side": -1,
+      "pivotClose": 103.7,
+      "priorClose": 104.07,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    },
+    {
+      "confirmedAt": "2026-10-22T17:45:00.000+07:00",
+      "pivotAt": "2026-10-22T17:40:00.000+07:00",
+      "priorCloseAt": "2026-10-22T17:30:00.000+07:00",
+      "side": 1,
+      "pivotClose": 104.56,
+      "priorClose": 104.67,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    },
+    {
+      "confirmedAt": "2026-10-22T20:15:00.000+07:00",
+      "pivotAt": "2026-10-22T20:10:00.000+07:00",
+      "priorCloseAt": "2026-10-22T15:05:00.000+07:00",
+      "side": -1,
+      "pivotClose": 104.15,
+      "priorClose": 104.07,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    },
+    {
+      "confirmedAt": "2026-10-22T20:35:00.000+07:00",
+      "pivotAt": "2026-10-22T20:30:00.000+07:00",
+      "priorCloseAt": "2026-10-22T17:30:00.000+07:00",
+      "side": 1,
+      "pivotClose": 105.16,
+      "priorClose": 104.67,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    },
+    {
+      "confirmedAt": "2026-10-22T22:15:00.000+07:00",
+      "pivotAt": "2026-10-22T22:10:00.000+07:00",
+      "priorCloseAt": "2026-10-22T15:05:00.000+07:00",
+      "side": -1,
+      "pivotClose": 104.11,
+      "priorClose": 104.07,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    },
+    {
+      "confirmedAt": "2026-10-22T22:30:00.000+07:00",
+      "pivotAt": "2026-10-22T22:25:00.000+07:00",
+      "priorCloseAt": "2026-10-22T17:30:00.000+07:00",
+      "side": 1,
+      "pivotClose": 104.29,
+      "priorClose": 104.67,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    },
+    {
+      "confirmedAt": "2026-10-22T23:55:00.000+07:00",
+      "pivotAt": "2026-10-22T23:50:00.000+07:00",
+      "priorCloseAt": "2026-10-22T15:05:00.000+07:00",
+      "side": -1,
+      "pivotClose": 103.42,
+      "priorClose": 104.07,
+      "h1High": 104.62,
+      "h1Low": 104.16
+    }
+  ]
+}

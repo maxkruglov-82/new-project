@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "candles": 8760,
+  "verifiedTrades": 25,
+  "verifiedP1Events": 62,
+  "verifiedNewStructures": 7,
+  "sourceSha256": "56f6ae51c5007703fb9de10088cfb85ca64b4c86162ac7cc9f35e8f7beb7f0b5",
+  "baseSourceSha256": "8383e1195dc415e94c42a81bfd144bcdf5d1670466de6a28f21f615b73b56a12",
+  "inputSha256": "149bc1c19735cf68e84c8d00d21c1a7fdc8108bc99ce74d09d892ca06a3fdeba",
+  "checks": [
+    "Complete M5 and H1",
+    "P1 earlier close without future data",
+    "Every confirmed4 is an independent raw M5 swing after3 and did not touch old entry",
+    "No historical entry on4 confirmation",
+    "E/SL/TP formulas",
+    "First subsequent exit reconstructed",
+    "No trade after TP",
+    "Comparison and CSV reconciliation",
+    "v39 baseline exactly reproduces halfyear May ledger",
+    "RealMay1 entry20:25 and TP20:30"
+  ]
+}

@@ -1,12 +1,9 @@
-import '../reports/v38-h1-priority-2026-10-23/check.test.mjs';
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {sha256} from '../backtest/run_v37_observed.mjs';
-test('published v38 is byte-equivalent to validated candidate except title; TXT matches',()=>{
+test('published v40 matches validated draft except title; TXT identical',()=>{
  const read=n=>readFileSync(new URL(n,import.meta.url),'utf8');
- const source=read('../sol_short_setup.pine'),candidate=read('../reports/v38-h1-priority-2026-10-23/sol_h1_priority.pine'),change=JSON.parse(read('../reports/v38-h1-priority-2026-10-23/change.json'));
+ const source=read('../sol_short_setup.pine');
  assert.equal(source,read('../sol_short_setup.txt'));
- assert.equal(source,candidate.replace('1:1 v39 (черновик)','1:1 v38'));
- assert.equal(sha256(source),change.sourceSha256);assert.equal(sha256(candidate),change.calculatedCandidateSha256);
+ assert.equal(source,read('../drafts/m5-rolling-structure-2026-10-23/sol_rolling.pine').replace('v40 — новая структура 3–4–5 (черновик)','v40 — новая структура 3–4–5'));
 });

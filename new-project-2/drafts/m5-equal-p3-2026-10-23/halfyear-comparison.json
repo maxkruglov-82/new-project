@@ -1,0 +1,972 @@
+{
+  "period": {
+    "start": "2026-04-23T14:00:00+07:00",
+    "endExclusive": "2026-10-23T00:00:00+07:00",
+    "candles": 52536,
+    "timezone": "UTC+7"
+  },
+  "inputSha256": "d577f10284f1aa9e64cbe97111b98948fe10990757a789657bddae5c39111681",
+  "baseSourceSha256": "ebc53245d09fbf4dc2c7d7795261d900e23e820525413d7fdcb2e469584c20f7",
+  "sourceSha256": "8383e1195dc415e94c42a81bfd144bcdf5d1670466de6a28f21f615b73b56a12",
+  "baseline": "Audited published v38 YTD ledger sliced23April–22October; exact same M5 candles and source SHA validated.",
+  "v38": {
+    "entered": 121,
+    "closed": 119,
+    "wins": 74,
+    "losses": 45,
+    "unresolved": 2,
+    "ambiguous": 0,
+    "winRate": 0.6218487394957983,
+    "netR": 3.85385797847988,
+    "maxDrawdownR": 9.052904859498895,
+    "profitFactor": 1.085641288410664
+  },
+  "v39": {
+    "entered": 123,
+    "closed": 122,
+    "wins": 76,
+    "losses": 46,
+    "unresolved": 1,
+    "ambiguous": 0,
+    "winRate": 0.6229508196721312,
+    "netR": 2.557430635602426,
+    "maxDrawdownR": 9.052904859498893,
+    "profitFactor": 1.0555963181652699
+  },
+  "monthly": [
+    {
+      "month": "2026-04",
+      "v38": {
+        "entered": 7,
+        "closed": 7,
+        "wins": 4,
+        "losses": 3,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.5714285714285714,
+        "netR": -0.581023432825595,
+        "maxDrawdownR": 2,
+        "profitFactor": 0.8063255223914684
+      },
+      "v39": {
+        "entered": 7,
+        "closed": 7,
+        "wins": 4,
+        "losses": 3,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.5714285714285714,
+        "netR": -0.6670047412367697,
+        "maxDrawdownR": 2,
+        "profitFactor": 0.7776650862544101
+      }
+    },
+    {
+      "month": "2026-05",
+      "v38": {
+        "entered": 23,
+        "closed": 23,
+        "wins": 11,
+        "losses": 12,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.4782608695652174,
+        "netR": -5.62609709935777,
+        "maxDrawdownR": 7.052904859498895,
+        "profitFactor": 0.5311585750535193
+      },
+      "v39": {
+        "entered": 23,
+        "closed": 23,
+        "wins": 11,
+        "losses": 12,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.4782608695652174,
+        "netR": -5.62609709935777,
+        "maxDrawdownR": 7.052904859498895,
+        "profitFactor": 0.5311585750535193
+      }
+    },
+    {
+      "month": "2026-06",
+      "v38": {
+        "entered": 19,
+        "closed": 18,
+        "wins": 14,
+        "losses": 4,
+        "unresolved": 1,
+        "ambiguous": 0,
+        "winRate": 0.7777777777777778,
+        "netR": 5.345551607307677,
+        "maxDrawdownR": 2.1680129240710784,
+        "profitFactor": 2.336387901826919
+      },
+      "v39": {
+        "entered": 22,
+        "closed": 21,
+        "wins": 15,
+        "losses": 6,
+        "unresolved": 1,
+        "ambiguous": 0,
+        "winRate": 0.7142857142857143,
+        "netR": 3.8374518078015267,
+        "maxDrawdownR": 3.9108700669282284,
+        "profitFactor": 1.6395753013002548
+      }
+    },
+    {
+      "month": "2026-07",
+      "v38": {
+        "entered": 18,
+        "closed": 17,
+        "wins": 10,
+        "losses": 7,
+        "unresolved": 1,
+        "ambiguous": 0,
+        "winRate": 0.5882352941176471,
+        "netR": -1.250883988585746,
+        "maxDrawdownR": 4.302033248684026,
+        "profitFactor": 0.8213022873448935
+      },
+      "v39": {
+        "entered": 19,
+        "closed": 19,
+        "wins": 11,
+        "losses": 8,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.5789473684210527,
+        "netR": -1.668554671316653,
+        "maxDrawdownR": 5.302033248684026,
+        "profitFactor": 0.7914306660854183
+      }
+    },
+    {
+      "month": "2026-08",
+      "v38": {
+        "entered": 18,
+        "closed": 18,
+        "wins": 12,
+        "losses": 6,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.6666666666666666,
+        "netR": 1.6263405274210254,
+        "maxDrawdownR": 4.590909090909073,
+        "profitFactor": 1.271056754570171
+      },
+      "v39": {
+        "entered": 17,
+        "closed": 17,
+        "wins": 13,
+        "losses": 4,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.7647058823529411,
+        "netR": 3.5273571590740485,
+        "maxDrawdownR": 2.644675067951652,
+        "profitFactor": 1.8818392897685121
+      }
+    },
+    {
+      "month": "2026-09",
+      "v38": {
+        "entered": 21,
+        "closed": 21,
+        "wins": 11,
+        "losses": 10,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.5238095238095238,
+        "netR": -1.4288729782410292,
+        "maxDrawdownR": 4.856270216218261,
+        "profitFactor": 0.8571127021758969
+      },
+      "v39": {
+        "entered": 20,
+        "closed": 20,
+        "wins": 10,
+        "losses": 10,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.5,
+        "netR": -2.206174905435896,
+        "maxDrawdownR": 5.633572143413128,
+        "profitFactor": 0.7793825094564102
+      }
+    },
+    {
+      "month": "2026-10",
+      "v38": {
+        "entered": 15,
+        "closed": 15,
+        "wins": 12,
+        "losses": 3,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.8,
+        "netR": 5.768843342761318,
+        "maxDrawdownR": 1,
+        "profitFactor": 2.9229477809204396
+      },
+      "v39": {
+        "entered": 15,
+        "closed": 15,
+        "wins": 12,
+        "losses": 3,
+        "unresolved": 0,
+        "ambiguous": 0,
+        "winRate": 0.8,
+        "netR": 5.360453086073939,
+        "maxDrawdownR": 2,
+        "profitFactor": 2.7868176953579797
+      }
+    }
+  ],
+  "changedDays": [
+    {
+      "date": "2026-04-23",
+      "before": [
+        {
+          "id": 84,
+          "referenceDate": "2026-04-23",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-04-23T16:15:00.000+07:00",
+          "entryBarEnd": "2026-04-23T16:20:00.000+07:00",
+          "fiboStop": 85.8,
+          "swingTarget": 85.21,
+          "entry": 85.505,
+          "stop": 85.83,
+          "target": 85.31,
+          "status": "target",
+          "exitBarStart": "2026-04-23T17:05:00.000+07:00",
+          "exitBarEnd": "2026-04-23T17:10:00.000+07:00",
+          "exitPrice": 85.31,
+          "r": 0.5999999999999738,
+          "rewardRisk": 0.5999999999999738
+        }
+      ],
+      "after": [
+        {
+          "id": 1,
+          "referenceDate": "2026-04-23",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-04-23T15:55:00.000+07:00",
+          "entryBarEnd": "2026-04-23T16:00:00.000+07:00",
+          "fiboStop": 85.975,
+          "swingTarget": 85.5,
+          "entry": 85.7375,
+          "stop": 86.005,
+          "target": 85.6,
+          "status": "target",
+          "exitBarStart": "2026-04-23T16:00:00.000+07:00",
+          "exitBarEnd": "2026-04-23T16:05:00.000+07:00",
+          "exitPrice": 85.6,
+          "r": 0.514018691588799,
+          "rewardRisk": 0.514018691588799
+        }
+      ]
+    },
+    {
+      "date": "2026-06-09",
+      "before": [
+        {
+          "id": 120,
+          "referenceDate": "2026-06-09",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-09T19:00:00.000+07:00",
+          "entryBarEnd": "2026-06-09T19:05:00.000+07:00",
+          "fiboStop": 67.0275,
+          "swingTarget": 65.84,
+          "entry": 66.43375,
+          "stop": 67.0575,
+          "target": 65.94,
+          "status": "target",
+          "exitBarStart": "2026-06-09T19:45:00.000+07:00",
+          "exitBarEnd": "2026-06-09T19:50:00.000+07:00",
+          "exitPrice": 65.94,
+          "r": 0.791583166332673,
+          "rewardRisk": 0.791583166332673
+        }
+      ],
+      "after": [
+        {
+          "id": 37,
+          "referenceDate": "2026-06-09",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-09T17:55:00.000+07:00",
+          "entryBarEnd": "2026-06-09T18:00:00.000+07:00",
+          "fiboStop": 66.9675,
+          "swingTarget": 65.93,
+          "entry": 66.44875,
+          "stop": 66.9975,
+          "target": 66.03,
+          "status": "target",
+          "exitBarStart": "2026-06-09T18:10:00.000+07:00",
+          "exitBarEnd": "2026-06-09T18:15:00.000+07:00",
+          "exitPrice": 66.03,
+          "r": 0.7630979498861123,
+          "rewardRisk": 0.7630979498861123
+        }
+      ]
+    },
+    {
+      "date": "2026-06-16",
+      "before": [
+        {
+          "id": 126,
+          "referenceDate": "2026-06-16",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-16T22:10:00.000+07:00",
+          "entryBarEnd": "2026-06-16T22:15:00.000+07:00",
+          "fiboStop": 74.485,
+          "swingTarget": 72.28,
+          "entry": 73.3825,
+          "stop": 74.515,
+          "target": 72.38,
+          "status": "unresolved_at_new_h1",
+          "exitBarStart": null,
+          "exitBarEnd": "2026-06-17T15:00:00.000+07:00",
+          "exitPrice": null,
+          "r": null,
+          "rewardRisk": 0.8852097130242748
+        }
+      ],
+      "after": [
+        {
+          "id": 43,
+          "referenceDate": "2026-06-16",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-16T16:15:00.000+07:00",
+          "entryBarEnd": "2026-06-16T16:20:00.000+07:00",
+          "fiboStop": 74.6175,
+          "swingTarget": 75.62,
+          "entry": 75.11875,
+          "stop": 74.5875,
+          "target": 75.52,
+          "status": "stop",
+          "exitBarStart": "2026-06-16T18:05:00.000+07:00",
+          "exitBarEnd": "2026-06-16T18:10:00.000+07:00",
+          "exitPrice": 74.5875,
+          "r": -1,
+          "rewardRisk": 0.7552941176470407
+        },
+        {
+          "id": 44,
+          "referenceDate": "2026-06-16",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-16T19:40:00.000+07:00",
+          "entryBarEnd": "2026-06-16T19:45:00.000+07:00",
+          "fiboStop": 74.035,
+          "swingTarget": 75.51,
+          "entry": 74.7725,
+          "stop": 74.005,
+          "target": 75.41,
+          "status": "stop",
+          "exitBarStart": "2026-06-16T20:10:00.000+07:00",
+          "exitBarEnd": "2026-06-16T20:15:00.000+07:00",
+          "exitPrice": 74.005,
+          "r": -1,
+          "rewardRisk": 0.8306188925081489
+        },
+        {
+          "id": 45,
+          "referenceDate": "2026-06-16",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-16T22:10:00.000+07:00",
+          "entryBarEnd": "2026-06-16T22:15:00.000+07:00",
+          "fiboStop": 74.485,
+          "swingTarget": 72.28,
+          "entry": 73.3825,
+          "stop": 74.515,
+          "target": 72.38,
+          "status": "unresolved_at_new_h1",
+          "exitBarStart": null,
+          "exitBarEnd": "2026-06-17T15:00:00.000+07:00",
+          "exitPrice": null,
+          "r": null,
+          "rewardRisk": 0.8852097130242748
+        }
+      ]
+    },
+    {
+      "date": "2026-06-19",
+      "before": [],
+      "after": [
+        {
+          "id": 48,
+          "referenceDate": "2026-06-19",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-19T23:45:00.000+07:00",
+          "entryBarEnd": "2026-06-19T23:50:00.000+07:00",
+          "fiboStop": 68.59,
+          "swingTarget": 69.54,
+          "entry": 69.065,
+          "stop": 68.56,
+          "target": 69.44,
+          "status": "target",
+          "exitBarStart": "2026-06-20T00:45:00.000+07:00",
+          "exitBarEnd": "2026-06-20T00:50:00.000+07:00",
+          "exitPrice": 69.44,
+          "r": 0.7425742574257492,
+          "rewardRisk": 0.7425742574257492
+        }
+      ]
+    },
+    {
+      "date": "2026-06-22",
+      "before": [
+        {
+          "id": 129,
+          "referenceDate": "2026-06-22",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-22T20:40:00.000+07:00",
+          "entryBarEnd": "2026-06-22T20:45:00.000+07:00",
+          "fiboStop": 74.1275,
+          "swingTarget": 74.86,
+          "entry": 74.49375,
+          "stop": 74.0975,
+          "target": 74.76,
+          "status": "target",
+          "exitBarStart": "2026-06-22T20:45:00.000+07:00",
+          "exitBarEnd": "2026-06-22T20:50:00.000+07:00",
+          "exitPrice": 74.76,
+          "r": 0.6719242902208034,
+          "rewardRisk": 0.6719242902208034
+        }
+      ],
+      "after": [
+        {
+          "id": 49,
+          "referenceDate": "2026-06-22",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-06-22T20:20:00.000+07:00",
+          "entryBarEnd": "2026-06-22T20:25:00.000+07:00",
+          "fiboStop": 74.1275,
+          "swingTarget": 74.54,
+          "entry": 74.33375,
+          "stop": 74.0975,
+          "target": 74.44,
+          "status": "target",
+          "exitBarStart": "2026-06-22T20:25:00.000+07:00",
+          "exitBarEnd": "2026-06-22T20:30:00.000+07:00",
+          "exitPrice": 74.44,
+          "r": 0.44973544973546503,
+          "rewardRisk": 0.44973544973546503
+        }
+      ]
+    },
+    {
+      "date": "2026-07-02",
+      "before": [
+        {
+          "id": 134,
+          "referenceDate": "2026-07-02",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-07-02T20:25:00.000+07:00",
+          "entryBarEnd": "2026-07-02T20:30:00.000+07:00",
+          "fiboStop": 78.575,
+          "swingTarget": 82.8,
+          "entry": 80.6875,
+          "stop": 78.545,
+          "target": 82.7,
+          "status": "unresolved_at_new_h1",
+          "exitBarStart": null,
+          "exitBarEnd": "2026-07-03T15:00:00.000+07:00",
+          "exitPrice": null,
+          "r": null,
+          "rewardRisk": 0.9393232205367582
+        }
+      ],
+      "after": [
+        {
+          "id": 54,
+          "referenceDate": "2026-07-02",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-07-02T17:15:00.000+07:00",
+          "entryBarEnd": "2026-07-02T17:20:00.000+07:00",
+          "fiboStop": 79.2875,
+          "swingTarget": 79.85,
+          "entry": 79.56875,
+          "stop": 79.2575,
+          "target": 79.75,
+          "status": "target",
+          "exitBarStart": "2026-07-02T17:20:00.000+07:00",
+          "exitBarEnd": "2026-07-02T17:25:00.000+07:00",
+          "exitPrice": 79.75,
+          "r": 0.5823293172690924,
+          "rewardRisk": 0.5823293172690924
+        }
+      ]
+    },
+    {
+      "date": "2026-07-27",
+      "before": [
+        {
+          "id": 147,
+          "referenceDate": "2026-07-27",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-07-27T20:55:00.000+07:00",
+          "entryBarEnd": "2026-07-27T21:00:00.000+07:00",
+          "fiboStop": 76.2625,
+          "swingTarget": 77.48,
+          "entry": 76.87125,
+          "stop": 76.2325,
+          "target": 77.38,
+          "status": "stop",
+          "exitBarStart": "2026-07-27T21:20:00.000+07:00",
+          "exitBarEnd": "2026-07-27T21:25:00.000+07:00",
+          "exitPrice": 76.2325,
+          "r": -1,
+          "rewardRisk": 0.7964774951076176
+        }
+      ],
+      "after": [
+        {
+          "id": 67,
+          "referenceDate": "2026-07-27",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-07-27T16:20:00.000+07:00",
+          "entryBarEnd": "2026-07-27T16:25:00.000+07:00",
+          "fiboStop": 76.375,
+          "swingTarget": 76.09,
+          "entry": 76.2325,
+          "stop": 76.405,
+          "target": 76.19,
+          "status": "stop",
+          "exitBarStart": "2026-07-27T16:30:00.000+07:00",
+          "exitBarEnd": "2026-07-27T16:35:00.000+07:00",
+          "exitPrice": 76.405,
+          "r": -1,
+          "rewardRisk": 0.24637681159422678
+        },
+        {
+          "id": 68,
+          "referenceDate": "2026-07-27",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-07-27T20:55:00.000+07:00",
+          "entryBarEnd": "2026-07-27T21:00:00.000+07:00",
+          "fiboStop": 76.2625,
+          "swingTarget": 77.48,
+          "entry": 76.87125,
+          "stop": 76.2325,
+          "target": 77.38,
+          "status": "stop",
+          "exitBarStart": "2026-07-27T21:20:00.000+07:00",
+          "exitBarEnd": "2026-07-27T21:25:00.000+07:00",
+          "exitPrice": 76.2325,
+          "r": -1,
+          "rewardRisk": 0.7964774951076176
+        }
+      ]
+    },
+    {
+      "date": "2026-08-11",
+      "before": [
+        {
+          "id": 156,
+          "referenceDate": "2026-08-11",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-11T17:40:00.000+07:00",
+          "entryBarEnd": "2026-08-11T17:45:00.000+07:00",
+          "fiboStop": 75.55,
+          "swingTarget": 75.99,
+          "entry": 75.77,
+          "stop": 75.52,
+          "target": 75.89,
+          "status": "target",
+          "exitBarStart": "2026-08-11T17:45:00.000+07:00",
+          "exitBarEnd": "2026-08-11T17:50:00.000+07:00",
+          "exitPrice": 75.89,
+          "r": 0.4800000000000182,
+          "rewardRisk": 0.4800000000000182
+        }
+      ],
+      "after": [
+        {
+          "id": 77,
+          "referenceDate": "2026-08-11",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-11T17:15:00.000+07:00",
+          "entryBarEnd": "2026-08-11T17:20:00.000+07:00",
+          "fiboStop": 75.55,
+          "swingTarget": 75.95,
+          "entry": 75.75,
+          "stop": 75.52,
+          "target": 75.85,
+          "status": "target",
+          "exitBarStart": "2026-08-11T17:25:00.000+07:00",
+          "exitBarEnd": "2026-08-11T17:30:00.000+07:00",
+          "exitPrice": 75.85,
+          "r": 0.4347826086956199,
+          "rewardRisk": 0.4347826086956199
+        }
+      ]
+    },
+    {
+      "date": "2026-08-13",
+      "before": [
+        {
+          "id": 158,
+          "referenceDate": "2026-08-13",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-13T19:30:00.000+07:00",
+          "entryBarEnd": "2026-08-13T19:35:00.000+07:00",
+          "fiboStop": 76.31,
+          "swingTarget": 75.51,
+          "entry": 75.91,
+          "stop": 76.34,
+          "target": 75.61,
+          "status": "stop",
+          "exitBarStart": "2026-08-13T21:10:00.000+07:00",
+          "exitBarEnd": "2026-08-13T21:15:00.000+07:00",
+          "exitPrice": 76.34,
+          "r": -1,
+          "rewardRisk": 0.6976744186046335
+        },
+        {
+          "id": 159,
+          "referenceDate": "2026-08-13",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-13T23:45:00.000+07:00",
+          "entryBarEnd": "2026-08-13T23:50:00.000+07:00",
+          "fiboStop": 75.9425,
+          "swingTarget": 75.04,
+          "entry": 75.49125,
+          "stop": 75.9725,
+          "target": 75.14,
+          "status": "stop",
+          "exitBarStart": "2026-08-14T01:50:00.000+07:00",
+          "exitBarEnd": "2026-08-14T01:55:00.000+07:00",
+          "exitPrice": 75.9725,
+          "r": -1,
+          "rewardRisk": 0.7298701298701114
+        }
+      ],
+      "after": [
+        {
+          "id": 79,
+          "referenceDate": "2026-08-13",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-13T17:10:00.000+07:00",
+          "entryBarEnd": "2026-08-13T17:15:00.000+07:00",
+          "fiboStop": 76.065,
+          "swingTarget": 75.77,
+          "entry": 75.9175,
+          "stop": 76.095,
+          "target": 75.87,
+          "status": "target",
+          "exitBarStart": "2026-08-13T17:15:00.000+07:00",
+          "exitBarEnd": "2026-08-13T17:20:00.000+07:00",
+          "exitPrice": 75.87,
+          "r": 0.26760563380282143,
+          "rewardRisk": 0.26760563380282143
+        }
+      ]
+    },
+    {
+      "date": "2026-08-14",
+      "before": [
+        {
+          "id": 160,
+          "referenceDate": "2026-08-14",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-14T18:00:00.000+07:00",
+          "entryBarEnd": "2026-08-14T18:05:00.000+07:00",
+          "fiboStop": 75.67,
+          "swingTarget": 75.29,
+          "entry": 75.48,
+          "stop": 75.7,
+          "target": 75.39,
+          "status": "target",
+          "exitBarStart": "2026-08-14T18:05:00.000+07:00",
+          "exitBarEnd": "2026-08-14T18:10:00.000+07:00",
+          "exitPrice": 75.39,
+          "r": 0.4090909090909267,
+          "rewardRisk": 0.4090909090909267
+        }
+      ],
+      "after": [
+        {
+          "id": 80,
+          "referenceDate": "2026-08-14",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-08-14T16:05:00.000+07:00",
+          "entryBarEnd": "2026-08-14T16:10:00.000+07:00",
+          "fiboStop": 75.615,
+          "swingTarget": 75.84,
+          "entry": 75.7275,
+          "stop": 75.585,
+          "target": 75.74,
+          "status": "target",
+          "exitBarStart": "2026-08-14T16:10:00.000+07:00",
+          "exitBarEnd": "2026-08-14T16:15:00.000+07:00",
+          "exitPrice": 75.74,
+          "r": 0.08771929824552656,
+          "rewardRisk": 0.08771929824552656
+        }
+      ]
+    },
+    {
+      "date": "2026-09-03",
+      "before": [
+        {
+          "id": 171,
+          "referenceDate": "2026-09-03",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-09-03T17:50:00.000+07:00",
+          "entryBarEnd": "2026-09-03T17:55:00.000+07:00",
+          "fiboStop": 100.4275,
+          "swingTarget": 99.87,
+          "entry": 100.14875,
+          "stop": 100.4575,
+          "target": 99.97,
+          "status": "stop",
+          "exitBarStart": "2026-09-03T18:00:00.000+07:00",
+          "exitBarEnd": "2026-09-03T18:05:00.000+07:00",
+          "exitPrice": 100.4575,
+          "r": -1,
+          "rewardRisk": 0.5789473684210986
+        },
+        {
+          "id": 172,
+          "referenceDate": "2026-09-03",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-09-03T20:50:00.000+07:00",
+          "entryBarEnd": "2026-09-03T20:55:00.000+07:00",
+          "fiboStop": 100.8725,
+          "swingTarget": 101.98,
+          "entry": 101.42625,
+          "stop": 100.8425,
+          "target": 101.88,
+          "status": "target",
+          "exitBarStart": "2026-09-03T21:15:00.000+07:00",
+          "exitBarEnd": "2026-09-03T21:20:00.000+07:00",
+          "exitPrice": 101.88,
+          "r": 0.7773019271948667,
+          "rewardRisk": 0.7773019271948667
+        }
+      ],
+      "after": [
+        {
+          "id": 91,
+          "referenceDate": "2026-09-03",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-09-03T17:50:00.000+07:00",
+          "entryBarEnd": "2026-09-03T17:55:00.000+07:00",
+          "fiboStop": 100.4275,
+          "swingTarget": 99.87,
+          "entry": 100.14875,
+          "stop": 100.4575,
+          "target": 99.97,
+          "status": "stop",
+          "exitBarStart": "2026-09-03T18:00:00.000+07:00",
+          "exitBarEnd": "2026-09-03T18:05:00.000+07:00",
+          "exitPrice": 100.4575,
+          "r": -1,
+          "rewardRisk": 0.5789473684210986
+        }
+      ]
+    },
+    {
+      "date": "2026-10-05",
+      "before": [
+        {
+          "id": 192,
+          "referenceDate": "2026-10-05",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-05T17:15:00.000+07:00",
+          "entryBarEnd": "2026-10-05T17:20:00.000+07:00",
+          "fiboStop": 120.8,
+          "swingTarget": 120.46,
+          "entry": 120.63,
+          "stop": 120.83,
+          "target": 120.56,
+          "status": "stop",
+          "exitBarStart": "2026-10-05T17:25:00.000+07:00",
+          "exitBarEnd": "2026-10-05T17:30:00.000+07:00",
+          "exitPrice": 120.83,
+          "r": -1,
+          "rewardRisk": 0.3499999999999609
+        },
+        {
+          "id": 193,
+          "referenceDate": "2026-10-05",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-05T18:25:00.000+07:00",
+          "entryBarEnd": "2026-10-05T18:30:00.000+07:00",
+          "fiboStop": 120.9475,
+          "swingTarget": 120.39,
+          "entry": 120.66875,
+          "stop": 120.9775,
+          "target": 120.49,
+          "status": "target",
+          "exitBarStart": "2026-10-05T19:00:00.000+07:00",
+          "exitBarEnd": "2026-10-05T19:05:00.000+07:00",
+          "exitPrice": 120.49,
+          "r": 0.578947368421072,
+          "rewardRisk": 0.578947368421072
+        }
+      ],
+      "after": [
+        {
+          "id": 111,
+          "referenceDate": "2026-10-05",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-05T17:05:00.000+07:00",
+          "entryBarEnd": "2026-10-05T17:10:00.000+07:00",
+          "fiboStop": 120.8,
+          "swingTarget": 120.5,
+          "entry": 120.65,
+          "stop": 120.83,
+          "target": 120.6,
+          "status": "target",
+          "exitBarStart": "2026-10-05T17:10:00.000+07:00",
+          "exitBarEnd": "2026-10-05T17:15:00.000+07:00",
+          "exitPrice": 120.6,
+          "r": 0.27777777777785234,
+          "rewardRisk": 0.27777777777785234
+        }
+      ]
+    },
+    {
+      "date": "2026-10-13",
+      "before": [
+        {
+          "id": 197,
+          "referenceDate": "2026-10-13",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-13T17:00:00.000+07:00",
+          "entryBarEnd": "2026-10-13T17:05:00.000+07:00",
+          "fiboStop": 107.625,
+          "swingTarget": 106.74,
+          "entry": 107.1825,
+          "stop": 107.655,
+          "target": 106.84,
+          "status": "target",
+          "exitBarStart": "2026-10-13T17:15:00.000+07:00",
+          "exitBarEnd": "2026-10-13T17:20:00.000+07:00",
+          "exitPrice": 106.84,
+          "r": 0.7248677248677325,
+          "rewardRisk": 0.7248677248677325
+        }
+      ],
+      "after": [
+        {
+          "id": 115,
+          "referenceDate": "2026-10-13",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-13T16:35:00.000+07:00",
+          "entryBarEnd": "2026-10-13T16:40:00.000+07:00",
+          "fiboStop": 107.57,
+          "swingTarget": 106.95,
+          "entry": 107.26,
+          "stop": 107.6,
+          "target": 107.05,
+          "status": "target",
+          "exitBarStart": "2026-10-13T16:45:00.000+07:00",
+          "exitBarEnd": "2026-10-13T16:50:00.000+07:00",
+          "exitPrice": 107.05,
+          "r": 0.6176470588235724,
+          "rewardRisk": 0.6176470588235724
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "before": [
+        {
+          "id": 204,
+          "referenceDate": "2026-10-22",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-22T23:10:00.000+07:00",
+          "entryBarEnd": "2026-10-22T23:15:00.000+07:00",
+          "fiboStop": 104.045,
+          "swingTarget": 104.88,
+          "entry": 104.4625,
+          "stop": 104.015,
+          "target": 104.78,
+          "status": "stop",
+          "exitBarStart": "2026-10-22T23:45:00.000+07:00",
+          "exitBarEnd": "2026-10-22T23:50:00.000+07:00",
+          "exitPrice": 104.015,
+          "r": -1,
+          "rewardRisk": 0.7094972067038924
+        }
+      ],
+      "after": [
+        {
+          "id": 122,
+          "referenceDate": "2026-10-22",
+          "side": "SHORT",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-22T16:30:00.000+07:00",
+          "entryBarEnd": "2026-10-22T16:35:00.000+07:00",
+          "fiboStop": 103.9475,
+          "swingTarget": 103.48,
+          "entry": 103.71375,
+          "stop": 103.9775,
+          "target": 103.58,
+          "status": "stop",
+          "exitBarStart": "2026-10-22T16:45:00.000+07:00",
+          "exitBarEnd": "2026-10-22T16:50:00.000+07:00",
+          "exitPrice": 103.9775,
+          "r": -1,
+          "rewardRisk": 0.5071090047393569
+        },
+        {
+          "id": 123,
+          "referenceDate": "2026-10-22",
+          "side": "LONG",
+          "tightReversal": false,
+          "entryBarStart": "2026-10-22T23:10:00.000+07:00",
+          "entryBarEnd": "2026-10-22T23:15:00.000+07:00",
+          "fiboStop": 104.045,
+          "swingTarget": 104.88,
+          "entry": 104.4625,
+          "stop": 104.015,
+          "target": 104.78,
+          "status": "stop",
+          "exitBarStart": "2026-10-22T23:45:00.000+07:00",
+          "exitBarEnd": "2026-10-22T23:50:00.000+07:00",
+          "exitPrice": 104.015,
+          "r": -1,
+          "rewardRisk": 0.7094972067038924
+        }
+      ]
+    }
+  ]
+}

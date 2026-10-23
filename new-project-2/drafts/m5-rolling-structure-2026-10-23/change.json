@@ -1,0 +1,37 @@
+{
+  "status": "draft; not published",
+  "baseVersion": "v39 draft",
+  "baseSourceSha256": "8383e1195dc415e94c42a81bfd144bcdf5d1670466de6a28f21f615b73b56a12",
+  "sourceSha256": "56f6ae51c5007703fb9de10088cfb85ca64b4c86162ac7cc9f35e8f7beb7f0b5",
+  "rules": [
+    "Only before entry: confirmed standalone P4 pullback must not have reached the old entry.",
+    "Immediately at P4 confirmation cancel the old pending entry, promote old3 to newP1 and old4 to newP2, and await P5.",
+    "New P2 may update by existing confirmed-pivot rules; P5 follows v39 equality rule. Entry requires subsequent proved retest6.",
+    "SHORT/LONG mirror, adjacency exclusion and formulas, stop/take offsets and working H1 priority unchanged."
+  ],
+  "authorization": "User explicitly confirmed standalone right-confirmed M5 swing4 and cancellation of original entry immediately when4 confirms.",
+  "published": false,
+  "validation": {
+    "status": "PASS",
+    "focusedTestsPassed": 18,
+    "failed": 0,
+    "mayAB": "v39:23closed,11TP,12SL,47.83%,-5.6261R; v40:25closed,13TP,12SL,52%,-4.5196R; before costs.",
+    "confirmedNewStructures": 7,
+    "fullHalfyear": {
+      "status": "PASS",
+      "period": "2026-04-23 — 2026-10-22",
+      "candles": 52536,
+      "entered": 126,
+      "closed": 124,
+      "targets": 77,
+      "stops": 47,
+      "unresolved": 2,
+      "ambiguous": 0,
+      "winRate": 0.6209677419354839,
+      "netR": -0.56032547622427,
+      "maxDrawdownR": 11.381587566554513,
+      "verifiedNewStructures": 63,
+      "costs": "excluded"
+    }
+  }
+}

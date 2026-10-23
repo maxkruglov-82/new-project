@@ -1,0 +1,19 @@
+{
+  "status": "draft; not published",
+  "baseVersion": "v38",
+  "baseSourceSha256": "ebc53245d09fbf4dc2c7d7795261d900e23e820525413d7fdcb2e469584c20f7",
+  "sourceSha256": "8383e1195dc415e94c42a81bfd144bcdf5d1670466de6a28f21f615b73b56a12",
+  "published": false,
+  "rules": [
+    "After a valid P2, equality with P1 can seed P3 for both SHORT and LONG. Later extreme extensions remain strict, retest timing and all other rules unchanged.",
+    "Adjacent opposite pivot is still skipped. The next separate valid pivot can become P2 even if weaker than the skipped pivot."
+  ],
+  "authorization": "User explicitly accepted standalone15:50high103.87 asP2 after rejected adjacent15:40high103.88.",
+  "validation": {
+    "focusedTests": 10,
+    "failed": 0,
+    "historicalM5": "SHORT16:30,stop16:45; same-M5 retest not inferred",
+    "chronologicalM1CloseUpdates": "Actual candidate enters on16:08 M1 close quote and takes profit16:12; not tick-complete",
+    "sourcePublished": false
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "status": "Confirmed rules: standalone confirmed4 cancels old entry immediately; then await5 and retest6",
+  "baseSourceSha256": "8383e1195dc415e94c42a81bfd144bcdf5d1670466de6a28f21f615b73b56a12",
+  "sourceSha256": "56f6ae51c5007703fb9de10088cfb85ca64b4c86162ac7cc9f35e8f7beb7f0b5",
+  "before": {
+    "summary": {
+      "calendarReferenceDays": 1,
+      "excludedWeekendDays": 0,
+      "referenceDays": 1,
+      "enteredTrades": 1,
+      "targets": 0,
+      "stops": 0,
+      "ambiguous": 0,
+      "unresolved": 1,
+      "totalTrades": 0,
+      "knownOutcomes": 0,
+      "winRateKnown": null,
+      "daysWithEntry": 1,
+      "daysWithoutEntry": 0,
+      "daysWithTarget": 0,
+      "daysWithStopsAndNoTarget": 0,
+      "netRKnownBeforeCosts": 0
+    },
+    "days": [
+      {
+        "date": "2026-05-01",
+        "referenceClose": "2026-05-01T15:00:00.000+07:00",
+        "high": 83.94,
+        "low": 83.61,
+        "endingStage": null,
+        "trades": 1,
+        "targets": 0,
+        "stops": 0,
+        "ambiguous": 0,
+        "unresolved": 1
+      }
+    ],
+    "trades": [
+      {
+        "id": 1,
+        "referenceDate": "2026-05-01",
+        "side": "LONG",
+        "tightReversal": false,
+        "entryBarStart": "2026-05-01T21:25:00.000+07:00",
+        "entryBarEnd": "2026-05-01T21:30:00.000+07:00",
+        "fiboStop": 83.395,
+        "swingTarget": 84.82,
+        "entry": 84.1075,
+        "stop": 83.365,
+        "target": 84.72,
+        "status": "unresolved_at_end",
+        "exitBarStart": null,
+        "exitBarEnd": null,
+        "exitPrice": null,
+        "r": null,
+        "rewardRisk": 0.8249158249158135
+      }
+    ],
+    "p1Audit": [
+      {
+        "confirmedAt": "2026-05-01T15:20:00.000+07:00",
+        "pivotAt": "2026-05-01T15:15:00.000+07:00",
+        "priorCloseAt": "2026-05-01T15:10:00.000+07:00",
+        "side": 1,
+        "pivotClose": 84.11,
+        "priorClose": 84.12,
+        "h1High": 83.94,
+        "h1Low": 83.61
+      }
+    ],
+    "priorityAudit": []
+  },
+  "after": {
+    "summary": {
+      "calendarReferenceDays": 1,
+      "excludedWeekendDays": 0,
+      "referenceDays": 1,
+      "enteredTrades": 1,
+      "targets": 1,
+      "stops": 0,
+      "ambiguous": 0,
+      "unresolved": 0,
+      "totalTrades": 1,
+      "knownOutcomes": 1,
+      "winRateKnown": 1,
+      "daysWithEntry": 1,
+      "daysWithoutEntry": 0,
+      "daysWithTarget": 1,
+      "daysWithStopsAndNoTarget": 0,
+      "netRKnownBeforeCosts": 0.5251141552511454
+    },
+    "days": [
+      {
+        "date": "2026-05-01",
+        "referenceClose": "2026-05-01T15:00:00.000+07:00",
+        "high": 83.94,
+        "low": 83.61,
+        "endingStage": null,
+        "trades": 1,
+        "targets": 1,
+        "stops": 0,
+        "ambiguous": 0,
+        "unresolved": 0
+      }
+    ],
+    "trades": [
+      {
+        "id": 1,
+        "referenceDate": "2026-05-01",
+        "side": "LONG",
+        "tightReversal": false,
+        "entryBarStart": "2026-05-01T20:25:00.000+07:00",
+        "entryBarEnd": "2026-05-01T20:30:00.000+07:00",
+        "fiboStop": 84.1325,
+        "swingTarget": 84.62,
+        "entry": 84.37625,
+        "stop": 84.1025,
+        "target": 84.52,
+        "status": "target",
+        "exitBarStart": "2026-05-01T20:30:00.000+07:00",
+        "exitBarEnd": "2026-05-01T20:35:00.000+07:00",
+        "exitPrice": 84.52,
+        "r": 0.5251141552511454,
+        "rewardRisk": 0.5251141552511454
+      }
+    ],
+    "p1Audit": [
+      {
+        "confirmedAt": "2026-05-01T15:20:00.000+07:00",
+        "pivotAt": "2026-05-01T15:15:00.000+07:00",
+        "priorCloseAt": "2026-05-01T15:10:00.000+07:00",
+        "side": 1,
+        "pivotClose": 84.11,
+        "priorClose": 84.12,
+        "h1High": 83.94,
+        "h1Low": 83.61
+      }
+    ],
+    "priorityAudit": []
+  }
+}

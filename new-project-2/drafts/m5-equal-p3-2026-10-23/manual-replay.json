@@ -1,0 +1,12 @@
+{
+  "status": "Conditional forensic check of user-drawn fixed levels; P2 eligibility not changed",
+  "entry": 103.75,
+  "stop": 103.95,
+  "target": 103.56,
+  "entryMinute": "2026-10-22T16:10:00+07:00",
+  "exitMinute": "2026-10-22T16:12:00+07:00",
+  "outcome": "target",
+  "inputSha256": "782e0d12ae79494e4bffb62dafbf2986eab314ef00cd4e9e3b4710688be33030",
+  "m1AggregatesMatchOriginalM5": true,
+  "publishedV38DoesNotTakeThisShortBecauseP2IsNotEligible": true
+}

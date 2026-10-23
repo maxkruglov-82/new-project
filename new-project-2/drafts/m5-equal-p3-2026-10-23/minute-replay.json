@@ -1,0 +1,281 @@
+{
+  "sourceSha256": "8383e1195dc415e94c42a81bfd144bcdf5d1670466de6a28f21f615b73b56a12",
+  "method": "Actual Pine; chronological M1 close quotes with accumulated M5 OHLC. Not tick-complete. Distinct from closed-M5 backtest.",
+  "trace": [
+    {
+      "minute": "16:05",
+      "quote": 103.59,
+      "Stage": 4,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": null,
+      "SHORT Stop": null,
+      "SHORT Target": null,
+      "Outcome": 0
+    },
+    {
+      "minute": "16:06",
+      "quote": 103.66,
+      "Stage": 5,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 0
+    },
+    {
+      "minute": "16:07",
+      "quote": 103.74,
+      "Stage": 5,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 0
+    },
+    {
+      "minute": "16:08",
+      "quote": 103.77,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 1,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 0
+    },
+    {
+      "minute": "16:09",
+      "quote": 103.71,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 1,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 0
+    },
+    {
+      "minute": "16:10",
+      "quote": 103.8,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 0
+    },
+    {
+      "minute": "16:11",
+      "quote": 103.73,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 0
+    },
+    {
+      "minute": "16:12",
+      "quote": 103.56,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:13",
+      "quote": 103.8,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:14",
+      "quote": 103.93,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:15",
+      "quote": 103.93,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:16",
+      "quote": 103.95,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:17",
+      "quote": 103.9,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:18",
+      "quote": 103.95,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:19",
+      "quote": 103.99,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:20",
+      "quote": 103.91,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:21",
+      "quote": 103.86,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:22",
+      "quote": 103.86,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:23",
+      "quote": 103.86,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:24",
+      "quote": 103.77,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:25",
+      "quote": 103.69,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:26",
+      "quote": 103.65,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:27",
+      "quote": 103.77,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:28",
+      "quote": 103.69,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    },
+    {
+      "minute": "16:29",
+      "quote": 103.68,
+      "Stage": 6,
+      "Direction": -1,
+      "SHORT": 0,
+      "SHORT Entry": 103.75375,
+      "SHORT Stop": 103.9775,
+      "SHORT Target": 103.66,
+      "Outcome": 1
+    }
+  ]
+}
