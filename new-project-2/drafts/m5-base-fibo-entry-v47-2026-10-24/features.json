@@ -1,0 +1,78 @@
+{
+  "status": "PASS",
+  "sourceSha256": "65f228f9f2e8d97cda9a61ff08f4e0f1632bff1fb1b15370d3ec703c68078f61",
+  "controls": [
+    {
+      "kind": "second-after-TP",
+      "mirror": false,
+      "opposite": false,
+      "first": "SHORT",
+      "second": "SHORT",
+      "entry": 101.125
+    },
+    {
+      "kind": "second-after-TP",
+      "mirror": false,
+      "opposite": true,
+      "first": "SHORT",
+      "second": "LONG",
+      "entry": 101.125
+    },
+    {
+      "kind": "second-after-TP",
+      "mirror": true,
+      "opposite": false,
+      "first": "LONG",
+      "second": "LONG",
+      "entry": 118.875
+    },
+    {
+      "kind": "second-after-TP",
+      "mirror": true,
+      "opposite": true,
+      "first": "LONG",
+      "second": "SHORT",
+      "entry": 118.875
+    },
+    {
+      "kind": "pre-existing-points-after-TP",
+      "mirror": false
+    },
+    {
+      "kind": "pre-existing-points-after-TP",
+      "mirror": true
+    },
+    {
+      "kind": "first-adjacent-pair-reversal",
+      "mirror": false
+    },
+    {
+      "kind": "first-adjacent-pair-reversal",
+      "mirror": true
+    },
+    {
+      "kind": "once-per-side-reset-only-at-next-H1",
+      "mirror": false
+    },
+    {
+      "kind": "once-per-side-reset-only-at-next-H1",
+      "mirror": true
+    },
+    {
+      "kind": "after-TP-sweep-needs-close-beyond-fresh-extreme",
+      "mirror": false
+    },
+    {
+      "kind": "after-TP-sweep-needs-close-beyond-fresh-extreme",
+      "mirror": true
+    },
+    {
+      "kind": "standalone-P2-retires-old-neutral-level",
+      "mirror": false
+    },
+    {
+      "kind": "standalone-P2-retires-old-neutral-level",
+      "mirror": true
+    }
+  ]
+}

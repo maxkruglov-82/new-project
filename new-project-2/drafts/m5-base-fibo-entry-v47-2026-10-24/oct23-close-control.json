@@ -1,0 +1,259 @@
+{
+  "status": "PASS",
+  "sourceSha256": "65f228f9f2e8d97cda9a61ff08f4e0f1632bff1fb1b15370d3ec703c68078f61",
+  "result": {
+    "summary": {
+      "calendarReferenceDays": 1,
+      "excludedWeekendDays": 0,
+      "referenceDays": 1,
+      "enteredTrades": 1,
+      "targets": 1,
+      "stops": 0,
+      "ambiguous": 0,
+      "unresolved": 0,
+      "totalTrades": 1,
+      "knownOutcomes": 1,
+      "winRateKnown": 1,
+      "daysWithEntry": 1,
+      "daysWithoutEntry": 0,
+      "daysWithTarget": 1,
+      "daysWithStopsAndNoTarget": 0,
+      "netRKnownBeforeCosts": 1.066666666666658
+    },
+    "days": [
+      {
+        "date": "2026-10-23",
+        "referenceClose": "2026-10-23T15:00:00.000+07:00",
+        "high": 104.73,
+        "low": 104.18,
+        "endingStage": null,
+        "trades": 1,
+        "targets": 1,
+        "stops": 0,
+        "ambiguous": 0,
+        "unresolved": 0
+      }
+    ],
+    "trades": [
+      {
+        "id": 1,
+        "referenceDate": "2026-10-23",
+        "side": "SHORT",
+        "setupConfirmedBar": 87,
+        "setupBreakLevel": 103.77,
+        "setupBreakClose": 103.67,
+        "fiboZero": 103.41,
+        "fiboOne": 105.2,
+        "rrThreshold": 104.52875,
+        "stopOffset": 0.01,
+        "volumeMultiplier": 1,
+        "tightReversal": false,
+        "entryBarStart": "2026-10-23T21:35:00.000+07:00",
+        "entryBarEnd": "2026-10-23T21:40:00.000+07:00",
+        "entryAt": "2026-10-23T21:40:00.000+07:00",
+        "fiboStop": 105.6475,
+        "swingTarget": 103.41,
+        "entry": 104.57,
+        "stop": 105.6575,
+        "target": 103.41,
+        "status": "target",
+        "exitBarStart": "2026-10-24T03:00:00.000+07:00",
+        "exitBarEnd": "2026-10-24T03:05:00.000+07:00",
+        "exitPrice": 103.41,
+        "r": 1.066666666666658,
+        "rewardRisk": 1.066666666666658
+      }
+    ],
+    "p1Audit": [
+      {
+        "confirmedAt": "2026-10-23T15:50:00.000+07:00",
+        "pivotAt": "2026-10-23T15:45:00.000+07:00",
+        "priorCloseAt": "2026-10-23T15:45:00.000+07:00",
+        "side": 1,
+        "pivotClose": 104.8,
+        "priorClose": 104.8,
+        "h1High": 104.73,
+        "h1Low": 104.18
+      },
+      {
+        "confirmedAt": "2026-10-23T16:40:00.000+07:00",
+        "pivotAt": "2026-10-23T16:35:00.000+07:00",
+        "priorCloseAt": "2026-10-23T16:25:00.000+07:00",
+        "side": -1,
+        "pivotClose": 103.94,
+        "priorClose": 104.07,
+        "h1High": 104.73,
+        "h1Low": 104.18
+      }
+    ],
+    "priorityAudit": [
+      {
+        "at": "2026-10-23T16:25:00.000+07:00",
+        "from": 1,
+        "to": -1,
+        "stageBefore": 4,
+        "h1High": 104.73,
+        "h1Low": 104.18,
+        "rejectedHigh": 104.86,
+        "rejectedLow": null,
+        "workingBoundary": 104.18,
+        "extreme": 104.07
+      },
+      {
+        "at": "2026-10-23T21:15:00.000+07:00",
+        "from": 1,
+        "to": -1,
+        "stageBefore": 5,
+        "h1High": 104.73,
+        "h1Low": 104.18,
+        "rejectedHigh": 104.86,
+        "rejectedLow": null,
+        "workingBoundary": 104.18,
+        "extreme": 103.41
+      }
+    ],
+    "rollAudit": [],
+    "failedReversalAudit": [
+      {
+        "at": "2026-10-23T18:45:00.000+07:00",
+        "sweepAt": "2026-10-23T18:00:00.000+07:00",
+        "side": 1,
+        "original1": 103.77,
+        "original2": 104.46,
+        "sweptLevel": 103.85
+      }
+    ],
+    "structureSwitchAudit": []
+  },
+  "mirror": {
+    "summary": {
+      "calendarReferenceDays": 1,
+      "excludedWeekendDays": 0,
+      "referenceDays": 1,
+      "enteredTrades": 1,
+      "targets": 1,
+      "stops": 0,
+      "ambiguous": 0,
+      "unresolved": 0,
+      "totalTrades": 1,
+      "knownOutcomes": 1,
+      "winRateKnown": 1,
+      "daysWithEntry": 1,
+      "daysWithoutEntry": 0,
+      "daysWithTarget": 1,
+      "daysWithStopsAndNoTarget": 0,
+      "netRKnownBeforeCosts": 1.066666666666658
+    },
+    "days": [
+      {
+        "date": "2026-10-23",
+        "referenceClose": "2026-10-23T15:00:00.000+07:00",
+        "high": 115.82,
+        "low": 115.27,
+        "endingStage": null,
+        "trades": 1,
+        "targets": 1,
+        "stops": 0,
+        "ambiguous": 0,
+        "unresolved": 0
+      }
+    ],
+    "trades": [
+      {
+        "id": 1,
+        "referenceDate": "2026-10-23",
+        "side": "LONG",
+        "setupConfirmedBar": 87,
+        "setupBreakLevel": 116.23,
+        "setupBreakClose": 116.33,
+        "fiboZero": 116.59,
+        "fiboOne": 114.8,
+        "rrThreshold": 115.47125,
+        "stopOffset": 0.01,
+        "volumeMultiplier": 1,
+        "tightReversal": false,
+        "entryBarStart": "2026-10-23T21:35:00.000+07:00",
+        "entryBarEnd": "2026-10-23T21:40:00.000+07:00",
+        "entryAt": "2026-10-23T21:40:00.000+07:00",
+        "fiboStop": 114.3525,
+        "swingTarget": 116.59,
+        "entry": 115.43,
+        "stop": 114.3425,
+        "target": 116.59,
+        "status": "target",
+        "exitBarStart": "2026-10-24T03:00:00.000+07:00",
+        "exitBarEnd": "2026-10-24T03:05:00.000+07:00",
+        "exitPrice": 116.59,
+        "r": 1.066666666666658,
+        "rewardRisk": 1.066666666666658
+      }
+    ],
+    "p1Audit": [
+      {
+        "confirmedAt": "2026-10-23T15:50:00.000+07:00",
+        "pivotAt": "2026-10-23T15:45:00.000+07:00",
+        "priorCloseAt": "2026-10-23T15:45:00.000+07:00",
+        "side": -1,
+        "pivotClose": 115.2,
+        "priorClose": 115.2,
+        "h1High": 115.82,
+        "h1Low": 115.27
+      },
+      {
+        "confirmedAt": "2026-10-23T16:40:00.000+07:00",
+        "pivotAt": "2026-10-23T16:35:00.000+07:00",
+        "priorCloseAt": "2026-10-23T16:25:00.000+07:00",
+        "side": 1,
+        "pivotClose": 116.06,
+        "priorClose": 115.93,
+        "h1High": 115.82,
+        "h1Low": 115.27
+      }
+    ],
+    "priorityAudit": [
+      {
+        "at": "2026-10-23T16:25:00.000+07:00",
+        "from": -1,
+        "to": 1,
+        "stageBefore": 4,
+        "h1High": 115.82,
+        "h1Low": 115.27,
+        "rejectedHigh": null,
+        "rejectedLow": 115.14,
+        "workingBoundary": 115.82,
+        "extreme": 115.93
+      },
+      {
+        "at": "2026-10-23T21:15:00.000+07:00",
+        "from": -1,
+        "to": 1,
+        "stageBefore": 5,
+        "h1High": 115.82,
+        "h1Low": 115.27,
+        "rejectedHigh": null,
+        "rejectedLow": 115.14,
+        "workingBoundary": 115.82,
+        "extreme": 116.59
+      }
+    ],
+    "rollAudit": [],
+    "failedReversalAudit": [
+      {
+        "at": "2026-10-23T18:45:00.000+07:00",
+        "sweepAt": "2026-10-23T18:00:00.000+07:00",
+        "side": -1,
+        "original1": 116.23,
+        "original2": 115.54,
+        "sweptLevel": 116.15
+      }
+    ],
+    "structureSwitchAudit": []
+  },
+  "checks": [
+    "Unfavorable21:35 skipped",
+    "Actual21:35 close104.57, RR>1",
+    "Mirrored LONG",
+    "No entry on unclosed M5",
+    "One event after close, no duplicate"
+  ]
+}

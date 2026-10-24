@@ -1,0 +1,36 @@
+{
+  "version": 47,
+  "status": "graph_review",
+  "date": "2026-10-24",
+  "sourceSha256": "fef7d825e41e7d03b194a076833d535bc050ade7eacf451c532d82a9583f0017",
+  "validatedDraftSha256": "65f228f9f2e8d97cda9a61ff08f4e0f1632bff1fb1b15370d3ec703c68078f61",
+  "rollbackVersion": 46,
+  "rollbackCommit": "6de0f04",
+  "changes": [
+    "SL offset0.01 USDT beyond Fibo; entry threshold ignores offset; actual execution at closed M5 close",
+    "First adjacent-pair neutral reversal exception once for first H1 exit on each side per daily H1",
+    "Max2 entries/day; second after TP in either direction; after SL opposite only; known points may form during first trade"
+  ],
+  "entryExecution": "Confirmed M5 close at base-Fibo RR1 threshold or favorable; actual RR may be slightly below1 due to protective offset",
+  "stopOffsetUSDT": 0.01,
+  "visualVerification": "Pending user review in Krytes; execution tested in PineTS",
+  "annualBacktest": "v46 annual statistics do not apply to v47",
+  "halfyearBacktest": {
+    "period": {
+      "start": "2026-04-23T14:00:00+07:00",
+      "endExclusive": "2026-10-23T00:00:00+07:00",
+      "timezone": "Asia/Krasnoyarsk"
+    },
+    "performance": {
+      "entries": 146,
+      "wins": 50,
+      "stops": 91,
+      "closed": 141,
+      "winRate": 35.46099290780142,
+      "unresolved": 5,
+      "ambiguous": 0,
+      "netR": -24.560525301428946
+    },
+    "audit": "drafts/m5-base-fibo-entry-v47-2026-10-24/audit.json"
+  }
+}

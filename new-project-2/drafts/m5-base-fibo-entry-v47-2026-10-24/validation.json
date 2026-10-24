@@ -1,0 +1,78 @@
+{
+  "status": "PASS",
+  "sourceSha256": "65f228f9f2e8d97cda9a61ff08f4e0f1632bff1fb1b15370d3ec703c68078f61",
+  "controls": [
+    {
+      "side": "SHORT",
+      "offset": 0.01,
+      "entry": 102.125,
+      "stop": 105.26,
+      "target": 99,
+      "threshold": 102.125,
+      "actualRR": 0.9968102073365215
+    },
+    {
+      "side": "SHORT",
+      "offset": 0.1,
+      "entry": 102.125,
+      "stop": 105.35,
+      "target": 99,
+      "threshold": 102.125,
+      "actualRR": 0.9689922480620172
+    },
+    {
+      "side": "LONG",
+      "offset": 0.01,
+      "entry": 117.875,
+      "stop": 114.74,
+      "target": 121,
+      "threshold": 117.875,
+      "actualRR": 0.9968102073365215
+    },
+    {
+      "side": "LONG",
+      "offset": 0.1,
+      "entry": 117.875,
+      "stop": 114.65,
+      "target": 121,
+      "threshold": 117.875,
+      "actualRR": 0.9689922480620172
+    }
+  ],
+  "oct16": {
+    "trades": [
+      {
+        "id": 1,
+        "referenceDate": "2026-10-16",
+        "side": "LONG",
+        "setupConfirmedBar": 50,
+        "setupBreakLevel": 106.95,
+        "setupBreakClose": 107.21,
+        "fiboZero": 107.36,
+        "fiboOne": 105.71,
+        "rrThreshold": 106.32875,
+        "stopOffset": 0.01,
+        "volumeMultiplier": 1,
+        "tightReversal": false,
+        "entryBarStart": "2026-10-16T19:00:00.000+07:00",
+        "entryBarEnd": "2026-10-16T19:05:00.000+07:00",
+        "entryAt": "2026-10-16T19:05:00.000+07:00",
+        "fiboStop": 105.2975,
+        "swingTarget": 107.36,
+        "entry": 106.25,
+        "stop": 105.2875,
+        "target": 107.36,
+        "status": "stop",
+        "exitBarStart": "2026-10-16T20:30:00.000+07:00",
+        "exitBarEnd": "2026-10-16T20:35:00.000+07:00",
+        "exitPrice": 105.2875,
+        "r": -1,
+        "rewardRisk": 1.1532467532467459
+      }
+    ],
+    "shortStop": 107.9775,
+    "threshold": 106.44875,
+    "bestMarkedClose": 106.42,
+    "eligible": false
+  }
+}
