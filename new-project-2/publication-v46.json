@@ -1,0 +1,12 @@
+{
+  "version": 46,
+  "status": "graph_review",
+  "date": "2026-10-24",
+  "sourceSha256": "b6b1902bdc82ef12cc8d450ba42f3ae05cb4cb60711a92e60d07f58b75eba97b",
+  "validatedDraftSha256": "8e2e8926659b44081d613ce2c1491cd6e03f834706abc157a6a49d14d8f01efb",
+  "rollbackVersion": 45,
+  "rollbackCommit": "69bf1e7f0a35aa35413e8386ee51b46110d65508",
+  "entryExecution": "Confirmed M5 close at actual closing price; RR>=1; no entry at midnight",
+  "stopOffsetUSDT": 0.1,
+  "fix": "Carry known reverse-break confirmation from closed first-SL candle into next M5"
+}

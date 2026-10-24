@@ -1,0 +1,253 @@
+{
+  "inputSha256": "82430a0c1bb41089a8c6705294fd239760404c010fad45dfed0c4fba5ce54d43",
+  "results": {
+    "zero": {
+      "sourceSha256": "ddf5cccd61f9aa3b72a2d1ebfa2777b0d63b7bada94ae7bef9f74637fbe01800",
+      "summary": {
+        "calendarReferenceDays": 1,
+        "excludedWeekendDays": 0,
+        "referenceDays": 1,
+        "enteredTrades": 2,
+        "targets": 1,
+        "stops": 1,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "totalTrades": 2,
+        "knownOutcomes": 2,
+        "winRateKnown": 0.5,
+        "daysWithEntry": 1,
+        "daysWithoutEntry": 0,
+        "daysWithTarget": 1,
+        "daysWithStopsAndNoTarget": 0,
+        "netRKnownBeforeCosts": 1.2656542480726785e-14
+      },
+      "days": [
+        {
+          "date": "2026-10-23",
+          "referenceClose": "2026-10-23T15:00:00.000+07:00",
+          "high": 104.73,
+          "low": 104.18,
+          "endingStage": null,
+          "trades": 2,
+          "targets": 1,
+          "stops": 1,
+          "ambiguous": 0,
+          "unresolved": 0
+        }
+      ],
+      "trades": [
+        {
+          "id": 1,
+          "referenceDate": "2026-10-23",
+          "side": "LONG",
+          "setupConfirmedBar": 57,
+          "setupBreakLevel": 104.46,
+          "setupBreakClose": 104.5,
+          "fiboZero": 105.2,
+          "fiboOne": 103.77,
+          "stopOffset": 0,
+          "volumeMultiplier": 1,
+          "tightReversal": false,
+          "entryBarStart": "2026-10-23T21:10:00.000+07:00",
+          "entryBarEnd": "2026-10-23T21:15:00.000+07:00",
+          "fiboStop": 103.4125,
+          "swingTarget": 105.2,
+          "entry": 104.30625,
+          "stop": 103.4125,
+          "target": 105.2,
+          "status": "stop",
+          "exitBarStart": "2026-10-23T21:15:00.000+07:00",
+          "exitBarEnd": "2026-10-23T21:20:00.000+07:00",
+          "exitPrice": 103.4125,
+          "r": -1,
+          "rewardRisk": 0.9999999999999841
+        },
+        {
+          "id": 2,
+          "referenceDate": "2026-10-23",
+          "side": "SHORT",
+          "setupConfirmedBar": 87,
+          "setupBreakLevel": 103.77,
+          "setupBreakClose": 103.67,
+          "fiboZero": 103.41,
+          "fiboOne": 105.2,
+          "stopOffset": 0,
+          "volumeMultiplier": 2,
+          "tightReversal": false,
+          "entryBarStart": "2026-10-23T21:35:00.000+07:00",
+          "entryBarEnd": "2026-10-23T21:40:00.000+07:00",
+          "fiboStop": 105.6475,
+          "swingTarget": 103.41,
+          "entry": 104.52875,
+          "stop": 105.6475,
+          "target": 103.41,
+          "status": "target",
+          "exitBarStart": "2026-10-24T03:00:00.000+07:00",
+          "exitBarEnd": "2026-10-24T03:05:00.000+07:00",
+          "exitPrice": 103.41,
+          "r": 1.0000000000000127,
+          "rewardRisk": 1.0000000000000127
+        }
+      ],
+      "p1Audit": [
+        {
+          "confirmedAt": "2026-10-23T15:50:00.000+07:00",
+          "pivotAt": "2026-10-23T15:45:00.000+07:00",
+          "priorCloseAt": "2026-10-23T15:45:00.000+07:00",
+          "side": 1,
+          "pivotClose": 104.8,
+          "priorClose": 104.8,
+          "h1High": 104.73,
+          "h1Low": 104.18
+        },
+        {
+          "confirmedAt": "2026-10-23T16:40:00.000+07:00",
+          "pivotAt": "2026-10-23T16:35:00.000+07:00",
+          "priorCloseAt": "2026-10-23T16:25:00.000+07:00",
+          "side": -1,
+          "pivotClose": 103.94,
+          "priorClose": 104.07,
+          "h1High": 104.73,
+          "h1Low": 104.18
+        }
+      ],
+      "priorityAudit": [
+        {
+          "at": "2026-10-23T16:25:00.000+07:00",
+          "from": 1,
+          "to": -1,
+          "stageBefore": 4,
+          "h1High": 104.73,
+          "h1Low": 104.18,
+          "rejectedHigh": 104.86,
+          "rejectedLow": null,
+          "workingBoundary": 104.18,
+          "extreme": 104.07
+        }
+      ],
+      "rollAudit": [],
+      "failedReversalAudit": [
+        {
+          "at": "2026-10-23T18:45:00.000+07:00",
+          "sweepAt": "2026-10-23T18:00:00.000+07:00",
+          "side": 1,
+          "original1": 103.77,
+          "original2": 104.46,
+          "sweptLevel": 103.85
+        }
+      ],
+      "structureSwitchAudit": []
+    },
+    "offset010": {
+      "sourceSha256": "c3ccc2a9f240c328751366e0755c53ab1681617c6ea81e45722b6aef662c181a",
+      "summary": {
+        "calendarReferenceDays": 1,
+        "excludedWeekendDays": 0,
+        "referenceDays": 1,
+        "enteredTrades": 1,
+        "targets": 1,
+        "stops": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "totalTrades": 1,
+        "knownOutcomes": 1,
+        "winRateKnown": 1,
+        "daysWithEntry": 1,
+        "daysWithoutEntry": 0,
+        "daysWithTarget": 1,
+        "daysWithStopsAndNoTarget": 0,
+        "netRKnownBeforeCosts": 1
+      },
+      "days": [
+        {
+          "date": "2026-10-23",
+          "referenceClose": "2026-10-23T15:00:00.000+07:00",
+          "high": 104.73,
+          "low": 104.18,
+          "endingStage": null,
+          "trades": 1,
+          "targets": 1,
+          "stops": 0,
+          "ambiguous": 0,
+          "unresolved": 0
+        }
+      ],
+      "trades": [
+        {
+          "id": 1,
+          "referenceDate": "2026-10-23",
+          "side": "SHORT",
+          "setupConfirmedBar": 87,
+          "setupBreakLevel": 103.77,
+          "setupBreakClose": 103.67,
+          "fiboZero": 103.41,
+          "fiboOne": 105.2,
+          "stopOffset": 0.1,
+          "volumeMultiplier": 1,
+          "tightReversal": false,
+          "entryBarStart": "2026-10-23T21:35:00.000+07:00",
+          "entryBarEnd": "2026-10-23T21:40:00.000+07:00",
+          "fiboStop": 105.6475,
+          "swingTarget": 103.41,
+          "entry": 104.57875,
+          "stop": 105.7475,
+          "target": 103.41,
+          "status": "target",
+          "exitBarStart": "2026-10-24T03:00:00.000+07:00",
+          "exitBarEnd": "2026-10-24T03:05:00.000+07:00",
+          "exitPrice": 103.41,
+          "r": 1,
+          "rewardRisk": 1
+        }
+      ],
+      "p1Audit": [
+        {
+          "confirmedAt": "2026-10-23T15:50:00.000+07:00",
+          "pivotAt": "2026-10-23T15:45:00.000+07:00",
+          "priorCloseAt": "2026-10-23T15:45:00.000+07:00",
+          "side": 1,
+          "pivotClose": 104.8,
+          "priorClose": 104.8,
+          "h1High": 104.73,
+          "h1Low": 104.18
+        },
+        {
+          "confirmedAt": "2026-10-23T16:40:00.000+07:00",
+          "pivotAt": "2026-10-23T16:35:00.000+07:00",
+          "priorCloseAt": "2026-10-23T16:25:00.000+07:00",
+          "side": -1,
+          "pivotClose": 103.94,
+          "priorClose": 104.07,
+          "h1High": 104.73,
+          "h1Low": 104.18
+        }
+      ],
+      "priorityAudit": [
+        {
+          "at": "2026-10-23T16:25:00.000+07:00",
+          "from": 1,
+          "to": -1,
+          "stageBefore": 4,
+          "h1High": 104.73,
+          "h1Low": 104.18,
+          "rejectedHigh": 104.86,
+          "rejectedLow": null,
+          "workingBoundary": 104.18,
+          "extreme": 104.07
+        }
+      ],
+      "rollAudit": [],
+      "failedReversalAudit": [
+        {
+          "at": "2026-10-23T18:45:00.000+07:00",
+          "sweepAt": "2026-10-23T18:00:00.000+07:00",
+          "side": 1,
+          "original1": 103.77,
+          "original2": 104.46,
+          "sweptLevel": 103.85
+        }
+      ],
+      "structureSwitchAudit": []
+    }
+  }
+}

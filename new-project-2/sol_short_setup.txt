@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v45 — сохранённые структуры, Фибо2–3 (проверка)", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v46 — вход по закрытию M5, RR≥1 (проверка)", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 
 // График: SOL/USDT, MEXC Futures, 5 минут.
 // Время: Красноярск UTC+7. Никаких ордеров — только разметка и alertcondition.
@@ -7,7 +7,7 @@ indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v45 — с
 // не используется одновременно как доказательство последующего ретеста.
 string tz = "Asia/Krasnoyarsk"
 bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
-float stopOffset = 0.0
+float stopOffset = input.float(0.10, "Отступ стопа за Фибо (USDT)", minval=0.0, step=0.01)
 float takeOffset = 0.0
 float h1BreakOffset = input.float(0.02, "Минимальный пробой H1 (USDT)", minval=0.0, step=0.01)
 bool showFibo = input.bool(true, "Показывать Фибоначчи")
@@ -157,6 +157,7 @@ varip float reversalSecond = na
 varip int reversalSecondTime = na
 varip float reversalThird = na
 varip int reversalThirdBar = na
+varip float rrEntryThreshold = na
 varip float entry = na
 varip float stop = na
 // Базовая красная линия нужна для прежнего входа; отступ меняет только SL.
@@ -277,6 +278,11 @@ if stage == 6 or stage == 0 or stage == 7
     reversalDirection := 0
 
 if retry
+    int stoppedBar = outcomeBar
+    int stoppedDistance = bar_index - stoppedBar
+    float stoppedClose = close[stoppedDistance]
+    float stoppedHigh = high[stoppedDistance]
+    float stoppedLow = low[stoppedDistance]
     preservedStructureActive := false
     failedSetupActive := false
     float reverseFirst = point2
@@ -313,6 +319,25 @@ if retry
     lastExtremeBar := na
     drawingRight := na
     positionLeft := na
+
+    // Стоповая M5 уже закрыта на момент начала следующей M5.
+    // Подтверждение обратного пробоя не теряем и не требуем повторно.
+    // Вход допускается только на последующей свече/котировке ретеста.
+    bool stopBarConfirmedReverse = direction == -1 ? stoppedClose < point1 : stoppedClose > point1
+    if stopBarConfirmedReverse
+        point3 := direction == -1 ? stoppedLow : stoppedHigh
+        stopFibo := point2 - 0.25 * (point3 - point2)
+        stop := stopFibo - direction * stopOffset
+        fiboTarget := point3
+        entry := (stop + fiboTarget) / 2.0
+        rrEntryThreshold := entry
+        lastExtremeBar := stoppedBar
+        setupConfirmedBar := stoppedBar
+        setupBreakLevel := point1
+        setupBreakClose := stoppedClose
+        pendingEntryTouched := false
+        positionLeft := time[stoppedDistance]
+        stage := 5
 
 // Старый ожидающий сетап прекращается при новой опорной H1.
 if stage >= 1 and stage <= 5 and dailyEntries < 2
@@ -376,9 +401,10 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2
             point2Time := nextSecondTime
             point3 := direction == 1 ? high : low
             stopFibo := point2 - 0.25 * (point3 - point2)
-            stop := stopFibo
+            stop := stopFibo - direction * stopOffset
             fiboTarget := point3
             entry := (stop + fiboTarget) / 2.0
+            rrEntryThreshold := entry
             lastExtremeBar := bar_index
             setupConfirmedBar := bar_index
             setupBreakLevel := point1
@@ -454,8 +480,9 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2
             tightReversal := false
             point3 := direction == -1 ? low : high
             stopFibo := point2 - 0.25 * ((direction == 1 ? high : low) - point2)
-            stop := stopFibo
-            entry := (stopFibo + point3) / 2.0
+            stop := stopFibo - direction * stopOffset
+            entry := (stop + point3) / 2.0
+            rrEntryThreshold := entry
             fiboTarget := point3
             lastExtremeBar := bar_index
             pendingEntryTouched := false
@@ -553,9 +580,10 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2
                 lockedDirection := direction
                 point3 := direction == 1 ? high : low
                 stopFibo := point2 - 0.25 * ((direction == 1 ? high : low) - point2)
-                stop := stopFibo
+                stop := stopFibo - direction * stopOffset
                 fiboTarget := point3
                 entry := (stop + fiboTarget) / 2.0
+                rrEntryThreshold := entry
                 lastExtremeBar := bar_index
                 positionLeft := time
                 drawingRight := na
@@ -581,7 +609,7 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2
         // Вторую точку замораживаем в момент обновления первой.
         if stage == 4 and barstate.isconfirmed and (na(structureRollBar) or structureRollBar != bar_index) and ((direction == -1 and close < point1) or (direction == 1 and close > point1))
             stopFibo := point2 - 0.25 * ((direction == 1 ? high : low) - point2)
-            stop := stopFibo
+            stop := stopFibo - direction * stopOffset
             // Для LONG стоп может лежать ниже low H1 (пример пользователя).
             // Отменяет LONG фактический пробой low H1 ценой, а не сам стоп.
             // Для первого приоритета фильтр SHORT сохраняется.
@@ -590,7 +618,8 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2
                 stage := 7
             else
                 point3 := direction == -1 ? low : high
-                entry := (stopFibo + point3) / 2.0
+                entry := (stop + point3) / 2.0
+                rrEntryThreshold := entry
                 fiboTarget := point3
                 lastExtremeBar := bar_index
                 pendingEntryTouched := false
@@ -615,8 +644,9 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2
                 partialRetest := false
                 point3 := direction == -1 ? low : high
                 stopFibo := point2 - 0.25 * (point3 - point2)
-                stop := stopFibo
-                entry := (stopFibo + point3) / 2.0
+                stop := stopFibo - direction * stopOffset
+                entry := (stop + point3) / 2.0
+                rrEntryThreshold := entry
                 fiboTarget := point3
                 lastExtremeBar := bar_index
                 pendingEntryTouched := false
@@ -626,11 +656,16 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2
 
             // Текущая цена позволяет отличить ретест от high/low,
             // возникшего раньше нового экстремума открытой свечи.
-            bool liveTouch = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? previousQuote < entry and close >= entry : previousQuote > entry and close <= entry)
-            // Без тиков на истории пропускаем неоднозначный порядок low/high.
-            bool historyTouch = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? open <= entry and high >= entry : open >= entry and low <= entry)
-            bool profitableTake = direction == -1 ? fiboTarget < entry : fiboTarget > entry
-            if stage == 5 and dailyEntries < 2 and profitableTake and (liveTouch or historyTouch)
+            // Решение только после закрытия отдельной ретестовой M5.
+            // RR1 — худшая допустимая цена, а не цена исполнения задним числом.
+            bool closeInEntryZone = direction == 1 ? close <= entry and close > stop : close >= entry and close < stop
+            bool stopNotTouched = direction == 1 ? low > stop : high < stop
+            bool beforeEntryDeadline = time + 300000 < validUntil - 54000000
+            bool closedRetest = barstate.isconfirmed and beforeEntryDeadline and bar_index > lastExtremeBar and closeInEntryZone and stopNotTouched
+            bool profitableTake = direction == -1 ? fiboTarget < close : fiboTarget > close
+            if stage == 5 and dailyEntries < 2 and profitableTake and closedRetest
+                rrEntryThreshold := entry
+                entry := close
                 tradeVolumeMultiplier := nextVolumeMultiplier
                 stage := 6
                 outcome := 0
@@ -781,12 +816,13 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
 // а новый план становится доступен только после закрытия подтверждающей M5.
 if stage == 4 and barstate.isconfirmed and barstate.isconfirmed and (na(structureRollBar) or structureRollBar != bar_index) and ((direction == -1 and close < point1) or (direction == 1 and close > point1))
     stopFibo := point2 - 0.25 * ((direction == 1 ? high : low) - point2)
-    stop := stopFibo
+    stop := stopFibo - direction * stopOffset
     if false // В модели2–3 стоп не ограничен верхомH1.
         stage := 7
     else
         point3 := direction == -1 ? low : high
-        entry := (stopFibo + point3) / 2.0
+        entry := (stop + point3) / 2.0
+        rrEntryThreshold := entry
         fiboTarget := point3
         lastExtremeBar := bar_index
         pendingEntryTouched := false
@@ -920,7 +956,7 @@ if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
 // Ширина — только размер рисунка, не срок действия сценария.
 int positionRight = not na(positionLeft) ? math.max(positionLeft + positionBars * 300000, drawingRight) : na
 if drawReference and not hideUnentered and showPosition and planVisible and not na(positionLeft)
-    string rrCaption = stopOffset == 0 and takeOffset == 0 ? "R:R 1:1" : "R:R 1:" + str.tostring(math.abs(takePrice - entry) / math.abs(stop - entry), "#.###")
+    string rrCaption = "R:R 1:" + str.tostring(math.abs(takePrice - entry) / math.abs(stop - entry), "#.###")
     rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, takePrice, color.teal, rrCaption)
     riskZone := updateZone(riskZone, positionLeft, positionRight, entry, stop, color.red, "")
     entryPriceLabel := updatePriceLabel(entryPriceLabel, positionRight, entry, "Вход: " + str.tostring(entry, "#.##"), color.blue)
@@ -1113,3 +1149,7 @@ plot(failedSweptLevel,"Failed Swept Level",display=display.none)
 plot(structureSwitchBar,"Structure Switch Bar",display=display.none)
 plot(structureSwitchLevel,"Structure Switch Level",display=display.none)
 plot(preservedStructureActive ? 1 : 0,"Preserved Structure Active",display=display.none)
+
+plot(stopOffset,"Stop Offset",display=display.none)
+
+plot(rrEntryThreshold,"RR1 Threshold",display=display.data_window)

@@ -1,0 +1,6 @@
+import {readFileSync,writeFileSync} from 'node:fs';import {mock} from 'node:test';import assert from 'node:assert/strict';import {execute,sha256} from './observed.mjs';
+const read=n=>readFileSync(new URL(n,import.meta.url),'utf8'),raw=JSON.parse(read('../../reports/v45-oct23-diagnostic-2026-10-24/candles.json'));
+mock.timers.enable({apis:['Date'],now:Date.parse(raw.endExclusive)+1000});const results={};
+for(const [variant,file]of [['zero','sol_zero_offset_control.pine'],['offset010','sol_stop_confirmation.pine']]){const source=read('./'+file),result=await execute(source,raw,Date.parse(raw.start),Date.parse(raw.endExclusive));results[variant]={sourceSha256:sha256(source),...result};console.log(variant,JSON.stringify(result.trades));}
+assert.deepEqual(results.zero.trades.map(t=>t.side),['LONG','SHORT']);assert.equal(results.zero.trades[0].status,'stop');assert.ok(results.zero.trades[1].entryBarStart>results.zero.trades[0].exitBarStart);assert.equal(results.zero.trades[1].setupBreakClose,103.67);assert.equal(results.zero.trades[1].setupBreakLevel,103.77);
+writeFileSync(new URL('./oct23-comparison.json',import.meta.url),JSON.stringify({inputSha256:sha256(read('../../reports/v45-oct23-diagnostic-2026-10-24/candles.json')),results},null,2)+'\n');
