@@ -8,5 +8,24 @@
   "rollbackCommit": "69bf1e7f0a35aa35413e8386ee51b46110d65508",
   "entryExecution": "Confirmed M5 close at actual closing price; RR>=1; no entry at midnight",
   "stopOffsetUSDT": 0.1,
-  "fix": "Carry known reverse-break confirmation from closed first-SL candle into next M5"
+  "fix": "Carry known reverse-break confirmation from closed first-SL candle into next M5",
+  "annualBacktest": {
+    "period": {
+      "start": "2026-01-01T14:00:00+07:00",
+      "endExclusive": "2026-10-24T14:15:00+07:00",
+      "timezone": "Asia/Krasnoyarsk"
+    },
+    "performance": {
+      "entries": 183,
+      "closed": 178,
+      "wins": 73,
+      "stops": 105,
+      "winRate": 41.01123595505618,
+      "unresolved": 5,
+      "ambiguous": 0,
+      "netR": -6.653716323481245
+    },
+    "audit": "reports/v46-ytd-2026-10-24/audit.json",
+    "report": "reports/v46-ytd-2026-10-24/report.md"
+  }
 }

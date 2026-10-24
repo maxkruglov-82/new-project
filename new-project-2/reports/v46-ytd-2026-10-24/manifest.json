@@ -1,0 +1,24 @@
+{
+  "sourceSha256": "b6b1902bdc82ef12cc8d450ba42f3ae05cb4cb60711a92e60d07f58b75eba97b",
+  "inputSha256": "dcce2f037bded2925c9b36275cc5e53b780ba6649aefae5997110ddb49a4dc81",
+  "candles": 85251,
+  "period": {
+    "start": "2026-01-01T14:00:00+07:00",
+    "endExclusive": "2026-10-24T14:15:00+07:00",
+    "timezone": "Asia/Krasnoyarsk"
+  },
+  "provenance": {
+    "prefixFile": "reports/mexc-sol-usdt-m5-2026-01-01_2026-10-23.json",
+    "prefixSha256": "6c236ab57c7e112f40ea4e456ac7c7d75e5fb05f845e1aa2bb7bc33bdf7f0739",
+    "tailFile": "reports/v46-ytd-2026-10-24/tail-candles.json",
+    "tailSha256": "876047adda08092e6ed0a907690abcf290e984c26657e74e02870e75e4b39b7f",
+    "tailDownloadedAt": "2026-10-24T07:20:52.329767+00:00",
+    "overlapOct23DiagnosticOhlc": "PASS"
+  },
+  "ohlcvSha256": "a06423dd12560c4ecc91f550d971074b7dc146e449526056a1e4b3dff2fbf74d",
+  "strategyVersion": 46,
+  "publishedCodeCommit": "6de0f04",
+  "auditStatus": "PASS",
+  "halfyearLedgerMatches": true,
+  "dataFile": "candles.json in execution workspace; downloaded public MEXC data"
+}
