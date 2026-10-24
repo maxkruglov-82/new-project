@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "sourceSha256": "ba89d2cddd9114c9628de7e1f04b720d7d2176db01989d6d1768fc20b4fa7a6e",
+  "inputSha256": "d577f10284f1aa9e64cbe97111b98948fe10990757a789657bddae5c39111681",
+  "candles": 52536,
+  "trades": 135,
+  "p1Events": 215,
+  "checks": [
+    "Continuous candles",
+    "H1 ranges",
+    "P1 prior closes",
+    "Entry price/time",
+    "Stop1.25 based on P3/P2, TP=P3, entry midpoint SL/TP; RR1:1",
+    "First subsequent M5 exit",
+    "Monthly totals",
+    "Max2 trades/day; second opposite after first SL; before midnight; confirmed close",
+    "Failed-break reversals verified from raw candles",
+    "Oct19/20/22 ledgers match standalone controls"
+  ]
+}

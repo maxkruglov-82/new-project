@@ -1,0 +1,87 @@
+{
+  "sourceSha256": "ba89d2cddd9114c9628de7e1f04b720d7d2176db01989d6d1768fc20b4fa7a6e",
+  "summary": {
+    "calendarReferenceDays": 1,
+    "excludedWeekendDays": 0,
+    "referenceDays": 1,
+    "enteredTrades": 1,
+    "targets": 1,
+    "stops": 0,
+    "ambiguous": 0,
+    "unresolved": 0,
+    "totalTrades": 1,
+    "knownOutcomes": 1,
+    "winRateKnown": 1,
+    "daysWithEntry": 1,
+    "daysWithoutEntry": 0,
+    "daysWithTarget": 1,
+    "daysWithStopsAndNoTarget": 0,
+    "netRKnownBeforeCosts": 1.0000000000000204
+  },
+  "days": [
+    {
+      "date": "2026-10-20",
+      "referenceClose": "2026-10-20T15:00:00.000+07:00",
+      "high": 104.73,
+      "low": 104.22,
+      "endingStage": null,
+      "trades": 1,
+      "targets": 1,
+      "stops": 0,
+      "ambiguous": 0,
+      "unresolved": 0
+    }
+  ],
+  "trades": [
+    {
+      "id": 1,
+      "referenceDate": "2026-10-20",
+      "side": "LONG",
+      "setupConfirmedBar": 64,
+      "setupBreakLevel": 104.45,
+      "setupBreakClose": 104.56,
+      "fiboZero": 104.84,
+      "fiboOne": 103.73,
+      "volumeMultiplier": 1,
+      "tightReversal": false,
+      "entryBarStart": "2026-10-20T20:00:00.000+07:00",
+      "entryBarEnd": "2026-10-20T20:05:00.000+07:00",
+      "fiboStop": 103.4525,
+      "swingTarget": 104.84,
+      "entry": 104.14625,
+      "stop": 103.4525,
+      "target": 104.84,
+      "status": "target",
+      "exitBarStart": "2026-10-20T20:55:00.000+07:00",
+      "exitBarEnd": "2026-10-20T21:00:00.000+07:00",
+      "exitPrice": 104.84,
+      "r": 1.0000000000000204,
+      "rewardRisk": 1.0000000000000204
+    }
+  ],
+  "p1Audit": [
+    {
+      "confirmedAt": "2026-10-20T15:10:00.000+07:00",
+      "pivotAt": "2026-10-20T15:05:00.000+07:00",
+      "priorCloseAt": "2026-10-20T15:00:00.000+07:00",
+      "side": -1,
+      "pivotClose": 104.06,
+      "priorClose": 104.02,
+      "h1High": 104.73,
+      "h1Low": 104.22
+    }
+  ],
+  "priorityAudit": [],
+  "rollAudit": [],
+  "failedReversalAudit": [
+    {
+      "at": "2026-10-20T19:20:00.000+07:00",
+      "sweepAt": "2026-10-20T16:45:00.000+07:00",
+      "side": 1,
+      "original1": 103.73,
+      "original2": 104.45,
+      "sweptLevel": 103.78
+    }
+  ],
+  "structureSwitchAudit": []
+}

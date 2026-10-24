@@ -1,0 +1,19 @@
+{
+  "version": 45,
+  "status": "graph_review",
+  "date": "2026-10-24",
+  "sourceSha256": "18e5719d79052101a6691c4e3f9e54ab0bf0b8e1547739ea9ad34672a5041694",
+  "validatedDraftSha256": "ba89d2cddd9114c9628de7e1f04b720d7d2176db01989d6d1768fc20b4fa7a6e",
+  "rollbackVersion": 41,
+  "rollbackCommit": "460501cae6ee79a7b76dc869ddde5683f3f4844b",
+  "performance": {
+    "entries": 135,
+    "wins": 59,
+    "stops": 74,
+    "closed": 133,
+    "winRate": 44.3609022556391,
+    "unresolved": 2,
+    "ambiguous": 0,
+    "netR": -15.00000000000028
+  }
+}
