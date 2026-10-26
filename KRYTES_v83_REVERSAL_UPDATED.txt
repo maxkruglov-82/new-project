@@ -1,0 +1,1788 @@
+//@version=5
+indicator("SOL — часовой диапазон, SHORT и LONG v83 15:00–23:59 вход по закрытию — high/low разрешены; закреп M5 +0.01 / уровень", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+string tz = "Asia/Krasnoyarsk"
+bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
+float structureCloseOffset = input.float(0.01, "Минимальный отступ первой M5 закрепа (USDT)", minval=0.01, step=0.01)
+float stopOffset = input.float(0.03, "Отступ стопа за свинг (USDT)", minval=0.0, step=0.01)
+float takeOffset = 0.0
+bool allowSecondAfterTP = false
+float h1BreakOffset = input.float(0.01, "Минимальный выход точки за H1 (USDT)", minval=0.01, step=0.01)
+bool showFibo = false
+bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
+bool showMarks = input.bool(true, "Показывать SHORT и LONG")
+bool showPosition = input.bool(true, "Показывать зоны позиции")
+int positionBars = input.int(24, "Ширина позиции (свечей M5)", minval=2, maxval=288)
+int historyDays = input.int(60, "История: опорных дней", minval=1, maxval=60)
+int historyUntil = input.time(0, "История до (0 — правый край экрана)")
+int historyAnchor = historyUntil != 0 ? historyUntil : nz(chart.right_visible_bar_time, last_bar_time)
+int anchorMoment = historyUntil != 0 ? historyUntil : math.min(historyAnchor + 300000, timenow)
+int anchorDate = dayofmonth(anchorMoment, tz) - (hour(anchorMoment, tz) < 15 ? 1 : 0)
+int historyEnd = timestamp(tz, year(anchorMoment, tz), month(anchorMoment, tz), anchorDate, 15, 0)
+int historyStart = historyEnd - (historyDays - 1) * 86400000
+aboveH1(float price, float boundary) =>
+    price > boundary and price - boundary + 0.000000001 >= h1BreakOffset
+belowH1(float price, float boundary) =>
+    price < boundary and boundary - price + 0.000000001 >= h1BreakOffset
+updateLevel(line id, int leftTime, int rightTime, float price, color ink, int thickness) =>
+    line result = id
+    if na(result)
+        result := line.new(leftTime, price, rightTime, price, xloc=xloc.bar_time, color=ink, width=thickness)
+    else
+        line.set_xy1(result, leftTime, price)
+        line.set_xy2(result, rightTime, price)
+    result
+// Закреп упорядочен: первая закрытая M5 минимум на 0.01 за уровнем,
+// вторая закрытая M5 — на уровне или дальше. Перестановка свечей недопустима.
+priceAboveStructure(float price, float level) =>
+    not na(price) and not na(level) and price >= level + math.max(0.01, structureCloseOffset) - 0.000000001
+priceBelowStructure(float price, float level) =>
+    not na(price) and not na(level) and price <= level - math.max(0.01, structureCloseOffset) + 0.000000001
+structureAbove(float price, float priorClose, float level, int shift = 0) =>
+    (shift > 0 or barstate.isconfirmed) and not na(time[shift + 1]) and time[shift] - time[shift + 1] == 300000 and priceAboveStructure(priorClose, level) and not na(price) and price >= level - 0.000000001
+structureBelow(float price, float priorClose, float level, int shift = 0) =>
+    (shift > 0 or barstate.isconfirmed) and not na(time[shift + 1]) and time[shift] - time[shift + 1] == 300000 and priceBelowStructure(priorClose, level) and not na(price) and price <= level + 0.000000001
+updateZone(box id, int leftTime, int rightTime, float firstPrice, float secondPrice, color ink, string caption) =>
+    box result = id
+    if na(result)
+        result := box.new(left=leftTime, top=math.max(firstPrice, secondPrice), right=rightTime, bottom=math.min(firstPrice, secondPrice), xloc=xloc.bar_time, border_color=ink, bgcolor=color.new(ink, 85), text=caption, text_color=color.white, text_size=size.small)
+    else
+        box.set_left(result, leftTime)
+        box.set_right(result, rightTime)
+        box.set_top(result, math.max(firstPrice, secondPrice))
+        box.set_bottom(result, math.min(firstPrice, secondPrice))
+    result
+updatePriceLabel(label id, int atTime, float price, string caption, color ink) =>
+    label result = id
+    if na(result)
+        result := label.new(atTime, price, caption, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 100), textcolor=ink, size=size.small)
+    else
+        label.set_xy(result, atTime, price)
+        label.set_text(result, caption)
+    result
+// Маленькие подписи активных структурных точек.
+updateStructureMark(label id, int atTime, float price, string caption, bool above) =>
+    label result = id
+    if na(result)
+        result := label.new(atTime, price, caption, xloc=xloc.bar_time, yloc=yloc.price, style=above ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.orange, size=size.tiny)
+    else
+        label.set_xy(result, atTime, price)
+        label.set_text(result, caption)
+        label.set_style(result, above ? label.style_label_down : label.style_label_up)
+    result
+if barstate.isfirst and timeframe.period != "5"
+    runtime.error("Выберите таймфрейм 5 минут. Часовой диапазон индикатор собирает автоматически.")
+varip int shortSweepCount = 0
+varip int stage = 0
+varip int direction = 0
+varip int lockedDirection = 0
+varip int firstDirection = 0
+varip float nextVolumeMultiplier = 1.0
+varip float tradeVolumeMultiplier = 1.0
+varip bool initialShortPairUsed = false
+varip bool initialLongPairUsed = false
+varip bool afterTPMode = false
+varip int tpDirection = 0
+varip int tpStage = 0
+varip float tpP1 = na
+varip int tpP1Bar = na
+varip int tpP1Time = na
+varip float tpP2 = na
+varip int tpP2Time = na
+varip float tpP3 = na
+varip int tpExtremeBar = na
+varip int tpConfirmBar = na
+varip float tpBreakLevel = na
+varip float tpBreakClose = na
+varip int dailyEntries = 0
+varip bool postStopSearch = false
+varip int setupConfirmedBar = na
+varip float setupBreakLevel = na
+varip float setupBreakClose = na
+varip bool earlyFailedLong = false
+varip bool earlyFailedShort = false
+varip float pullbackExtreme = na
+varip int pullbackExtremeTime = na
+varip int pullbackSecondTime = na
+varip int pullbackEpoch = na
+varip int planStopAnchorTime = na
+varip bool inheritedCancelledOrigin = false
+varip float cancelledOppositeAnchor = na
+varip int cancelledOppositeSide = 0
+varip float originStopAnchor = na
+varip int originStopAnchorTime = na
+varip int originStopEpoch = na
+varip int originStopSide = 0
+varip float rejectedFirstLow = na
+varip float rejectedFirstHigh = na
+varip int rejectedFirstEpoch = na
+varip float freshRejectedLow = na
+varip float freshRejectedHigh = na
+varip int freshRejectedStart = na
+varip bool preservedStructureActive = false
+varip int structureSwitchBar = na
+varip float structureSwitchLevel = na
+varip float savedLong1 = na
+varip int savedLong1Bar = na
+varip int savedLong1Time = na
+varip float savedLong2 = na
+varip int savedLong2Time = na
+varip float savedShort1 = na
+varip int savedShort1Bar = na
+varip int savedShort1Time = na
+varip float savedShort2 = na
+varip int savedShort2Time = na
+varip bool failedSetupActive = false
+varip int failedSweepBar = na
+varip int failedFirstTime = na
+varip int failedSecondTime = na
+varip int failedReversalBar = na
+varip float failedSweptLevel = na
+varip float failedOriginal1 = na
+varip float failedOriginal2 = na
+varip float fiboTarget = na
+varip int reverseOriginEpoch = na
+varip int h1ExpiredPlanBar = na
+varip int freshProcessedBar = na
+varip int freshStage = 0
+varip int freshStartBar = na
+varip int freshDirection = 0
+varip float freshFirst = na
+varip int freshFirstBar = na
+varip int freshFirstTime = na
+varip float freshSecond = na
+varip int freshSecondTime = na
+varip int freshReplacementBar = na
+varip int retainedUpdatedOriginEpoch = na
+// Уровни прежней SHORT-структуры после неподтверждённого обновления P1.
+// Основная LONG-структура сохраняется через внутренние движения отката.
+// Разворот: обновление high 1L без закрепа, затем закреп ниже low отката.
+varip int symmetricShortEpoch = na
+varip int higherLowLongEpoch = na
+varip float higherLowOriginFirst = na
+varip int higherLowOriginTime = na
+varip int internalShortEpoch = na
+varip int internalShortSecondTime = na
+varip int internalShortPullbackBaseTime = na
+varip float internalShortLow = na
+varip int internalShortLowTime = na
+varip float reversalLongFirst = na
+varip int reversalLongFirstTime = na
+varip float reversalLongLow = na
+varip int reversalLongLowTime = na
+varip float reversalLongHigh = na
+varip int reversalLongHighTime = na
+varip bool reversalLongBaseLocked = false
+varip bool reversalLongArmed = false
+varip bool reversalLongConsumed = false
+varip float continuationLongFirst = na
+varip int continuationLongFirstTime = na
+varip float continuationLongLow = na
+varip int continuationLongLowTime = na
+varip bool continuationLongPullback = false
+varip bool continuationLongConsumed = false
+varip int sweptLongPlanEpoch = na
+varip int sweptShortEpoch = na
+varip float sweptShortFirst = na
+varip int sweptShortFirstTime = na
+varip float sweptShortSecond = na
+varip int sweptShortSecondTime = na
+varip int thirdLowReadyEpoch = na
+varip int thirdLowConfirmedBar = na
+varip int rejectedSpecialEpoch = na
+varip float fixedFiboZero = na
+varip float fixedFiboOne = na
+varip int adjacentPlanEpoch = na
+varip bool adjacentPullbackConfirmed = false
+varip int adjacentCancelBar = na
+varip bool referenceHadEntry = false
+varip bool drawReference = false
+varip float h1High = na
+varip float h1Low = na
+varip int validUntil = na
+varip int h1AboveCloseBar = na
+varip int h1BelowCloseBar = na
+varip float h1RejectedHigh = na
+varip float h1RejectedLow = na
+varip int breakBar = na
+varip float point1 = na
+varip int point1Bar = na
+varip int point1Time = na
+varip float point2 = na
+varip int point2Time = na
+varip float point3 = na
+varip bool partialRetest = false
+varip bool fibReanchored = false
+varip bool pendingEntryTouched = false
+varip int structureRollBar = na
+varip float originalBreakLevel = na
+varip int originalBreakEpoch = na
+varip bool tightReversal = false
+varip float longFloor0 = na
+varip float longOriginGuard = na
+varip int longFloorTime = na
+varip float skippedSecond = na
+varip int reversalDirection = 0
+varip int reversalUntil = na
+varip float reversalFirst = na
+varip float reversalSecond = na
+varip int reversalSecondTime = na
+varip float reversalThird = na
+varip int reversalThirdBar = na
+varip float rrEntryThreshold = na
+varip float entry = na
+varip float stop = na
+varip float stopFibo = na
+varip int lastExtremeBar = na
+varip int signalBar = na
+varip float previousQuote = na
+varip int lastPivotBar = na
+varip bool highRunHasLowerLeft = false
+varip bool lowRunHasHigherLeft = false
+varip float highRunLow = na
+varip float lowRunHigh = na
+varip int outcome = 0
+varip int outcomeBar = na
+varip int candidateEpoch = 0
+varip string retiredStatus = ""
+var int drawingEpoch = 0
+var bool drawingHadEntry = false
+var int drawingExpiry = na
+var array<line> archivedLines = array.new_line()
+var array<box> archivedBoxes = array.new_box()
+var array<label> archivedLabels = array.new_label()
+var array<int> archivedExpiry = array.new_int()
+var box h1Box = na
+var box m5Box = na
+var line fibMinus = na
+var line fibZero = na
+var line fibHalf = na
+var line fibOne = na
+var line fibStop = na
+var line entryLine = na
+var line stopLine = na
+var line targetLine = na
+varip int drawingRight = na
+varip int positionLeft = na
+var box rewardZone = na
+var box riskZone = na
+varip bool lateActive = false
+varip int lateSide = 0
+varip int lateBar = na
+varip float lateEntry = na
+varip float lateStop = na
+varip float lateTarget = na
+varip int lateOutcome = 0
+var label lateMark = na
+var label entryPriceLabel = na
+var label stopPriceLabel = na
+var label targetPriceLabel = na
+var label signalMark = na
+var label structureMark1 = na
+var label structureMark2 = na
+var label structureMark3 = na
+var float collectedOpen = na
+var float collectedHigh = na
+var float collectedLow = na
+var int collectedCount = 0
+var int collectedDay = na
+var int collectedTime = na
+var int publishedDay = na
+int yy = year(time, tz)
+int mm = month(time, tz)
+int dd = dayofmonth(time, tz)
+int hh = hour(time, tz)
+int mi = minute(time, tz)
+int dayKey = yy * 10000 + mm * 100 + dd
+bool shortEvent = false
+bool longEvent = false
+bool eventDraw = false
+float eventEntry = na
+float eventStop = na
+float eventTarget = na
+float eventSwingTarget = na
+bool interruptedShortConfirmed = false
+bool seededPoint3 = false
+bool shadowReversalNow = false
+bool barIsWeekend = dayofweek(time, tz) == dayofweek.saturday or dayofweek(time, tz) == dayofweek.sunday
+bool clockIsWeekend = dayofweek(timenow, tz) == dayofweek.saturday or dayofweek(timenow, tz) == dayofweek.sunday
+bool tradingDay = not skipWeekends or (not barIsWeekend and (not barstate.isrealtime or not clockIsWeekend))
+int searchStart = validUntil - 86400000
+int entryDeadline = validUntil - 54000000
+int searchEnd = entryDeadline
+bool searchWindow = not na(validUntil) and time >= searchStart and time < searchEnd and (not barstate.isrealtime or (timenow >= searchStart and timenow < searchEnd))
+bool closedM5Pair = barstate.isconfirmed and not na(time[1]) and time - time[1] == 300000 and not na(validUntil) and time[1] >= searchStart
+bool h1PairAbove = closedM5Pair and structureAbove(close, close[1], h1High)
+bool h1PairBelow = closedM5Pair and structureBelow(close, close[1], h1Low)
+if barstate.isconfirmed and tradingDay and searchWindow
+    if h1PairAbove and na(h1AboveCloseBar)
+        h1AboveCloseBar := bar_index - 1
+    if h1PairBelow and na(h1BelowCloseBar)
+        h1BelowCloseBar := bar_index - 1
+if barstate.isconfirmed and not na(continuationLongFirst) and not continuationLongConsumed
+    if h1PairBelow or dailyEntries > 0 or not tradingDay or not searchWindow
+        continuationLongFirst := na
+        continuationLongPullback := false
+    else if time > continuationLongFirstTime and (na(continuationLongLow) or low < continuationLongLow)
+        continuationLongLow := low
+        continuationLongLowTime := time
+if lateActive and lateOutcome == 0 and bar_index > lateBar
+    bool lateSL = lateSide == 1 ? low <= lateStop : high >= lateStop
+    bool lateTP = lateSide == 1 ? high >= lateTarget : low <= lateTarget
+    if lateSL or lateTP
+        lateOutcome := lateSL and lateTP ? 2 : lateTP ? 1 : -1
+        if not na(lateMark)
+            string lateResult = lateOutcome == 1 ? " успешный · тейк забран" : lateOutcome == -1 ? " · стоп" : " · порядок TP/SL неизвестен"
+            label.set_text(lateMark, (lateSide == 1 ? "LONG" : "SHORT") + lateResult + " · после 23:59 · вне статистики")
+if stage == 6 and outcome == 0 and bar_index > signalBar
+    float reachedHigh = bar_index > signalBar ? high : close
+    float reachedLow = bar_index > signalBar ? low : close
+    bool stopHit = direction == -1 ? reachedHigh >= stop : reachedLow <= stop
+    bool targetHit = direction == -1 ? reachedLow <= fiboTarget : reachedHigh >= fiboTarget
+    if stopHit or targetHit
+        outcome := stopHit and targetHit ? 2 : targetHit ? 1 : -1
+        outcomeBar := bar_index
+        if outcome == -1
+            nextVolumeMultiplier := tradeVolumeMultiplier * 2.0
+        else if outcome == 1
+            nextVolumeMultiplier := 1.0
+if stage != 5
+    pendingEntryTouched := false
+bool retry = stage == 6 and outcome == -1 and dailyEntries == 1 and bar_index > outcomeBar and time < validUntil and tradingDay and searchWindow
+if stage == 6 or stage == 0 or stage == 7
+    reversalDirection := 0
+bool resumeAfterTP = allowSecondAfterTP and stage == 6 and outcome == 1 and dailyEntries == 1 and bar_index > outcomeBar and time < validUntil and tradingDay and searchWindow
+if resumeAfterTP
+    failedSetupActive := false
+    afterTPMode := true
+    postStopSearch := false
+    outcome := 0
+    outcomeBar := na
+    stage := tpStage
+    direction := tpDirection
+    candidateEpoch := candidateEpoch + 1
+    retiredStatus := "После тейка · Новый сетап"
+    signalBar := na
+    drawingRight := na
+    positionLeft := na
+if retry
+    afterTPMode := false
+    int stoppedBar = outcomeBar
+    int stoppedDistance = bar_index - stoppedBar
+    float stoppedClose = close[stoppedDistance]
+    float stoppedHigh = high[stoppedDistance]
+    float stoppedLow = low[stoppedDistance]
+    preservedStructureActive := false
+    failedSetupActive := false
+    // LONG после higher-low помнит исходную 1Sh: после стопа подтверждаем SHORT по ней.
+    bool restoreOriginalShort = direction == 1 and higherLowLongEpoch == candidateEpoch and not na(higherLowOriginFirst)
+    float reverseFirst = restoreOriginalShort ? higherLowOriginFirst : stopFibo
+    int reverseFirstTime = restoreOriginalShort ? higherLowOriginTime : not na(planStopAnchorTime) and stopFibo != point2 ? planStopAnchorTime : point2Time
+    float reverseSecond = point3
+    int reverseSecondTime = time[bar_index - lastExtremeBar]
+    longOriginGuard := na
+    tightReversal := false
+    reversalDirection := 0
+    candidateEpoch := candidateEpoch + 1
+    retiredStatus := ""
+    direction := -direction
+    lockedDirection := direction
+    postStopSearch := true
+    stage := 4
+    outcome := 0
+    outcomeBar := na
+    breakBar := bar_index
+    point1 := reverseFirst
+    point1Bar := bar_index - int((time - reverseFirstTime) / 300000)
+    point1Time := reverseFirstTime
+    point2 := reverseSecond
+    point2Time := reverseSecondTime
+    point3 := na
+    partialRetest := false
+    fibReanchored := false
+    longFloor0 := na
+    longFloorTime := na
+    skippedSecond := na
+    entry := na
+    stop := na
+    stopFibo := na
+    fixedFiboZero := na
+    fixedFiboOne := na
+    signalBar := na
+    lastExtremeBar := na
+    drawingRight := na
+    positionLeft := na
+    freshStage := 1
+    freshStartBar := stoppedBar
+    freshDirection := direction
+    freshFirst := na
+    freshSecond := na
+    if time[stoppedDistance + 1] >= searchStart and (direction == -1 ? structureBelow(stoppedClose, close[stoppedDistance + 1], h1Low, stoppedDistance) : structureAbove(stoppedClose, close[stoppedDistance + 1], h1High, stoppedDistance))
+        freshStage := 2
+    bool stopBarConfirmedReverse = time[stoppedDistance + 1] >= searchStart and (direction == -1 ? structureBelow(stoppedClose, close[stoppedDistance + 1], point1, stoppedDistance) : structureAbove(stoppedClose, close[stoppedDistance + 1], point1, stoppedDistance))
+    if stopBarConfirmedReverse
+        point3 := direction == -1 ? math.min(stoppedLow, low[stoppedDistance + 1]) : math.max(stoppedHigh, high[stoppedDistance + 1])
+        stopFibo := point2
+        fixedFiboOne := point2
+        fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
+        stop := stopFibo - direction * stopOffset
+        fiboTarget := point3
+        entry := (stop + fiboTarget) / 2.0
+        rrEntryThreshold := entry
+        lastExtremeBar := stoppedBar
+        setupConfirmedBar := stoppedBar
+        setupBreakLevel := point1
+        setupBreakClose := stoppedClose
+        pendingEntryTouched := false
+        positionLeft := time[stoppedDistance]
+        stage := 5
+bool priorLowerPivot = barstate.isconfirmed and bar_index >= 2 and lowRunHasHigherLeft and low > low[1]
+bool priorUpperPivot = barstate.isconfirmed and bar_index >= 2 and highRunHasLowerLeft and high < high[1]
+// Подтверждённая P2 не сбрасывается из-за соседнего противоположного пивота.
+if stage == 4 and not na(point2Time) and dailyEntries == 0
+    if na(pullbackEpoch) or pullbackEpoch != candidateEpoch or pullbackSecondTime != point2Time
+        pullbackExtreme := direction == 1 ? high : low
+        pullbackExtremeTime := time
+        pullbackSecondTime := point2Time
+        pullbackEpoch := candidateEpoch
+        if time[1] > point2Time and (direction == 1 ? high[1] > pullbackExtreme : low[1] < pullbackExtreme)
+            pullbackExtreme := direction == 1 ? high[1] : low[1]
+            pullbackExtremeTime := time[1]
+    else if direction == 1 ? high > pullbackExtreme : low < pullbackExtreme
+        pullbackExtreme := direction == 1 ? high : low
+        pullbackExtremeTime := time
+if stage == 4 and (na(originalBreakEpoch) or originalBreakEpoch != candidateEpoch)
+    originalBreakLevel := point1
+    originalBreakEpoch := candidateEpoch
+bool rawLowerPivot = barstate.isconfirmed and bar_index >= 2 and lowRunHasHigherLeft and low > low[1]
+bool rawUpperPivot = barstate.isconfirmed and bar_index >= 2 and highRunHasLowerLeft and high < high[1]
+// Один бар может дать оба пивота. Направление и этап структуры выбирают нужный экстремум.
+bool validLowerPivot = rawLowerPivot
+bool validUpperPivot = rawUpperPivot
+float structuralBreakLevel = point1
+bool updated2SHForLong = direction == -1 and stage == 4 and validLowerPivot and time[1] > point2Time + 300000 and low[1] < originalBreakLevel and low[1] <= point1 and not structureAbove(close, close[1], point2)
+if updated2SHForLong
+    thirdLowReadyEpoch := candidateEpoch
+    thirdLowConfirmedBar := bar_index
+// Верхний ложный пробой сохраняет low прежнего отката для подтверждения SHORT.
+if barstate.isconfirmed and not na(reversalLongFirst) and not reversalLongConsumed and tradingDay and searchWindow and dailyEntries == 0
+    if reversalLongBaseLocked and time[1] > reversalLongFirstTime and structureAbove(close, close[1], direction == 1 and stage >= 3 and stage <= 4 ? math.max(reversalLongFirst, point1) : reversalLongFirst)
+        reversalLongConsumed := true
+    else
+        if reversalLongBaseLocked and not reversalLongArmed and high > reversalLongFirst and not na(reversalLongLow) and reversalLongLowTime < time
+            reversalLongArmed := true
+            reversalLongHigh := high
+            reversalLongHighTime := time
+        if reversalLongArmed
+            if high > reversalLongHigh
+                reversalLongHigh := high
+                reversalLongHighTime := time
+        else if time > reversalLongFirstTime and (na(reversalLongLow) or low < reversalLongLow)
+            reversalLongLow := low
+            reversalLongLowTime := time
+bool reversalShortConfirmed = barstate.isconfirmed and dailyEntries == 0 and stage >= 2 and stage <= 5 and not afterTPMode and reversalLongArmed and not reversalLongConsumed and tradingDay and searchWindow and structureBelow(close, close[1], reversalLongLow)
+if reversalShortConfirmed
+    direction := -1
+    lockedDirection := -1
+    point1 := reversalLongLow
+    point1Time := reversalLongLowTime
+    point1Bar := bar_index - int((time - point1Time) / 300000)
+    point2 := reversalLongHigh
+    point2Time := reversalLongHighTime
+    point3 := math.min(low, low[1])
+    stopFibo := point2
+    planStopAnchorTime := point2Time
+    fixedFiboOne := point2
+    fixedFiboZero := point2
+    stop := point2 + stopOffset
+    fiboTarget := point3 - stopOffset
+    entry := (point2 + point3) / 2.0
+    rrEntryThreshold := entry
+    lastExtremeBar := bar_index
+    setupConfirmedBar := bar_index
+    setupBreakLevel := point1
+    setupBreakClose := close
+    positionLeft := point2Time
+    drawingRight := na
+    signalBar := na
+    partialRetest := false
+    pendingEntryTouched := false
+    failedSetupActive := false
+    preservedStructureActive := true
+    longOriginGuard := na
+    longFloor0 := na
+    longFloorTime := na
+    candidateEpoch := candidateEpoch + 1
+    reverseOriginEpoch := candidateEpoch
+    retainedUpdatedOriginEpoch := candidateEpoch
+    symmetricShortEpoch := candidateEpoch
+    reversalLongConsumed := true
+    stage := 5
+    seededPoint3 := true
+// Подтверждение LONG использует актуальную 1L и её время, а не устаревший сохранённый high.
+float continuationLongLevel = direction == 1 and stage >= 3 and stage <= 4 ? math.max(continuationLongFirst, point1) : continuationLongFirst
+int continuationLongLevelTime = direction == 1 and stage >= 3 and stage <= 4 and point1 > continuationLongFirst ? point1Time : continuationLongFirstTime
+bool continuationLongConfirmed = barstate.isconfirmed and dailyEntries == 0 and stage >= 3 and stage <= 5 and not afterTPMode and not continuationLongConsumed and continuationLongPullback and not na(continuationLongFirst) and time[1] > continuationLongLevelTime and structureAbove(close, close[1], continuationLongLevel)
+if continuationLongConfirmed
+    direction := 1
+    lockedDirection := 1
+    point1 := continuationLongLevel
+    point1Time := continuationLongLevelTime
+    point1Bar := bar_index - int((time - point1Time) / 300000)
+    point2 := continuationLongLow
+    point2Time := continuationLongLowTime
+    point3 := math.max(high, high[1])
+    stopFibo := point2
+    planStopAnchorTime := point2Time
+    fixedFiboOne := point2
+    fixedFiboZero := point2
+    stop := point2 - stopOffset
+    fiboTarget := point3
+    entry := (stop + fiboTarget) / 2.0
+    rrEntryThreshold := entry
+    lastExtremeBar := bar_index
+    setupConfirmedBar := bar_index
+    setupBreakLevel := point1
+    setupBreakClose := close
+    positionLeft := point2Time
+    drawingRight := na
+    signalBar := na
+    partialRetest := false
+    pendingEntryTouched := false
+    failedSetupActive := false
+    preservedStructureActive := false
+    longOriginGuard := na
+    longFloor0 := na
+    longFloorTime := na
+    candidateEpoch := candidateEpoch + 1
+    reverseOriginEpoch := na
+    sweptLongPlanEpoch := candidateEpoch
+    continuationLongConsumed := true
+    stage := 5
+    seededPoint3 := true
+if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
+    if time >= validUntil or not tradingDay or not searchWindow
+        longOriginGuard := na
+        stage := 0
+        longFloor0 := na
+        longFloorTime := na
+        skippedSecond := na
+    else
+        bool below = h1PairBelow
+        bool above = h1PairAbove
+        int referenceStart = validUntil - 86400000
+        bool earlyBar = time >= referenceStart and time < referenceStart + 600000
+        bool earlyShort = earlyBar and h1PairBelow
+        bool earlyLong = earlyBar and h1PairAbove
+        bool earlyInitial = stage == 1 and (earlyShort or earlyLong)
+        if earlyInitial
+            below := earlyShort
+            above := earlyLong
+        if stage == 1 and (time >= referenceStart + 600000 or earlyInitial)
+            if below and above
+                stage := 7
+            else if below or above
+                direction := below ? -1 : 1
+                if firstDirection == 0
+                    firstDirection := direction
+                else if direction != firstDirection
+                    lockedDirection := direction
+                stage := 2
+                // Закреп подтверждён второй M5; экстремум первой свечи пары уже допустим.
+                breakBar := bar_index - 1
+        bool priorityAbove = above and (na(h1RejectedHigh) or (barstate.isrealtime ? close : high) > h1RejectedHigh)
+        bool priorityBelow = below and (na(h1RejectedLow) or (barstate.isrealtime ? close : low) < h1RejectedLow)
+        bool oppositeH1Break = not postStopSearch and not preservedStructureActive and (failedSetupActive ? (barstate.isconfirmed and (direction == 1 ? structureBelow(close, close[1], point2) : structureAbove(close, close[1], point2))) : (direction == -1 ? priorityAbove : priorityBelow))
+        bool recoverLong = dailyEntries == 0 and direction == -1 and preservedStructureActive and not na(savedLong1) and not na(savedLong2) and barstate.isconfirmed and not na(point2) and structureAbove(close, close[1], math.max(savedLong1, point2))
+        bool recoverShort = dailyEntries == 0 and direction == 1 and preservedStructureActive and not na(savedShort1) and not na(savedShort2) and barstate.isconfirmed and not na(point2) and structureBelow(close, close[1], math.min(savedShort1, point2))
+        // После стопа первой сделки восстановление SHORT использует ту же сохранённую структуру.
+        bool sweptShortActive = (dailyEntries == 0 or (dailyEntries == 1 and postStopSearch)) and direction == -1 and stage >= 3 and stage <= 4 and sweptShortEpoch == candidateEpoch
+        // Новый low без закрепа заменяет P1, но не теряет последний опорный high.
+        // Последующая пара должна подтвердить именно обновлённую P1, не устаревший low.
+        bool latestSweptLowConfirmed = sweptShortActive and stage == 3 and barstate.isconfirmed and structureBelow(close, close[1], point1)
+        if latestSweptLowConfirmed
+            point2 := sweptShortSecond
+            point2Time := sweptShortSecondTime
+            stage := 4
+        // Прерванный закреп восстанавливает предыдущую пару на четвёртой M5:
+        // ниже — выше — ниже — ниже относительно одного опорного low.
+        if sweptShortActive and barstate.isconfirmed and time - time[3] == 900000 and point1Time == time[3] and priceBelowStructure(close[3], sweptShortFirst) and close[2] > sweptShortFirst and structureBelow(close, close[1], sweptShortFirst)
+            interruptedShortConfirmed := true
+            point1 := sweptShortFirst
+            point1Time := sweptShortFirstTime
+            point1Bar := bar_index - int((time - point1Time) / 300000)
+            point2 := sweptShortSecond
+            point2Time := sweptShortSecondTime
+            stage := 4
+        bool sweptLongBreak = dailyEntries == 0 and sweptShortActive and barstate.isconfirmed and low >= point1 and structureAbove(close, close[1], sweptShortSecond)
+        // LONG после отдельного отката выше исходной 1Sh: обновлять её low не требуется.
+        bool higherLowLongBreak = dailyEntries == 0 and direction == -1 and stage == 4 and internalShortEpoch == candidateEpoch and internalShortSecondTime == point2Time and not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= internalShortPullbackBaseTime + 900000 and barstate.isconfirmed and low >= internalShortLow and structureAbove(close, close[1], point2)
+        bool confirmedRangeFailed = not na(failedSweepBar) and failedFirstTime == point1Time and failedSecondTime == point2Time
+        bool hasFailedFirst = (direction == 1 ? earlyFailedLong : earlyFailedShort) and not confirmedRangeFailed
+        // Откат первой LONG-структуры внутри H1 не меняет приоритет на SHORT.
+        // Разворот ниже 2L допустим, если нижняя сторона H1 уже была подтверждена.
+        bool shortPriorityEstablished = firstDirection == -1 or not na(h1BelowCloseBar)
+        bool internalBreak = dailyEntries == 0 and stage == 4 and not na(point2Time) and barstate.isconfirmed and (direction == 1 ? (shortPriorityEstablished and (na(rejectedSpecialEpoch) or rejectedSpecialEpoch != candidateEpoch) and point2Time > point1Time + 300000 and high <= point1 and structureBelow(close, close[1], point2)) : (thirdLowReadyEpoch == candidateEpoch and bar_index > thirdLowConfirmedBar and low >= point1 and structureAbove(close, close[1], point2)))
+        internalBreak := internalBreak or sweptLongBreak or higherLowLongBreak
+        if recoverLong or recoverShort or internalBreak
+            bool retainUpdatedOrigin = higherLowLongBreak or (internalBreak and direction == -1 and thirdLowReadyEpoch == candidateEpoch and point1Time > point2Time)
+            if higherLowLongBreak
+                higherLowOriginFirst := point1
+                higherLowOriginTime := point1Time
+            float reversalStopAnchor = higherLowLongBreak ? internalShortLow : point1
+            int reversalStopTime = higherLowLongBreak ? internalShortLowTime : point1Time
+            float nextFirst = sweptLongBreak ? sweptShortSecond : recoverLong ? savedLong1 : recoverShort ? savedShort1 : point2
+            int nextFirstTime = sweptLongBreak ? sweptShortSecondTime : recoverLong ? savedLong1Time : recoverShort ? savedShort1Time : point2Time
+            float nextSecond = higherLowLongBreak ? internalShortLow : recoverLong ? savedLong2 : recoverShort ? savedShort2 : point1
+            int nextSecondTime = higherLowLongBreak ? internalShortLowTime : recoverLong ? savedLong2Time : recoverShort ? savedShort2Time : point1Time
+            direction := recoverLong ? 1 : recoverShort ? -1 : -direction
+            lockedDirection := direction
+            point1 := nextFirst
+            point1Time := nextFirstTime
+            point1Bar := bar_index - int((time - nextFirstTime) / 300000)
+            point2 := nextSecond
+            point2Time := nextSecondTime
+            point3 := direction == 1 ? math.max(high, high[1]) : math.min(low, low[1])
+            stopFibo := internalBreak ? reversalStopAnchor : point2
+            planStopAnchorTime := internalBreak ? reversalStopTime : point2Time
+            fixedFiboOne := point2
+            fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
+            stop := stopFibo - direction * stopOffset
+            // Вход — середина исходного свинга; SL/TP расширены симметрично.
+            fiboTarget := point3 + (higherLowLongBreak ? stopOffset : 0.0)
+            entry := higherLowLongBreak ? (stopFibo + point3) / 2.0 : (stop + fiboTarget) / 2.0
+            rrEntryThreshold := entry
+            lastExtremeBar := bar_index
+            setupConfirmedBar := bar_index
+            setupBreakLevel := point1
+            setupBreakClose := close
+            positionLeft := sweptLongBreak or higherLowLongBreak ? nextSecondTime : time
+            drawingRight := na
+            signalBar := na
+            structureSwitchBar := bar_index
+            structureSwitchLevel := point1
+            preservedStructureActive := true
+            failedSetupActive := false
+            longFloor0 := na
+            longOriginGuard := na
+            longFloorTime := na
+            reversalDirection := 0
+            skippedSecond := na
+            partialRetest := false
+            pendingEntryTouched := false
+            fibReanchored := false
+            tightReversal := false
+            candidateEpoch := candidateEpoch + 1
+            sweptLongPlanEpoch := sweptLongBreak or higherLowLongBreak ? candidateEpoch : na
+            higherLowLongEpoch := higherLowLongBreak ? candidateEpoch : na
+            reverseOriginEpoch := internalBreak ? candidateEpoch : na
+            retainedUpdatedOriginEpoch := retainUpdatedOrigin ? candidateEpoch : na
+            stage := 5
+            seededPoint3 := true
+        bool crossedSecond = stage == 5 and (oppositeH1Break or shadowReversalNow) and not na(point2) and (direction == 1 ? (barstate.isconfirmed and structureBelow(close, close[1], point2)) : (barstate.isconfirmed and structureAbove(close, close[1], point2)))
+        if crossedSecond
+            failedSetupActive := shadowReversalNow
+            preservedStructureActive := false
+            bool ambiguousReversal = not barstate.isrealtime and (direction == 1 ? high > point3 : low < point3)
+            int formerThirdTime = time[bar_index - lastExtremeBar]
+            point1 := point2
+            point1Time := point2Time
+            point1Bar := bar_index - int((time - point2Time) / 300000)
+            point2 := point3
+            point2Time := formerThirdTime
+            direction := -direction
+            lockedDirection := direction
+            longOriginGuard := na
+            longFloor0 := na
+            longFloorTime := na
+            skippedSecond := na
+            partialRetest := false
+            fibReanchored := false
+            tightReversal := false
+            point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
+            stopFibo := point2
+            fixedFiboOne := point2
+            fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
+            stop := stopFibo - direction * stopOffset
+            entry := (stop + point3) / 2.0
+            rrEntryThreshold := entry
+            fiboTarget := point3
+            lastExtremeBar := bar_index
+            pendingEntryTouched := false
+            positionLeft := time
+            drawingRight := na
+            signalBar := na
+            candidateEpoch := candidateEpoch + 1
+            reverseOriginEpoch := candidateEpoch
+            adjacentPlanEpoch := shadowReversalNow ? candidateEpoch : na
+            adjacentPullbackConfirmed := false
+            retiredStatus := "Разворот по P2 · Без входа"
+            setupConfirmedBar := bar_index
+            setupBreakLevel := point1
+            setupBreakClose := close
+            seededPoint3 := true
+            stage := ambiguousReversal ? 7 : 5
+        bool freshPriorityAbove = priorityAbove and close[2] <= math.max(h1High, nz(h1RejectedHigh, h1High))
+        bool freshPriorityBelow = priorityBelow and close[2] >= math.min(h1Low, nz(h1RejectedLow, h1Low))
+        bool crossedPriorityBoundary = (na(reverseOriginEpoch) or reverseOriginEpoch != candidateEpoch) and not postStopSearch and not failedSetupActive and (preservedStructureActive ? (direction == -1 ? freshPriorityAbove : freshPriorityBelow) : (direction == -1 ? priorityAbove : priorityBelow))
+        bool brokenLongOrigin = not postStopSearch and not preservedStructureActive and barstate.isconfirmed and lockedDirection == 1 and not na(longOriginGuard) and structureBelow(close, close[1], longOriginGuard)
+        if stage >= 2 and stage <= 5 and (crossedPriorityBoundary or brokenLongOrigin)
+            bool carryOrigin = crossedPriorityBoundary and dailyEntries == 0 and stage >= 3 and stage <= 4 and not na(point1) and (na(point2) or (direction == -1 ? not structureAbove(close, close[1], point2) : not structureBelow(close, close[1], point2)) or (cancelledOppositeSide == direction and not na(cancelledOppositeAnchor) and (direction == -1 ? not structureAbove(close, close[1], cancelledOppositeAnchor) : not structureBelow(close, close[1], cancelledOppositeAnchor))))
+            inheritedCancelledOrigin := carryOrigin and not na(point2) and (direction == -1 ? structureAbove(close, close[1], point2) : structureBelow(close, close[1], point2))
+            originStopAnchor := carryOrigin ? point1 : na
+            originStopAnchorTime := carryOrigin ? point1Time : na
+            originStopEpoch := carryOrigin ? candidateEpoch + 1 : na
+            originStopSide := carryOrigin ? -direction : 0
+            cancelledOppositeAnchor := na
+            cancelledOppositeSide := 0
+            preservedStructureActive := false
+            tightReversal := false
+            bool unbrokenShort = direction == -1 and stage >= 3 and stage <= 4 and not na(point1) and low >= point1
+            longOriginGuard := unbrokenShort ? point1 : na
+            longFloor0 := unbrokenShort ? point1 : na
+            longFloorTime := unbrokenShort ? point1Time : na
+            skippedSecond := na
+            candidateEpoch := candidateEpoch + 1
+            retiredStatus := "Отмена · Без входа"
+            direction := crossedPriorityBoundary ? -direction : direction
+            lockedDirection := direction
+            stage := below and above and na(longFloor0) ? 7 : 2
+            // Первая свеча подтверждающей пары остаётся допустимой точкой 1.
+            breakBar := crossedPriorityBoundary ? bar_index - 1 : bar_index
+            point1 := na
+            point1Bar := na
+            point1Time := na
+            point2 := na
+            point2Time := na
+            point3 := na
+            partialRetest := false
+            fibReanchored := false
+            entry := na
+            stop := na
+            stopFibo := na
+            fixedFiboZero := na
+            fixedFiboOne := na
+            signalBar := na
+            lastExtremeBar := na
+            drawingRight := na
+            positionLeft := na
+        if stage == 2 and dailyEntries == 0 and not postStopSearch
+            float oldFirst = direction == 1 ? savedLong1 : savedShort1
+            float oldSecond = direction == 1 ? savedLong2 : savedShort2
+            int oldFirstTime = direction == 1 ? savedLong1Time : savedShort1Time
+            int oldSecondTime = direction == 1 ? savedLong2Time : savedShort2Time
+            bool cachedFirstBeyondRejected = na(rejectedFirstEpoch) or rejectedFirstEpoch != candidateEpoch or (direction == -1 ? na(rejectedFirstLow) or oldFirst < rejectedFirstLow : na(rejectedFirstHigh) or oldFirst > rejectedFirstHigh)
+            if not na(oldFirst) and not na(oldSecond) and cachedFirstBeyondRejected
+                point1 := oldFirst
+                point1Time := oldFirstTime
+                point1Bar := bar_index - int((time - oldFirstTime) / 300000)
+                point2 := oldSecond
+                point2Time := oldSecondTime
+                longOriginGuard := na
+                longFloor0 := na
+                stage := 4
+        if stage == 4 and barstate.isconfirmed
+            if na(failedFirstTime) or na(failedSecondTime) or failedFirstTime != point1Time or failedSecondTime != point2Time
+                failedSweepBar := na
+            bool sweptWithoutClose = false
+            if sweptWithoutClose
+                rejectedSpecialEpoch := candidateEpoch
+                failedSweptLevel := point1
+                point1 := direction == -1 ? low : high
+                point1Bar := bar_index
+                point1Time := time
+                failedSweepBar := bar_index
+                failedFirstTime := point1Time
+                failedSecondTime := point2Time
+            bool inverseConfirmed = false
+            if inverseConfirmed
+                failedSetupActive := true
+                failedOriginal1 := point1
+                failedOriginal2 := point2
+                failedReversalBar := bar_index
+                float originalFirst = point1
+                int originalFirstTime = point1Time
+                point1 := point2
+                point1Time := point2Time
+                point1Bar := bar_index - int((time - point1Time) / 300000)
+                point2 := originalFirst
+                point2Time := originalFirstTime
+                direction := -direction
+                lockedDirection := direction
+                point3 := direction == 1 ? math.max(high, high[1]) : math.min(low, low[1])
+                stopFibo := point2
+                fixedFiboOne := point2
+                fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
+                stop := stopFibo - direction * stopOffset
+                fiboTarget := point3
+                entry := (stop + fiboTarget) / 2.0
+                rrEntryThreshold := entry
+                lastExtremeBar := bar_index
+                positionLeft := time
+                drawingRight := na
+                signalBar := na
+                setupConfirmedBar := bar_index
+                setupBreakLevel := point1
+                setupBreakClose := close
+                longFloor0 := na
+                longFloorTime := na
+                longOriginGuard := na
+                skippedSecond := na
+                reversalDirection := 0
+                partialRetest := false
+                pendingEntryTouched := false
+                fibReanchored := false
+                tightReversal := false
+                candidateEpoch := candidateEpoch + 1
+                stage := 5
+                seededPoint3 := true
+        if stage == 4 and barstate.isconfirmed and (na(structureRollBar) or structureRollBar != bar_index) and ((direction == -1 and structureBelow(close, close[1], structuralBreakLevel)) or (direction == 1 and structureAbove(close, close[1], structuralBreakLevel)))
+            bool useOriginStop = dailyEntries == 0 and originStopEpoch == candidateEpoch and originStopSide == direction and not na(originStopAnchor)
+            stopFibo := useOriginStop ? (direction == 1 ? math.min(point2, originStopAnchor) : math.max(point2, originStopAnchor)) : point2
+            planStopAnchorTime := useOriginStop and stopFibo != point2 ? originStopAnchorTime : point2Time
+            fixedFiboOne := point2
+            fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
+            stop := stopFibo - direction * stopOffset
+            if false
+                stage := 7
+            else
+                point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
+                entry := (stop + point3) / 2.0
+                rrEntryThreshold := entry
+                fiboTarget := point3
+                lastExtremeBar := bar_index
+                pendingEntryTouched := false
+                positionLeft := time
+                stage := 5
+                setupConfirmedBar := bar_index
+                setupBreakLevel := structuralBreakLevel
+                setupBreakClose := close
+                seededPoint3 := true
+        if stage == 5
+            bool oldEntryTouched = barstate.isrealtime ? not seededPoint3 and (direction == 1 ? close <= entry : close >= entry) : bar_index > lastExtremeBar and (direction == 1 ? low <= entry : high >= entry)
+            pendingEntryTouched := pendingEntryTouched or oldEntryTouched
+            bool extendedExtreme = (direction == -1 and low < point3) or (direction == 1 and high > point3)
+            if extendedExtreme
+                fibReanchored := false
+                partialRetest := false
+                point3 := direction == -1 ? low : high
+                bool symmetricLongOffsets = direction == 1 and higherLowLongEpoch == candidateEpoch
+                bool symmetricShortOffsets = direction == -1 and symmetricShortEpoch == candidateEpoch
+                entry := symmetricLongOffsets or symmetricShortOffsets ? (stopFibo + point3) / 2.0 : (stop + point3) / 2.0
+                rrEntryThreshold := entry
+                fiboTarget := point3 + (symmetricLongOffsets ? stopOffset : symmetricShortOffsets ? -stopOffset : 0.0)
+                lastExtremeBar := bar_index
+                pendingEntryTouched := false
+                if false
+                    stage := 7
+            bool entryTouched = low <= entry and high >= entry
+            bool stopNotTouched = direction == 1 ? low > stop : high < stop
+            bool beforeEntryDeadline = time < entryDeadline and (not barstate.isrealtime or timenow < entryDeadline)
+            bool firstEntryWindow = beforeEntryDeadline
+            bool closeEntryWindow = barstate.isconfirmed and time + 300000 >= searchStart and time + 300000 < entryDeadline
+            bool touchedRetest = beforeEntryDeadline and firstEntryWindow and closeEntryWindow and bar_index > lastExtremeBar and entryTouched and stopNotTouched
+            bool profitableTake = direction == -1 ? close > fiboTarget and close < stop : close < fiboTarget and close > stop
+            if stage == 5 and dailyEntries < 2 and profitableTake and touchedRetest
+                rrEntryThreshold := entry
+                entry := close
+                tradeVolumeMultiplier := nextVolumeMultiplier
+                stage := 6
+                outcome := 0
+                outcomeBar := na
+                signalBar := bar_index
+                shortEvent := direction == -1
+                longEvent := direction == 1
+                eventDraw := drawReference
+                eventEntry := entry
+                eventStop := stop
+                eventTarget := fiboTarget
+                eventSwingTarget := point3
+            else if stage == 5 and not seededPoint3 and not extendedExtreme
+                bool historicalPartial = not barstate.isrealtime and barstate.isconfirmed and bar_index > lastExtremeBar and (direction == -1 ? high > point3 and high < entry : low < point3 and low > entry)
+                bool livePartial = barstate.isrealtime and not na(previousQuote) and (direction == -1 ? close > previousQuote and close > point3 and close < entry : close < previousQuote and close < point3 and close > entry)
+                partialRetest := partialRetest or historicalPartial or livePartial
+if stage == 5 and reverseOriginEpoch == candidateEpoch and (na(retainedUpdatedOriginEpoch) or retainedUpdatedOriginEpoch != candidateEpoch) and (direction == -1 ? h1PairBelow : h1PairAbove)
+    cancelledOppositeAnchor := point2
+    cancelledOppositeSide := direction
+    stage := 2
+    candidateEpoch := candidateEpoch + 1
+    preservedStructureActive := false
+    failedSetupActive := false
+    point1 := na
+    point2 := na
+    point1Bar := na
+    point1Time := na
+    point2Time := na
+    pendingEntryTouched := false
+    partialRetest := false
+    savedLong1 := na
+    savedLong1Bar := na
+    savedLong1Time := na
+    savedLong2 := na
+    savedLong2Time := na
+    savedShort1 := na
+    savedShort1Bar := na
+    savedShort1Time := na
+    savedShort2 := na
+    savedShort2Time := na
+    earlyFailedLong := false
+    earlyFailedShort := false
+    failedSweepBar := na
+    failedFirstTime := na
+    failedSecondTime := na
+    originalBreakLevel := na
+    originalBreakEpoch := na
+    longOriginGuard := na
+    longFloor0 := na
+    longFloorTime := na
+    skippedSecond := na
+    point3 := na
+    entry := na
+    stop := na
+    stopFibo := na
+    fiboTarget := na
+    rrEntryThreshold := na
+    fixedFiboZero := na
+    fixedFiboOne := na
+    originStopAnchor := na
+    originStopAnchorTime := na
+    originStopEpoch := na
+    originStopSide := 0
+    reverseOriginEpoch := na
+    // Сброс плана не должен исключать экстремум первой свечи закрепа.
+    breakBar := bar_index - 1
+    h1ExpiredPlanBar := bar_index - 1
+    retiredStatus := direction == -1 ? "Закрытие ниже H1 · Шорт отменён без входа" : "Закрытие выше H1 · Лонг отменён без входа"
+if barstate.isconfirmed and tradingDay and searchWindow
+    if na(h1AboveCloseBar) and close <= h1High and high > h1High
+        h1RejectedHigh := math.max(nz(h1RejectedHigh, h1High), high)
+    if na(h1BelowCloseBar) and close >= h1Low and low < h1Low
+        h1RejectedLow := math.min(nz(h1RejectedLow, h1Low), low)
+bool lowerPivot = validLowerPivot
+bool upperPivot = validUpperPivot
+int firstPivotBar = bar_index - 1
+int firstPivotTime = time[1]
+int secondPivotBar = bar_index - 1
+int secondPivotTime = time[1]
+float confirmedLowRunHigh = lowRunHigh
+float confirmedHighRunLow = highRunLow
+if barstate.isconfirmed and (na(freshProcessedBar) or freshProcessedBar != bar_index) and dailyEntries == 1 and postStopSearch and stage >= 2 and stage <= 5 and freshDirection == direction and searchWindow and tradingDay
+    freshProcessedBar := bar_index
+    if freshStage == 1 and (direction == -1 ? h1PairBelow : h1PairAbove)
+        freshStage := 2
+        freshStartBar := bar_index
+    bool freshFirstPivot = direction == -1 ? lowerPivot : upperPivot
+    bool freshSecondPivot = direction == -1 ? upperPivot and highRunLow >= freshFirst and (not inheritedCancelledOrigin or low >= freshFirst) : lowerPivot and lowRunHigh <= freshFirst and (not inheritedCancelledOrigin or high <= freshFirst)
+    float freshPivotPrice = direction == -1 ? low[1] : high[1]
+    bool freshFirstOutsideH1 = direction == -1 ? low[1] < h1Low : high[1] > h1High
+    if na(freshRejectedStart) or freshRejectedStart != freshStartBar
+        freshRejectedLow := na
+        freshRejectedHigh := na
+        freshRejectedStart := freshStartBar
+    bool freshBeyondRejected = direction == -1 ? na(freshRejectedLow) or freshPivotPrice < freshRejectedLow : na(freshRejectedHigh) or freshPivotPrice > freshRejectedHigh
+    if freshStage == 2 and freshFirstPivot and freshFirstOutsideH1 and freshBeyondRejected and firstPivotBar > freshStartBar
+        freshRejectedLow := na
+        freshRejectedHigh := na
+        freshFirst := freshPivotPrice
+        freshFirstBar := firstPivotBar
+        freshFirstTime := firstPivotTime
+        freshStage := 3
+    else if freshStage == 3
+        if freshFirstPivot and (direction == -1 ? freshPivotPrice < freshFirst : freshPivotPrice > freshFirst)
+            freshFirst := freshPivotPrice
+            freshFirstBar := firstPivotBar
+            freshFirstTime := firstPivotTime
+        else if freshSecondPivot and secondPivotBar > freshFirstBar
+            if secondPivotBar <= freshFirstBar + 2
+                freshStage := 3
+                freshSecond := na
+                freshSecondTime := na
+            else
+                freshSecond := direction == -1 ? high[1] : low[1]
+                freshSecondTime := secondPivotTime
+                freshStage := 4
+    else if freshStage == 4 and freshSecondPivot and (direction == -1 ? high[1] > freshSecond : low[1] < freshSecond)
+        freshSecond := direction == -1 ? high[1] : low[1]
+        freshSecondTime := secondPivotTime
+    float freshBreakLevel = freshFirst
+    bool freshBreakConfirmed = freshStage == 4 and (direction == -1 ? structureBelow(close, close[1], freshBreakLevel) : structureAbove(close, close[1], freshBreakLevel))
+    if freshStage == 4 and not freshBreakConfirmed and freshFirstPivot and (direction == -1 ? freshPivotPrice < freshFirst : freshPivotPrice > freshFirst)
+        freshFirst := freshPivotPrice
+        freshFirstBar := firstPivotBar
+        freshFirstTime := firstPivotTime
+    if freshBreakConfirmed
+        point1 := freshBreakLevel
+        point1Bar := freshFirstBar
+        point1Time := freshFirstTime
+        point2 := freshSecond
+        point2Time := freshSecondTime
+        point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
+        stopFibo := point2
+        fixedFiboZero := point2
+        fixedFiboOne := point2
+        stop := point2 - direction * stopOffset
+        fiboTarget := point3
+        entry := (stop + fiboTarget) / 2.0
+        rrEntryThreshold := entry
+        lastExtremeBar := bar_index
+        setupConfirmedBar := bar_index
+        setupBreakLevel := point1
+        setupBreakClose := close
+        candidateEpoch := candidateEpoch + 1
+        originalBreakEpoch := candidateEpoch
+        originalBreakLevel := point1
+        pendingEntryTouched := false
+        partialRetest := false
+        failedSetupActive := false
+        preservedStructureActive := false
+        longOriginGuard := na
+        positionLeft := time
+        drawingRight := na
+        signalBar := na
+        stage := 5
+        freshReplacementBar := bar_index
+        retiredStatus := "Новая1–2–3 · Прежний план заменён"
+        freshStage := 2
+        freshStartBar := bar_index
+        freshFirst := na
+        freshSecond := na
+if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
+    lastPivotBar := bar_index
+    if not afterTPMode
+        if na(rejectedFirstEpoch) or rejectedFirstEpoch != candidateEpoch
+            rejectedFirstLow := na
+            rejectedFirstHigh := na
+            rejectedFirstEpoch := candidateEpoch
+        bool firstPivot = direction == -1 ? lowerPivot and (postStopSearch or (belowH1(low[1], h1Low) and not na(h1BelowCloseBar) and h1BelowCloseBar <= firstPivotBar)) : upperPivot and (postStopSearch or (aboveH1(high[1], h1High) and not na(h1AboveCloseBar) and h1AboveCloseBar <= firstPivotBar))
+        firstPivot := firstPivot and (na(h1ExpiredPlanBar) or firstPivotBar >= h1ExpiredPlanBar)
+        firstPivot := firstPivot and (direction == -1 ? na(rejectedFirstLow) or low[1] < rejectedFirstLow : na(rejectedFirstHigh) or high[1] > rejectedFirstHigh)
+        bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 and highRunLow >= point1 : lowerPivot and low[1] < point1 and lowRunHigh <= point1
+        // Ложный выход выше сохранённой 2Sh не создаёт новую 2Sh.
+        float protectedShortHigh = sweptShortEpoch == candidateEpoch ? sweptShortSecond : internalShortEpoch == candidateEpoch and not na(internalShortLow) ? point2 : na
+        bool falseShortSecond = direction == -1 and not na(protectedShortHigh) and high[1] > protectedShortHigh and not structureAbove(close[1], close[2], protectedShortHigh, 1) and not structureAbove(close, close[1], protectedShortHigh)
+        bool qualifiedShortPullback = internalShortEpoch == candidateEpoch and not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= internalShortPullbackBaseTime + 900000
+        falseShortSecond := falseShortSecond and shortSweepCount == 0 and not qualifiedShortPullback
+        secondPivot := secondPivot and not falseShortSecond
+        if stage == 2 and firstPivot and firstPivotBar >= breakBar
+            rejectedFirstLow := na
+            rejectedFirstHigh := na
+            point1 := direction == -1 ? low[1] : high[1]
+            point1Bar := firstPivotBar
+            point1Time := firstPivotTime
+            stage := 3
+        else if stage == 3
+            if firstPivot and ((direction == -1 and low[1] < point1) or (direction == 1 and high[1] > point1))
+                if direction == 1 and not structureAbove(close[1], close[2], point1, 1)
+                    earlyFailedLong := true
+                if direction == -1 and not structureBelow(close[1], close[2], point1, 1)
+                    earlyFailedShort := true
+                if direction == 1 and not na(longFloor0)
+                    longFloor0 := na
+                    longFloorTime := na
+                point1 := direction == -1 ? low[1] : high[1]
+                point1Bar := firstPivotBar
+                point1Time := firstPivotTime
+                skippedSecond := na
+            else if secondPivot and secondPivotBar > point1Bar
+                bool firstHourPair = dailyEntries == 0 and (direction == -1 ? not initialShortPairUsed and not na(h1BelowCloseBar) and point1Bar >= h1BelowCloseBar : not initialLongPairUsed and not na(h1AboveCloseBar) and point1Bar >= h1AboveCloseBar)
+                if firstHourPair
+                    if direction == -1
+                        initialShortPairUsed := true
+                    else
+                        initialLongPairUsed := true
+                if secondPivotBar <= point1Bar + 2
+                    reversalDirection := 0
+                    float skippedPrice = direction == -1 ? high[1] : low[1]
+                    skippedSecond := na(skippedSecond) ? skippedPrice : direction == -1 ? math.max(skippedSecond, skippedPrice) : math.min(skippedSecond, skippedPrice)
+                    point2 := na
+                    point2Time := na
+                    savedShort1 := na
+                    savedShort2 := na
+                    savedLong1 := na
+                    savedLong2 := na
+                    stage := 3
+                else
+                    reversalDirection := 0
+                    point2 := direction == -1 ? high[1] : low[1]
+                    point2Time := secondPivotTime
+                    if direction == 1 and not na(longOriginGuard) and point2 >= longOriginGuard
+                        longFloor0 := na
+                        longFloorTime := na
+                    skippedSecond := na
+                    stage := 4
+        else if stage == 4 and firstPivot and (direction == -1 ? low[1] < point1 : high[1] > point1) and not (direction == -1 ? structureBelow(close, close[1], point1) : structureAbove(close, close[1], point1))
+            if direction == -1
+                // Сохраняем непосредственно предыдущий low и его откат, не самую старую пару.
+                sweptShortFirst := point1
+                sweptShortFirstTime := point1Time
+                sweptShortSecond := point2
+                sweptShortSecondTime := point2Time
+                shortSweepCount := shortSweepCount + 1
+                sweptShortEpoch := candidateEpoch + 1
+            failedSweptLevel := point1
+            point1 := direction == -1 ? low[1] : high[1]
+            point1Bar := firstPivotBar
+            point1Time := firstPivotTime
+            // Без закрепа двумя M5 это новая P1, а не подтверждённая P3.
+            // Прежняя P2 относится к старой P1: ждём новый откат.
+            point2 := na
+            point2Time := na
+            skippedSecond := na
+            failedSweepBar := na
+            failedFirstTime := na
+            failedSecondTime := na
+            failedSetupActive := false
+            preservedStructureActive := false
+            thirdLowReadyEpoch := na
+            thirdLowConfirmedBar := na
+            savedShort1 := na
+            savedShort2 := na
+            savedLong1 := na
+            savedLong2 := na
+            candidateEpoch := candidateEpoch + 1
+            stage := 3
+        else if stage == 4 and ((direction == -1 and upperPivot and high[1] > point2) or (direction == 1 and lowerPivot and low[1] < point2)) and not falseShortSecond
+            point2 := direction == -1 ? high[1] : low[1]
+            point2Time := secondPivotTime
+        bool rollingPivot = false
+        if rollingPivot
+            point1 := point3
+            point1Bar := lastExtremeBar
+            point1Time := time[bar_index - lastExtremeBar]
+            point2 := direction == 1 ? low[1] : high[1]
+            point2Time := secondPivotTime
+            point3 := na
+            entry := na
+            stop := na
+            stopFibo := na
+            fixedFiboZero := na
+            fixedFiboOne := na
+            lastExtremeBar := na
+            signalBar := na
+            partialRetest := false
+            fibReanchored := false
+            tightReversal := false
+            longFloor0 := na
+            longFloorTime := na
+            longOriginGuard := na
+            skippedSecond := na
+            pendingEntryTouched := false
+            positionLeft := na
+            drawingRight := na
+            candidateEpoch := candidateEpoch + 1
+            structureRollBar := bar_index
+            retiredStatus := "Свинг4 подтверждён · Старый вход отменён"
+            stage := 4
+    if bar_index == 0 or high != high[1]
+        highRunHasLowerLeft := not na(high[1]) and high > high[1]
+        highRunLow := low
+    else
+        highRunLow := math.min(highRunLow, low)
+    if bar_index == 0 or low != low[1]
+        lowRunHasHigherLeft := not na(low[1]) and low < low[1]
+        lowRunHigh := high
+    else
+        lowRunHigh := math.max(lowRunHigh, high)
+if barstate.isconfirmed and dailyEntries == 0 and direction == 1 and stage >= 3 and stage <= 4 and not reversalLongConsumed
+    if na(reversalLongFirst) or (not reversalLongBaseLocked and point1 > reversalLongFirst)
+        reversalLongFirst := point1
+        reversalLongFirstTime := point1Time
+        reversalLongLow := low
+        reversalLongLowTime := time
+    if stage == 4
+        reversalLongBaseLocked := true
+if barstate.isconfirmed and dailyEntries == 0 and direction == 1 and stage >= 3 and stage <= 4 and not na(point1) and na(continuationLongFirst) and not continuationLongConsumed
+    continuationLongFirst := point1
+    continuationLongFirstTime := point1Time
+    continuationLongLow := low
+    continuationLongLowTime := time
+    continuationLongPullback := false
+if barstate.isconfirmed and direction == 1 and stage >= 3 and stage <= 4 and not continuationLongPullback and not continuationLongConsumed and not na(continuationLongFirst) and point1 > continuationLongFirst
+    continuationLongFirst := point1
+    continuationLongFirstTime := point1Time
+if barstate.isconfirmed and direction == 1 and stage == 4 and not na(continuationLongFirst) and point2Time >= continuationLongFirstTime + 900000
+    continuationLongPullback := true
+// Внутренний SHORT после 2Sh: закреп под локальным low, затем отдельный ретест.
+if barstate.isconfirmed and dailyEntries == 0 and direction == -1 and stage == 4 and not na(point2Time) and tradingDay and searchWindow
+    if na(internalShortEpoch) or internalShortEpoch != candidateEpoch
+        internalShortEpoch := candidateEpoch
+        internalShortSecondTime := point2Time
+        internalShortPullbackBaseTime := point2Time
+        internalShortLow := na
+        internalShortLowTime := na
+    else if internalShortSecondTime != point2Time
+        // Новый high меняет уровень закрепа, но готовый откат остаётся опорой стопа.
+        bool keepCompletedPullback = not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= internalShortPullbackBaseTime + 900000
+        internalShortSecondTime := point2Time
+        if not keepCompletedPullback
+            internalShortPullbackBaseTime := point2Time
+            internalShortLow := na
+            internalShortLowTime := na
+    // Внутренний low не заменяет 1Sh, если 2Sh осталась внутри H1.
+    // Внутренний SHORT допустим только после выхода high отката выше верхней H1.
+    bool localShortBreak = shortSweepCount == 0 and point2 > h1High and not na(internalShortLow) and structureBelow(close, close[1], internalShortLow)
+    if localShortBreak
+        point1 := internalShortLow
+        point1Time := internalShortLowTime
+        point1Bar := bar_index - int((time - point1Time) / 300000)
+        point3 := math.min(low, low[1])
+        stopFibo := point2
+        planStopAnchorTime := point2Time
+        fixedFiboOne := point2
+        fixedFiboZero := point2
+        stop := point2 + stopOffset
+        fiboTarget := point3
+        entry := (stop + fiboTarget) / 2.0
+        rrEntryThreshold := entry
+        lastExtremeBar := bar_index
+        setupConfirmedBar := bar_index
+        setupBreakLevel := point1
+        setupBreakClose := close
+        positionLeft := point2Time
+        signalBar := na
+        drawingRight := na
+        partialRetest := false
+        pendingEntryTouched := false
+        stage := 5
+        seededPoint3 := true
+    else if lowerPivot and firstPivotTime >= point2Time + 900000 and (na(internalShortLow) or low[1] < internalShortLow)
+        internalShortLow := low[1]
+        internalShortLowTime := firstPivotTime
+if stage == 4 and (na(originalBreakEpoch) or originalBreakEpoch != candidateEpoch)
+    originalBreakLevel := point1
+    originalBreakEpoch := candidateEpoch
+structuralBreakLevel := point1
+if stage == 4 and not afterTPMode and barstate.isconfirmed and (na(structureRollBar) or structureRollBar != bar_index) and ((direction == -1 and structureBelow(close, close[1], structuralBreakLevel)) or (direction == 1 and structureAbove(close, close[1], structuralBreakLevel)))
+    bool useOriginStop = dailyEntries == 0 and originStopEpoch == candidateEpoch and originStopSide == direction and not na(originStopAnchor)
+    stopFibo := useOriginStop ? (direction == 1 ? math.min(point2, originStopAnchor) : math.max(point2, originStopAnchor)) : point2
+    planStopAnchorTime := useOriginStop and stopFibo != point2 ? originStopAnchorTime : point2Time
+    fixedFiboOne := point2
+    fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
+    stop := stopFibo - direction * stopOffset
+    if false
+        stage := 7
+    else
+        point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
+        entry := (stop + point3) / 2.0
+        rrEntryThreshold := entry
+        fiboTarget := point3
+        lastExtremeBar := bar_index
+        pendingEntryTouched := false
+        positionLeft := time
+        setupConfirmedBar := bar_index
+        setupBreakLevel := structuralBreakLevel
+        setupBreakClose := close
+        stage := 5
+        setupConfirmedBar := bar_index
+        setupBreakLevel := structuralBreakLevel
+        setupBreakClose := close
+        seededPoint3 := true
+if allowSecondAfterTP and (shortEvent or longEvent) and dailyEntries == 0
+    tpDirection := direction
+    tpStage := 3
+    tpP1 := point3
+    tpP1Bar := lastExtremeBar
+    tpP1Time := time[bar_index - lastExtremeBar]
+    tpP2 := na
+    tpP2Time := na
+    tpP3 := na
+    tpExtremeBar := na
+    tpConfirmBar := na
+else if allowSecondAfterTP and dailyEntries == 1 and (afterTPMode or (stage == 6 and outcome >= 0))
+    if not tradingDay or not searchWindow or time >= validUntil
+        if afterTPMode
+            afterTPMode := false
+            stage := 0
+    else
+        bool tpSeeded = false
+        if barstate.isconfirmed and tpStage == 4
+            bool normalBreak = tpDirection == 1 ? structureAbove(close, close[1], tpP1) : structureBelow(close, close[1], tpP1)
+            bool oppositeBreak = tpDirection == 1 ? structureBelow(close, close[1], tpP2) : structureAbove(close, close[1], tpP2)
+            if not normalBreak and not oppositeBreak and (tpDirection == 1 ? high > tpP1 : low < tpP1)
+                tpP1 := tpDirection == 1 ? high : low
+                tpP1Time := time
+                tpP1Bar := bar_index
+            if normalBreak or oppositeBreak
+                if oppositeBreak
+                    float oldOne = tpP1
+                    int oldOneTime = tpP1Time
+                    tpP1 := tpP2
+                    tpP1Time := tpP2Time
+                    tpP1Bar := bar_index - int((time - tpP1Time) / 300000)
+                    tpP2 := oldOne
+                    tpP2Time := oldOneTime
+                    tpDirection := -tpDirection
+                tpP3 := tpDirection == 1 ? math.max(high, high[1]) : math.min(low, low[1])
+                tpExtremeBar := bar_index
+                tpConfirmBar := bar_index
+                tpBreakLevel := tpP1
+                tpBreakClose := close
+                tpStage := 5
+                tpSeeded := true
+        else if barstate.isconfirmed and tpStage == 5
+            bool oppositeBreak = tpDirection == 1 ? structureBelow(close, close[1], tpP2) : structureAbove(close, close[1], tpP2)
+            if oppositeBreak
+                int oldThirdTime = time[bar_index - tpExtremeBar]
+                tpP1 := tpP2
+                tpP1Time := tpP2Time
+                tpP1Bar := bar_index - int((time - tpP1Time) / 300000)
+                tpP2 := tpP3
+                tpP2Time := oldThirdTime
+                tpDirection := -tpDirection
+                tpP3 := tpDirection == 1 ? math.max(high, high[1]) : math.min(low, low[1])
+                tpExtremeBar := bar_index
+                tpConfirmBar := bar_index
+                tpBreakLevel := tpP1
+                tpBreakClose := close
+                tpSeeded := true
+        if barstate.isconfirmed and tpStage == 3 and not tpSeeded
+            bool nextFirst = tpDirection == 1 ? upperPivot and high[1] > tpP1 : lowerPivot and low[1] < tpP1
+            bool nextSecond = tpDirection == 1 ? lowerPivot and low[1] < tpP1 and confirmedLowRunHigh <= tpP1 : upperPivot and high[1] > tpP1 and confirmedHighRunLow >= tpP1
+            if nextFirst
+                tpP1 := tpDirection == 1 ? high[1] : low[1]
+                tpP1Time := time[1]
+                tpP1Bar := bar_index - 1
+                tpP2 := na
+                tpP2Time := na
+            else if nextSecond and secondPivotBar > tpP1Bar + 2
+                tpP2 := tpDirection == 1 ? low[1] : high[1]
+                tpP2Time := time[1]
+                tpStage := 4
+        else if barstate.isconfirmed and tpStage == 4 and not tpSeeded
+            bool deeperSecond = tpDirection == 1 ? lowerPivot and low[1] < tpP2 : upperPivot and high[1] > tpP2
+            if deeperSecond
+                tpP2 := tpDirection == 1 ? low[1] : high[1]
+                tpP2Time := time[1]
+        if tpStage == 5
+            bool extendsThird = tpDirection == 1 ? high > tpP3 : low < tpP3
+            if extendsThird
+                tpP3 := tpDirection == 1 ? high : low
+                tpExtremeBar := bar_index
+            float tpBaseStop = tpP2 - 0.25 * (tpP3 - tpP2)
+            float tpActualStop = tpBaseStop - tpDirection * stopOffset
+            float tpThreshold = (tpBaseStop + tpP3) / 2.0
+            if afterTPMode
+                direction := tpDirection
+                point1 := tpP1
+                point1Time := tpP1Time
+                point1Bar := tpP1Bar
+                point2 := tpP2
+                point2Time := tpP2Time
+                point3 := tpP3
+                stopFibo := tpBaseStop
+                fixedFiboOne := point2
+                fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
+                stop := tpActualStop
+                fiboTarget := tpP3
+                rrEntryThreshold := tpThreshold
+                entry := tpThreshold
+                lastExtremeBar := tpExtremeBar
+                setupConfirmedBar := tpConfirmBar
+                setupBreakLevel := tpBreakLevel
+                setupBreakClose := tpBreakClose
+                stage := 5
+                if na(positionLeft)
+                    positionLeft := time
+                bool entryTouched = low <= tpThreshold and high >= tpThreshold
+                bool untouchedStop = tpDirection == 1 ? low > tpActualStop : high < tpActualStop
+                bool beforeMidnight = time < entryDeadline and (not barstate.isrealtime or timenow < entryDeadline)
+                if not tpSeeded and not extendsThird and bar_index > tpExtremeBar and beforeMidnight and barstate.isconfirmed and time + 300000 >= searchStart and time + 300000 < entryDeadline and entryTouched and untouchedStop and (tpDirection == 1 ? close > tpActualStop and close < tpP3 : close < tpActualStop and close > tpP3)
+                    entry := close
+                    tradeVolumeMultiplier := nextVolumeMultiplier
+                    stage := 6
+                    outcome := 0
+                    outcomeBar := na
+                    signalBar := bar_index
+                    shortEvent := direction == -1
+                    longEvent := direction == 1
+                    eventDraw := drawReference
+                    eventEntry := entry
+                    eventStop := stop
+                    eventTarget := fiboTarget
+                    eventSwingTarget := point3
+                    afterTPMode := false
+        else if afterTPMode
+            direction := tpDirection
+            stage := tpStage
+            point1 := tpP1
+            point1Time := tpP1Time
+            point1Bar := tpP1Bar
+            point2 := tpP2
+            point2Time := tpP2Time
+            point3 := na
+            entry := na
+            stop := na
+            stopFibo := na
+            fixedFiboZero := na
+            fixedFiboOne := na
+if shortEvent or longEvent
+    dailyEntries := dailyEntries + 1
+    referenceHadEntry := true
+if drawReference and not na(h1Box) and not na(validUntil)
+    box.set_text(h1Box, not referenceHadEntry and time >= validUntil - 54000000 ? "входа не было" : "")
+    box.set_text_color(h1Box, color.gray)
+bool purgeCancelled = stage == 7 or h1ExpiredPlanBar == bar_index
+bool replacedUnentered = freshReplacementBar == bar_index
+bool hideUnentered = purgeCancelled or (stage != 6 and not na(validUntil) and time >= validUntil - 54000000)
+if drawingEpoch != candidateEpoch or hideUnentered
+    if not na(m5Box) and drawingHadEntry
+        array.push(archivedExpiry, drawingHadEntry ? 0 : drawingExpiry)
+        if retiredStatus != "" and not na(entryPriceLabel)
+            label.set_text(entryPriceLabel, retiredStatus + " · Вход: " + str.tostring(label.get_y(entryPriceLabel), "#.##"))
+        array.push(archivedLines, fibMinus)
+        array.push(archivedLines, fibZero)
+        array.push(archivedLines, fibHalf)
+        array.push(archivedLines, fibOne)
+        array.push(archivedLines, fibStop)
+        array.push(archivedLines, entryLine)
+        array.push(archivedLines, stopLine)
+        array.push(archivedLines, targetLine)
+        array.push(archivedBoxes, m5Box)
+        array.push(archivedBoxes, rewardZone)
+        array.push(archivedBoxes, riskZone)
+        array.push(archivedLabels, entryPriceLabel)
+        array.push(archivedLabels, stopPriceLabel)
+        array.push(archivedLabels, targetPriceLabel)
+        array.push(archivedLabels, signalMark)
+    if not drawingHadEntry and (drawingEpoch != candidateEpoch or hideUnentered or replacedUnentered or time >= drawingExpiry)
+        line.delete(fibMinus)
+        line.delete(fibZero)
+        line.delete(fibHalf)
+        line.delete(fibOne)
+        line.delete(fibStop)
+        line.delete(entryLine)
+        line.delete(stopLine)
+        line.delete(targetLine)
+        box.delete(m5Box)
+        box.delete(rewardZone)
+        box.delete(riskZone)
+        label.delete(entryPriceLabel)
+        label.delete(stopPriceLabel)
+        label.delete(targetPriceLabel)
+        label.delete(signalMark)
+    drawingHadEntry := false
+    m5Box := na
+    fibMinus := na
+    fibZero := na
+    fibHalf := na
+    fibOne := na
+    fibStop := na
+    entryLine := na
+    stopLine := na
+    targetLine := na
+    rewardZone := na
+    riskZone := na
+    entryPriceLabel := na
+    stopPriceLabel := na
+    targetPriceLabel := na
+    signalMark := na
+    drawingEpoch := candidateEpoch
+if stage == 6
+    drawingHadEntry := true
+if array.size(archivedExpiry) > 0
+    int group = array.size(archivedExpiry) - 1
+    while group >= 0
+        int expiry = array.get(archivedExpiry, group)
+        if expiry > 0 and (time >= expiry or purgeCancelled)
+            for item = 0 to 7
+                line.delete(array.remove(archivedLines, group * 8))
+            for item = 0 to 2
+                box.delete(array.remove(archivedBoxes, group * 3))
+            for item = 0 to 3
+                label.delete(array.remove(archivedLabels, group * 4))
+            array.remove(archivedExpiry, group)
+        group := group - 1
+if drawReference and showMarks and stage == 6 and not na(signalBar) and na(signalMark)
+    signalMark := label.new(time, direction == -1 ? high : low, (direction == -1 ? "SHORT ×" : "LONG ×") + str.tostring(tradeVolumeMultiplier, "#.##"), xloc=xloc.bar_time, yloc=direction == -1 ? yloc.abovebar : yloc.belowbar, style=direction == -1 ? label.style_label_down : label.style_label_up, color=direction == -1 ? color.red : color.green, textcolor=color.white, size=size.small)
+if drawReference and not hideUnentered and stage >= 4 and stage <= 6 and not na(point1) and not na(point2)
+    if na(m5Box)
+        if array.size(archivedLines) >= 60 * 8
+            array.shift(archivedExpiry)
+            for i = 0 to 7
+                line.delete(array.shift(archivedLines))
+            for i = 0 to 2
+                box.delete(array.shift(archivedBoxes))
+            for i = 0 to 3
+                label.delete(array.shift(archivedLabels))
+        drawingExpiry := validUntil - 54000000
+        m5Box := box.new(left=point1Time, top=math.max(point1, point2), right=time_close, bottom=math.min(point1, point2), xloc=xloc.bar_time, border_color=color.gray, border_style=line.style_dotted, bgcolor=na)
+    if stage == 4
+        box.set_top(m5Box, math.max(point1, point2))
+        box.set_bottom(m5Box, math.min(point1, point2))
+    if stage <= 5 or signalBar == bar_index
+        box.set_right(m5Box, time_close)
+bool baseVisible = showFibo and stage >= 5 and stage <= 6 and not na(point2)
+bool planVisible = (stage == 5 or stage == 6) and not na(entry)
+float takePrice = fiboTarget
+bool originLong = false
+float fibBase = fixedFiboZero
+float fibEnd = fixedFiboOne
+float span = fibEnd - fibBase
+int fibLeft = originLong ? longFloorTime : fibReanchored ? point2Time : point1Time
+if stage >= 4 and stage <= 6 and (stage <= 5 or signalBar == bar_index)
+    drawingRight := time_close
+int positionRight = not na(positionLeft) ? math.max(positionLeft + positionBars * 300000, drawingRight) : na
+if drawReference and not hideUnentered and showPosition and planVisible and not na(positionLeft)
+    string rrCaption = "R:R 1:" + str.tostring(math.abs(takePrice - entry) / math.abs(stop - entry), "#.###")
+    rewardZone := updateZone(rewardZone, positionLeft, positionRight, entry, takePrice, color.teal, rrCaption)
+    riskZone := updateZone(riskZone, positionLeft, positionRight, entry, stop, color.red, "")
+    entryPriceLabel := updatePriceLabel(entryPriceLabel, positionRight, entry, "Вход: " + str.tostring(entry, "#.##"), color.blue)
+    stopPriceLabel := updatePriceLabel(stopPriceLabel, positionRight, stop, "Стоп: " + str.tostring(stop, "#.##") + (stage == 6 and outcome == -1 ? " +" : ""), color.red)
+    targetPriceLabel := updatePriceLabel(targetPriceLabel, positionRight, takePrice, "Цель: " + str.tostring(takePrice, "#.##") + (stage == 6 and outcome == 1 ? " +" : ""), color.teal)
+else if drawReference and (stage == 7 or stage == 0) and not na(entryPriceLabel)
+    string status = stage == 7 ? "Отмена · Без входа" : not tradingDay ? "Выходной · Без входа" : "Истёк · Без входа"
+    label.set_text(entryPriceLabel, lateActive ? "Учебный вход после 23:59 · вне статистики" : status + " · Вход: " + str.tostring(entry, "#.##"))
+if drawReference and not hideUnentered and stage >= 4 and stage <= 6
+    if baseVisible
+        fibMinus := updateLevel(fibMinus, fibLeft, drawingRight, fibBase - 0.25 * span, color.red, 1)
+        fibZero := updateLevel(fibZero, fibLeft, drawingRight, fibBase, color.gray, 1)
+        fibHalf := updateLevel(fibHalf, fibLeft, drawingRight, fibBase + 0.5 * span, color.gray, 1)
+        fibOne := updateLevel(fibOne, fibLeft, drawingRight, fibEnd, color.gray, 1)
+        fibStop := updateLevel(fibStop, fibLeft, drawingRight, fibBase + 1.25 * span, color.red, 1)
+    if showLevels and planVisible
+        int levelRight = showPosition ? positionRight : drawingRight
+        int levelLeft = sweptLongPlanEpoch == candidateEpoch ? positionLeft : point1Time
+        entryLine := updateLevel(entryLine, levelLeft, levelRight, entry, color.blue, 2)
+        stopLine := updateLevel(stopLine, levelLeft, levelRight, stop, color.red, 2)
+        targetLine := updateLevel(targetLine, levelLeft, levelRight, takePrice, color.teal, 2)
+if barstate.isconfirmed and dailyEntries == 0 and searchWindow and not na(validUntil)
+    if direction == 1 and stage >= 3 and stage <= 5 and not na(point1) and (na(savedLong1) or point1 > savedLong1)
+        savedLong1 := point1
+        savedLong1Bar := point1Bar
+        savedLong1Time := point1Time
+        savedLong2 := na
+        savedLong2Time := na
+    if direction == -1 and stage >= 3 and stage <= 5 and not na(point1) and (na(savedShort1) or point1 < savedShort1)
+        savedShort1 := point1
+        savedShort1Bar := point1Bar
+        savedShort1Time := point1Time
+        savedShort2 := na
+        savedShort2Time := na
+    if lowerPivot and not na(savedLong1Bar) and firstPivotBar > savedLong1Bar + 1 and low[1] < savedLong1 and confirmedLowRunHigh <= savedLong1 and (na(savedLong2) or low[1] < savedLong2)
+        savedLong2 := low[1]
+        savedLong2Time := time[1]
+    if upperPivot and not na(savedShort1Bar) and firstPivotBar > savedShort1Bar + 1 and high[1] > savedShort1 and confirmedHighRunLow >= savedShort1 and (na(savedShort2) or high[1] > savedShort2)
+        savedShort2 := high[1]
+        savedShort2Time := time[1]
+if barstate.isconfirmed and hh == 14
+    if mi == 0
+        collectedOpen := open
+        collectedHigh := high
+        collectedLow := low
+        collectedCount := 1
+        collectedDay := dayKey
+        collectedTime := time
+    else if collectedDay == dayKey and time - collectedTime == 300000
+        collectedHigh := math.max(collectedHigh, high)
+        collectedLow := math.min(collectedLow, low)
+        collectedCount := collectedCount + 1
+        collectedTime := time
+    else
+        collectedCount := 0
+    if mi == 55 and collectedCount == 12 and (na(publishedDay) or publishedDay != dayKey)
+        label.delete(lateMark)
+        lateMark := na
+        lateActive := false
+        lateOutcome := 0
+        if drawReference and stage >= 1 and stage <= 5 and not na(entryPriceLabel)
+            label.set_text(entryPriceLabel, "Без входа · Вход: " + str.tostring(entry, "#.##"))
+        if drawReference and not na(h1Box) and not referenceHadEntry
+            box.set_text(h1Box, "входа не было")
+            box.set_text_color(h1Box, color.gray)
+        earlyFailedLong := false
+        earlyFailedShort := false
+        preservedStructureActive := false
+        savedLong1 := na
+        savedLong1Bar := na
+        savedLong1Time := na
+        savedLong2 := na
+        savedLong2Time := na
+        savedShort1 := na
+        savedShort1Bar := na
+        savedShort1Time := na
+        savedShort2 := na
+        savedShort2Time := na
+        failedSetupActive := false
+        failedSweepBar := na
+        failedFirstTime := na
+        failedSecondTime := na
+        originalBreakLevel := na
+        originalBreakEpoch := na
+        initialShortPairUsed := false
+        initialLongPairUsed := false
+        afterTPMode := false
+        tpDirection := 0
+        tpStage := 0
+        tpP1 := na
+        tpP1Bar := na
+        tpP1Time := na
+        tpP2 := na
+        tpP2Time := na
+        tpP3 := na
+        tpExtremeBar := na
+        tpConfirmBar := na
+        dailyEntries := 0
+        postStopSearch := false
+        referenceHadEntry := false
+        longOriginGuard := na
+        originStopAnchor := na
+        originStopAnchorTime := na
+        originStopEpoch := na
+        originStopSide := 0
+        rejectedFirstLow := na
+        rejectedFirstHigh := na
+        rejectedFirstEpoch := na
+        freshRejectedLow := na
+        freshRejectedHigh := na
+        freshRejectedStart := na
+        inheritedCancelledOrigin := false
+        cancelledOppositeAnchor := na
+        cancelledOppositeSide := 0
+        publishedDay := dayKey
+        h1High := collectedHigh
+        h1Low := collectedLow
+        validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
+        reversalLongFirst := na
+        reversalLongFirstTime := na
+        reversalLongLow := na
+        reversalLongLowTime := na
+        reversalLongHigh := na
+        reversalLongHighTime := na
+        reversalLongBaseLocked := false
+        reversalLongArmed := false
+        reversalLongConsumed := false
+        continuationLongFirst := na
+        continuationLongFirstTime := na
+        continuationLongLow := na
+        continuationLongLowTime := na
+        continuationLongPullback := false
+        continuationLongConsumed := false
+        h1AboveCloseBar := na
+        shortSweepCount := 0
+        h1BelowCloseBar := na
+        sweptShortEpoch := na
+        h1RejectedHigh := na
+        h1RejectedLow := na
+        stage := skipWeekends and barIsWeekend ? 0 : 1
+        tightReversal := false
+        direction := 0
+        lockedDirection := 0
+        firstDirection := 0
+        int referenceClose = timestamp(tz, yy, mm, dd, 15, 0)
+        freshStage := 0
+        freshDirection := 0
+        h1ExpiredPlanBar := na
+        drawReference := referenceClose >= historyStart and referenceClose <= historyEnd and (not skipWeekends or not barIsWeekend)
+        breakBar := na
+        point1 := na
+        point1Bar := na
+        point1Time := na
+        point2 := na
+        point2Time := na
+        point3 := na
+        partialRetest := false
+        fibReanchored := false
+        longFloor0 := na
+        longFloorTime := na
+        skippedSecond := na
+        entry := na
+        stop := na
+        stopFibo := na
+        fixedFiboZero := na
+        fixedFiboOne := na
+        lastExtremeBar := na
+        signalBar := na
+        drawingRight := na
+        positionLeft := na
+        outcome := 0
+        outcomeBar := na
+        candidateEpoch := candidateEpoch + 1
+        retiredStatus := ""
+        color border = close < collectedOpen ? color.red : close > collectedOpen ? color.green : color.gray
+        if drawReference
+            h1Box := box.new(left=timestamp(tz, yy, mm, dd, 13, 0), top=h1High, right=timestamp(tz, yy, mm, dd + 1, 0, 0), bottom=h1Low, xloc=xloc.bar_time, border_color=border, border_width=1, bgcolor=na)
+previousQuote := close
+plot(shortEvent ? eventEntry : planVisible and direction == -1 ? entry : na, "SHORT Entry", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventStop : planVisible and direction == -1 ? stop : na, "SHORT Stop", color=color.new(color.white, 100), display=display.none)
+plot(shortEvent ? eventTarget : planVisible and direction == -1 ? takePrice : na, "SHORT Target", color=color.new(color.white, 100), display=display.none)
+plot(longEvent ? eventEntry : planVisible and direction == 1 ? entry : na, "LONG Entry", color=color.new(color.white, 100), display=display.none)
+plot(longEvent ? eventStop : planVisible and direction == 1 ? stop : na, "LONG Stop", color=color.new(color.white, 100), display=display.none)
+plot(longEvent ? eventTarget : planVisible and direction == 1 ? takePrice : na, "LONG Target", color=color.new(color.white, 100), display=display.none)
+plot(stage, "Stage", color=color.new(color.white, 100), display=display.data_window)
+plot(direction, "Direction", color=color.new(color.white, 100), display=display.data_window)
+plot(h1High, "H1 High", color=color.new(color.white, 100), display=display.data_window)
+plot(h1Low, "H1 Low", color=color.new(color.white, 100), display=display.data_window)
+plot(fibReanchored ? 1 : 0, "Fibo Reanchored", color=color.new(color.white, 100), display=display.data_window)
+plot(longFloor0, "LONG Floor 0", color=color.new(color.white, 100), display=display.data_window)
+plot(outcome, "Outcome", color=color.new(color.white, 100), display=display.data_window)
+plot(showMarks and ((shortEvent and eventDraw) or (drawReference and direction == -1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "SHORT", color=color.new(color.white, 100), display=display.none)
+plot(showMarks and ((longEvent and eventDraw) or (drawReference and direction == 1 and not na(signalBar) and signalBar == bar_index)) ? 1 : 0, "LONG", color=color.new(color.white, 100), display=display.none)
+alertcondition(shortEvent, "SHORT", 'SHORT {{ticker}} | Entry {{plot("SHORT Entry")}} | Stop {{plot("SHORT Stop")}} | Target {{plot("SHORT Target")}} | Volume x{{plot("Position Multiplier")}}')
+alertcondition(longEvent, "LONG", 'LONG {{ticker}} | Entry {{plot("LONG Entry")}} | Stop {{plot("LONG Stop")}} | Target {{plot("LONG Target")}} | Volume x{{plot("Position Multiplier")}}')
+plot(shortEvent or longEvent ? eventSwingTarget : planVisible ? point3 : na, "Swing Target", color=color.new(color.white, 100), display=display.none)
+plot(tightReversal ? 1 : 0, "Tight Reversal", display=display.none)
+plot(longOriginGuard, "LONG Origin Guard", display=display.none)
+plot(shortEvent or longEvent ? tradeVolumeMultiplier : na, "Position Multiplier", display=display.data_window)
+plot(nextVolumeMultiplier, "Next Position Multiplier", display=display.data_window)
+plot(fiboTarget,"Fibo Target",display=display.none)
+plot(dailyEntries,"Daily Entries",display=display.none)
+plot(fibBase,"Fibo Zero",display=display.none)
+plot(point2,"Fibo One",display=display.none)
+plot(setupConfirmedBar,"Setup Confirmed Bar",display=display.none)
+plot(setupBreakLevel,"Setup Break Level",display=display.none)
+plot(setupBreakClose,"Setup Break Close",display=display.none)
+plot(failedReversalBar,"Failed Reversal Bar",display=display.none)
+plot(failedOriginal1,"Failed Original P1",display=display.none)
+plot(failedOriginal2,"Failed Original P2",display=display.none)
+plot(failedSweepBar,"Failed Sweep Bar",display=display.none)
+plot(failedSetupActive ? 1 : 0,"Failed Setup Active",display=display.none)
+plot(failedSweptLevel,"Failed Swept Level",display=display.none)
+plot(structureSwitchBar,"Structure Switch Bar",display=display.none)
+plot(structureSwitchLevel,"Structure Switch Level",display=display.none)
+plot(preservedStructureActive ? 1 : 0,"Preserved Structure Active",display=display.none)
+plot(stopOffset,"Stop Offset",display=display.none)
+plot(rrEntryThreshold,"RR1 Threshold",display=display.data_window)
+plot(initialShortPairUsed ? 1 : 0,"Initial Short Pair Used",display=display.none)
+plot(initialLongPairUsed ? 1 : 0,"Initial Long Pair Used",display=display.none)
+plot(afterTPMode ? 1 : 0,"After TP Search",display=display.none)
+plot(tpStage,"TP Shadow Stage",display=display.none)
+plot(tpDirection,"TP Shadow Direction",display=display.none)
+plot(tpConfirmBar,"TP Shadow Confirm Bar",display=display.none)
+plot(tpBreakLevel,"TP Shadow Break Level",display=display.none)
+plot(tpBreakClose,"TP Shadow Break Close",display=display.none)
+plot(originalBreakLevel,"Original Structure P1",display=display.none)
+plot(adjacentPlanEpoch == candidateEpoch ? 1 : 0,"Adjacent Origin Plan",display=display.none)
+plot(adjacentPullbackConfirmed and adjacentPlanEpoch == candidateEpoch ? 1 : 0,"Adjacent Confirmed Pullback",display=display.none)
+plot(adjacentCancelBar,"Adjacent Cancel Bar",display=display.none)
+plot(h1ExpiredPlanBar,"H1 Expired Plan Bar",display=display.none)
+plot(thirdLowConfirmedBar,"Third Low Confirmed Bar",display=display.none)
+plot(freshReplacementBar,"Fresh Structure Replacement Bar",display=display.none)
+plot(freshStage,"Fresh Structure Stage",display=display.none)
+plot(direction == -1 and stage >= 3 and stage <= 4 ? point1 : na, "2SH Low", display=display.none)
+plot(direction == -1 and stage == 4 ? point2 : na, "3SH Pullback High", display=display.none)
+plot(thirdLowReadyEpoch == candidateEpoch ? 1 : 0, "2SH Updated For Long", display=display.none)
+plot(structureCloseOffset,"Structure Close Offset",display=display.none)
+
+// При развороте сохраняем названия исходной структуры: 1Sh/2Sh/3Sh или 1L/2L/3L.
+bool structureMarksVisible = drawReference and not hideUnentered and stage >= 3 and stage <= 6
+bool reversalMarks = reverseOriginEpoch == candidateEpoch
+string structureSuffix = reversalMarks ? (direction == 1 ? "Sh" : "L") : (direction == -1 ? "Sh" : "L")
+float markedFirst = higherLowLongEpoch == candidateEpoch ? higherLowOriginFirst : reversalMarks ? point2 : point1
+int markedFirstTime = higherLowLongEpoch == candidateEpoch ? higherLowOriginTime : reversalMarks ? point2Time : point1Time
+float markedSecond = reversalMarks ? point1 : point2
+int markedSecondTime = reversalMarks ? point1Time : point2Time
+bool firstIsHigh = reversalMarks ? direction == -1 : direction == 1
+if structureMarksVisible and not na(markedFirst) and not na(markedFirstTime)
+    structureMark1 := updateStructureMark(structureMark1, markedFirstTime, markedFirst, "1" + structureSuffix, firstIsHigh)
+else
+    label.delete(structureMark1)
+    structureMark1 := na
+if structureMarksVisible and stage >= 4 and not na(markedSecond) and not na(markedSecondTime)
+    structureMark2 := updateStructureMark(structureMark2, markedSecondTime, markedSecond, "2" + structureSuffix, not firstIsHigh)
+else
+    label.delete(structureMark2)
+    structureMark2 := na
+if structureMarksVisible and stage >= 5 and not na(point3) and not na(lastExtremeBar)
+    structureMark3 := updateStructureMark(structureMark3, time[bar_index - lastExtremeBar], point3, "3" + structureSuffix, direction == 1)
+else
+    label.delete(structureMark3)
+    structureMark3 := na
