@@ -2,11 +2,11 @@
 indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v72 — LONG от новой 1ш, цель 3ш, RR 1:1", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 string tz = "Asia/Krasnoyarsk"
 bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
-float structureCloseOffset = input.float(0.0, "Минимальный закреп за структурной точкой (USDT)", minval=0.0, step=0.01)
+float structureCloseOffset = input.float(0.01, "Минимальный отступ первой M5 закрепа (USDT)", minval=0.01, step=0.01)
 float stopOffset = input.float(0.03, "Отступ стопа за свинг (USDT)", minval=0.0, step=0.01)
 float takeOffset = 0.0
 bool allowSecondAfterTP = false
-float h1BreakOffset = input.float(0.02, "Минимальный пробой H1 (USDT)", minval=0.0, step=0.01)
+float h1BreakOffset = input.float(0.01, "Минимальный выход точки за H1 (USDT)", minval=0.01, step=0.01)
 bool showFibo = false
 bool showLevels = input.bool(true, "Показывать линии входа, стопа и цели")
 bool showMarks = input.bool(true, "Показывать SHORT и LONG")
@@ -31,14 +31,16 @@ updateLevel(line id, int leftTime, int rightTime, float price, color ink, int th
         line.set_xy1(result, leftTime, price)
         line.set_xy2(result, rightTime, price)
     result
+// Закреп упорядочен: первая закрытая M5 минимум на 0.01 за уровнем,
+// вторая закрытая M5 — на уровне или дальше. Перестановка свечей недопустима.
 priceAboveStructure(float price, float level) =>
-    not na(price) and not na(level) and (structureCloseOffset == 0 ? price > level : price >= level + structureCloseOffset - 0.000000001)
+    not na(price) and not na(level) and price >= level + math.max(0.01, structureCloseOffset) - 0.000000001
 priceBelowStructure(float price, float level) =>
-    not na(price) and not na(level) and (structureCloseOffset == 0 ? price < level : price <= level - structureCloseOffset + 0.000000001)
+    not na(price) and not na(level) and price <= level - math.max(0.01, structureCloseOffset) + 0.000000001
 structureAbove(float price, float priorClose, float level, int shift = 0) =>
-    not na(time[shift + 1]) and time[shift] - time[shift + 1] == 300000 and priceAboveStructure(price, level) and priceAboveStructure(priorClose, level)
+    (shift > 0 or barstate.isconfirmed) and not na(time[shift + 1]) and time[shift] - time[shift + 1] == 300000 and priceAboveStructure(priorClose, level) and not na(price) and price >= level - 0.000000001
 structureBelow(float price, float priorClose, float level, int shift = 0) =>
-    not na(time[shift + 1]) and time[shift] - time[shift + 1] == 300000 and priceBelowStructure(price, level) and priceBelowStructure(priorClose, level)
+    (shift > 0 or barstate.isconfirmed) and not na(time[shift + 1]) and time[shift] - time[shift + 1] == 300000 and priceBelowStructure(priorClose, level) and not na(price) and price <= level + 0.000000001
 updateZone(box id, int leftTime, int rightTime, float firstPrice, float secondPrice, color ink, string caption) =>
     box result = id
     if na(result)
@@ -306,8 +308,8 @@ int entryDeadline = validUntil - 61200000
 int searchEnd = entryDeadline
 bool searchWindow = not na(validUntil) and time >= searchStart and time < searchEnd and (not barstate.isrealtime or (timenow >= searchStart and timenow < searchEnd))
 bool closedM5Pair = barstate.isconfirmed and not na(time[1]) and time - time[1] == 300000 and not na(validUntil) and time[1] >= searchStart
-bool h1PairAbove = closedM5Pair and close > h1High and close[1] > h1High
-bool h1PairBelow = closedM5Pair and close < h1Low and close[1] < h1Low
+bool h1PairAbove = closedM5Pair and structureAbove(close, close[1], h1High)
+bool h1PairBelow = closedM5Pair and structureBelow(close, close[1], h1Low)
 if barstate.isconfirmed and tradingDay and searchWindow
     if h1PairAbove and na(h1AboveCloseBar)
         h1AboveCloseBar := bar_index - 1
@@ -411,7 +413,7 @@ if retry
     freshDirection := direction
     freshFirst := na
     freshSecond := na
-    if time[stoppedDistance + 1] >= searchStart and (direction == -1 ? stoppedClose < h1Low and close[stoppedDistance + 1] < h1Low : stoppedClose > h1High and close[stoppedDistance + 1] > h1High)
+    if time[stoppedDistance + 1] >= searchStart and (direction == -1 ? structureBelow(stoppedClose, close[stoppedDistance + 1], h1Low, stoppedDistance) : structureAbove(stoppedClose, close[stoppedDistance + 1], h1High, stoppedDistance))
         freshStage := 2
     bool stopBarConfirmedReverse = time[stoppedDistance + 1] >= searchStart and (direction == -1 ? structureBelow(stoppedClose, close[stoppedDistance + 1], point1, stoppedDistance) : structureAbove(stoppedClose, close[stoppedDistance + 1], point1, stoppedDistance))
     if stopBarConfirmedReverse
@@ -561,12 +563,12 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
         longFloorTime := na
         skippedSecond := na
     else
-        bool below = h1PairBelow and belowH1(close, h1Low)
-        bool above = h1PairAbove and aboveH1(close, h1High)
+        bool below = h1PairBelow
+        bool above = h1PairAbove
         int referenceStart = validUntil - 86400000
         bool earlyBar = time >= referenceStart and time < referenceStart + 600000
-        bool earlyShort = earlyBar and h1PairBelow and belowH1(low, h1Low)
-        bool earlyLong = earlyBar and h1PairAbove and aboveH1(high, h1High)
+        bool earlyShort = earlyBar and h1PairBelow
+        bool earlyLong = earlyBar and h1PairAbove
         bool earlyInitial = stage == 1 and (earlyShort or earlyLong)
         if earlyInitial
             below := earlyShort
