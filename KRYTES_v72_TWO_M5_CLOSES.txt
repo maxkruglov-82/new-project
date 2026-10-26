@@ -1,5 +1,5 @@
 //@version=5
-indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v72 — LONG от новой 1ш, цель 3ш, RR 1:1", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+indicator("SOL — часовой диапазон, SHORT и LONG 1:1 v72 — закреп: первая M5 +0.01, вторая на уровне", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
 string tz = "Asia/Krasnoyarsk"
 bool skipWeekends = input.bool(true, "Не торговать в субботу и воскресенье")
 float structureCloseOffset = input.float(0.01, "Минимальный отступ первой M5 закрепа (USDT)", minval=0.01, step=0.01)
