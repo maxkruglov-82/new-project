@@ -71,6 +71,7 @@ updateStructureMark(label id, int atTime, float price, string caption, bool abov
     result
 if barstate.isfirst and timeframe.period != "5"
     runtime.error("Выберите таймфрейм 5 минут. Часовой диапазон индикатор собирает автоматически.")
+varip int shortSweepCount = 0
 varip int stage = 0
 varip int direction = 0
 varip int lockedDirection = 0
@@ -298,6 +299,7 @@ float eventEntry = na
 float eventStop = na
 float eventTarget = na
 float eventSwingTarget = na
+bool interruptedShortConfirmed = false
 bool seededPoint3 = false
 bool shadowReversalNow = false
 bool barIsWeekend = dayofweek(time, tz) == dayofweek.saturday or dayofweek(time, tz) == dayofweek.sunday
@@ -592,8 +594,10 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
         bool recoverShort = dailyEntries == 0 and direction == 1 and preservedStructureActive and not na(savedShort1) and not na(savedShort2) and barstate.isconfirmed and not na(point2) and structureBelow(close, close[1], math.min(savedShort1, point2))
         // После стопа первой сделки восстановление SHORT использует ту же сохранённую структуру.
         bool sweptShortActive = (dailyEntries == 0 or (dailyEntries == 1 and postStopSearch)) and direction == -1 and stage >= 3 and stage <= 4 and sweptShortEpoch == candidateEpoch
-        // Закреп ниже старой P1 подтверждает SHORT со старой P2.
-        if sweptShortActive and barstate.isconfirmed and structureBelow(close, close[1], sweptShortFirst)
+        // После обновления low прежнюю пару восстанавливает только прерванный закреп:
+        // ниже — выше — ниже — ниже относительно одного опорного low.
+        if sweptShortActive and barstate.isconfirmed and time - time[3] == 900000 and point1Time == time[3] and priceBelowStructure(close[3], sweptShortFirst) and close[2] > sweptShortFirst and structureBelow(close, close[1], sweptShortFirst)
+            interruptedShortConfirmed := true
             point1 := sweptShortFirst
             point1Time := sweptShortFirstTime
             point1Bar := bar_index - int((time - point1Time) / 300000)
@@ -685,7 +689,7 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             partialRetest := false
             fibReanchored := false
             tightReversal := false
-            point3 := direction == -1 ? math.min(low, low[1]) : math.max(high, high[1])
+            point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
             stopFibo := point2
             fixedFiboOne := point2
             fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
@@ -832,7 +836,7 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             if false
                 stage := 7
             else
-                point3 := direction == -1 ? math.min(low, low[1]) : math.max(high, high[1])
+                point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
                 entry := (stop + point3) / 2.0
                 rrEntryThreshold := entry
                 fiboTarget := point3
@@ -1005,7 +1009,7 @@ if barstate.isconfirmed and (na(freshProcessedBar) or freshProcessedBar != bar_i
         point1Time := freshFirstTime
         point2 := freshSecond
         point2Time := freshSecondTime
-        point3 := direction == -1 ? math.min(low, low[1]) : math.max(high, high[1])
+        point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
         stopFibo := point2
         fixedFiboZero := point2
         fixedFiboOne := point2
@@ -1055,6 +1059,7 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
         // Ложный выход выше сохранённой 2Sh не создаёт новую 2Sh.
         float protectedShortHigh = sweptShortEpoch == candidateEpoch ? sweptShortSecond : internalShortEpoch == candidateEpoch and not na(internalShortLow) ? point2 : na
         bool falseShortSecond = direction == -1 and not na(protectedShortHigh) and high[1] > protectedShortHigh and not structureAbove(close[1], close[2], protectedShortHigh, 1) and not structureAbove(close, close[1], protectedShortHigh)
+        falseShortSecond := falseShortSecond and shortSweepCount == 0
         secondPivot := secondPivot and not falseShortSecond
         if stage == 2 and firstPivot and firstPivotBar >= breakBar
             rejectedFirstLow := na
@@ -1105,12 +1110,12 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
                     stage := 4
         else if stage == 4 and firstPivot and (direction == -1 ? low[1] < point1 : high[1] > point1) and not (direction == -1 ? structureBelow(close, close[1], point1) : structureAbove(close, close[1], point1))
             if direction == -1
-                // При повторных обновлениях 1Sh сохраняем исходный уровень разворота.
-                if na(sweptShortEpoch) or sweptShortEpoch != candidateEpoch
-                    sweptShortFirst := point1
-                    sweptShortFirstTime := point1Time
-                    sweptShortSecond := point2
-                    sweptShortSecondTime := point2Time
+                // Сохраняем непосредственно предыдущий low и его откат, не самую старую пару.
+                sweptShortFirst := point1
+                sweptShortFirstTime := point1Time
+                sweptShortSecond := point2
+                sweptShortSecondTime := point2Time
+                shortSweepCount := shortSweepCount + 1
                 sweptShortEpoch := candidateEpoch + 1
             failedSweptLevel := point1
             point1 := direction == -1 ? low[1] : high[1]
@@ -1202,7 +1207,7 @@ if barstate.isconfirmed and dailyEntries == 0 and direction == -1 and stage == 4
         internalShortSecondTime := point2Time
         internalShortLow := na
         internalShortLowTime := na
-    bool localShortBreak = not na(internalShortLow) and structureBelow(close, close[1], internalShortLow)
+    bool localShortBreak = shortSweepCount == 0 and not na(internalShortLow) and structureBelow(close, close[1], internalShortLow)
     if localShortBreak
         point1 := internalShortLow
         point1Time := internalShortLowTime
@@ -1244,7 +1249,7 @@ if stage == 4 and not afterTPMode and barstate.isconfirmed and (na(structureRoll
     if false
         stage := 7
     else
-        point3 := direction == -1 ? math.min(low, low[1]) : math.max(high, high[1])
+        point3 := direction == -1 ? (interruptedShortConfirmed ? math.min(math.min(low, low[1]), math.min(low[2], low[3])) : math.min(low, low[1])) : math.max(high, high[1])
         entry := (stop + point3) / 2.0
         rrEntryThreshold := entry
         fiboTarget := point3
@@ -1640,6 +1645,7 @@ if barstate.isconfirmed and hh == 14
         continuationLongPullback := false
         continuationLongConsumed := false
         h1AboveCloseBar := na
+        shortSweepCount := 0
         h1BelowCloseBar := na
         sweptShortEpoch := na
         h1RejectedHigh := na
