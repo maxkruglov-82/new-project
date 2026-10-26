@@ -9,7 +9,7 @@ const c=(i,o,h,l,z)=>({openTime:start+i*step,closeTime:start+(i+1)*step-1,open:o
 const hour=Array.from({length:12},(_,i)=>c(i,105,110,100,105));
 const bars=[...hour,c(12,101,102,98,99),c(13,99,101,98.5,99.5),c(14,99.5,102,99,101)];
 async function run(version,data){
- const source=readFileSync(new URL('KRYTES_v72_TWO_M5_CLOSES.txt',base),'utf8')+'\nplot(point1,"Test P1",display=display.none)\nplot(point2,"Test P2",display=display.none)\nplot(positionLeft,"Test Left",display=display.none)\n';
+ const source=readFileSync(new URL('KRYTES_v72_TWO_M5_CLOSES.txt',base),'utf8')+'\nplot(point1,"Test P1",display=display.none)\nplot(point2,"Test P2",display=display.none)\nplot(positionLeft,"Test Left",display=display.none)\nplot(continuationLongFirst,"Test Main 1L",display=display.none)\n';
  const last=data.at(-1),guard={...last,openTime:last.openTime+step,closeTime:last.closeTime+step};
  mock.timers.setTime(guard.openTime+1000);
  return new PineTS([...data,guard],'SOLUSDT','5').run(source);
@@ -74,3 +74,20 @@ assert.equal(at(longToShort,'Direction',21),-1,'second close below 2L confirms S
 assert.equal(at(longToShort,'Stage',21),5,'SHORT waits for pullback');
 assert.equal(at(longToShort,'SHORT',21),0,'no immediate SHORT at confirmation');
 console.log('PASS LONG structure: two closes below 2L confirm SHORT, waiting for pullback');
+// Основная 1L сохраняется через неподтверждённый внутренний SHORT.
+const continuationBars=[...initialLong,c(22,104,106,102,104),c(23,104,107,103,106),c(24,109,114,108,113),c(25,113,115,109,114),c(26,114,114.5,108,110)];
+const continuation=await run(72,continuationBars);
+assert.equal(at(continuation,'Direction',24),-1,'one close above initial 1L is insufficient');
+assert.equal(at(continuation,'Direction',25),1,'two closes above initial 1L confirm continuation');
+assert.equal(at(continuation,'Test P1',25),112,'initial 1L is preserved');
+assert.equal(at(continuation,'Test P2',25),102,'2L uses entire pullback low, including internal movements');
+assert.equal(at(continuation,'LONG',25),0,'no entry at confirmation');
+assert.equal(at(continuation,'LONG',26),1,'LONG entry on later retest');
+near(at(continuation,'LONG Stop',26),101.97);
+near(at(continuation,'LONG Target',26),115);
+near(at(continuation,'LONG Entry',26),(101.97+115)/2);
+console.log('PASS original 1L, full pullback minimum as 2L, two closes and later LONG RR1 retest');
+
+const cancelledContext=await run(72,[...initialLong,c(22,104,106,99,99.5),c(23,99.5,101,99.2,99.7)]);
+assert.ok(Number.isNaN(at(cancelledContext,'Test Main 1L',23)),'two closes below H1 cancel original LONG context');
+console.log('PASS confirmed break below H1 cancels the continuation context');

@@ -151,6 +151,13 @@ varip int freshSecondTime = na
 varip int freshReplacementBar = na
 varip int retainedUpdatedOriginEpoch = na
 // Уровни прежней SHORT-структуры после неподтверждённого обновления P1.
+// Основная LONG-структура сохраняется через внутренние движения отката.
+varip float continuationLongFirst = na
+varip int continuationLongFirstTime = na
+varip float continuationLongLow = na
+varip int continuationLongLowTime = na
+varip bool continuationLongPullback = false
+varip bool continuationLongConsumed = false
 varip int sweptLongPlanEpoch = na
 varip int sweptShortEpoch = na
 varip float sweptShortFirst = na
@@ -287,6 +294,13 @@ if barstate.isconfirmed and tradingDay and searchWindow
         h1AboveCloseBar := bar_index - 1
     if h1PairBelow and na(h1BelowCloseBar)
         h1BelowCloseBar := bar_index - 1
+if barstate.isconfirmed and not na(continuationLongFirst) and not continuationLongConsumed
+    if h1PairBelow or dailyEntries > 0 or not tradingDay or not searchWindow
+        continuationLongFirst := na
+        continuationLongPullback := false
+    else if time > continuationLongFirstTime and (na(continuationLongLow) or low < continuationLongLow)
+        continuationLongLow := low
+        continuationLongLowTime := time
 if lateActive and lateOutcome == 0 and bar_index > lateBar
     bool lateSL = lateSide == 1 ? low <= lateStop : high >= lateStop
     bool lateTP = lateSide == 1 ? high >= lateTarget : low <= lateTarget
@@ -422,6 +436,45 @@ bool updated2SHForLong = direction == -1 and stage == 4 and validLowerPivot and 
 if updated2SHForLong
     thirdLowReadyEpoch := candidateEpoch
     thirdLowConfirmedBar := bar_index
+// Пробой исходной 1L двумя M5 подтверждает LONG; вход только на ретесте.
+bool continuationLongConfirmed = barstate.isconfirmed and dailyEntries == 0 and stage >= 3 and stage <= 5 and not afterTPMode and not continuationLongConsumed and continuationLongPullback and not na(continuationLongFirst) and time[1] > continuationLongFirstTime and structureAbove(close, close[1], continuationLongFirst)
+if continuationLongConfirmed
+    direction := 1
+    lockedDirection := 1
+    point1 := continuationLongFirst
+    point1Time := continuationLongFirstTime
+    point1Bar := bar_index - int((time - point1Time) / 300000)
+    point2 := continuationLongLow
+    point2Time := continuationLongLowTime
+    point3 := math.max(high, high[1])
+    stopFibo := point2
+    planStopAnchorTime := point2Time
+    fixedFiboOne := point2
+    fixedFiboZero := point2
+    stop := point2 - stopOffset
+    fiboTarget := point3
+    entry := (stop + fiboTarget) / 2.0
+    rrEntryThreshold := entry
+    lastExtremeBar := bar_index
+    setupConfirmedBar := bar_index
+    setupBreakLevel := point1
+    setupBreakClose := close
+    positionLeft := point2Time
+    drawingRight := na
+    signalBar := na
+    partialRetest := false
+    pendingEntryTouched := false
+    failedSetupActive := false
+    preservedStructureActive := false
+    longOriginGuard := na
+    longFloor0 := na
+    longFloorTime := na
+    candidateEpoch := candidateEpoch + 1
+    reverseOriginEpoch := na
+    sweptLongPlanEpoch := candidateEpoch
+    continuationLongConsumed := true
+    stage := 5
+    seededPoint3 := true
 if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
     if time >= validUntil or not tradingDay or not searchWindow
         longOriginGuard := na
@@ -1033,6 +1086,14 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
         lowRunHigh := high
     else
         lowRunHigh := math.max(lowRunHigh, high)
+if barstate.isconfirmed and dailyEntries == 0 and direction == 1 and stage >= 3 and stage <= 4 and not na(point1) and na(continuationLongFirst) and not continuationLongConsumed
+    continuationLongFirst := point1
+    continuationLongFirstTime := point1Time
+    continuationLongLow := low
+    continuationLongLowTime := time
+    continuationLongPullback := false
+if barstate.isconfirmed and direction == 1 and stage == 4 and not na(continuationLongFirst) and point2Time >= continuationLongFirstTime + 900000
+    continuationLongPullback := true
 if stage == 4 and (na(originalBreakEpoch) or originalBreakEpoch != candidateEpoch)
     originalBreakLevel := point1
     originalBreakEpoch := candidateEpoch
@@ -1427,6 +1488,12 @@ if barstate.isconfirmed and hh == 14
         h1High := collectedHigh
         h1Low := collectedLow
         validUntil := timestamp(tz, yy, mm, dd + 1, 15, 0)
+        continuationLongFirst := na
+        continuationLongFirstTime := na
+        continuationLongLow := na
+        continuationLongLowTime := na
+        continuationLongPullback := false
+        continuationLongConsumed := false
         h1AboveCloseBar := na
         h1BelowCloseBar := na
         sweptShortEpoch := na
