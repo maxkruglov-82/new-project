@@ -153,6 +153,13 @@ varip int retainedUpdatedOriginEpoch = na
 // Уровни прежней SHORT-структуры после неподтверждённого обновления P1.
 // Основная LONG-структура сохраняется через внутренние движения отката.
 // Разворот: обновление high 1L без закрепа, затем закреп ниже low отката.
+varip int higherLowLongEpoch = na
+varip float higherLowOriginFirst = na
+varip int higherLowOriginTime = na
+varip int internalShortEpoch = na
+varip int internalShortSecondTime = na
+varip float internalShortLow = na
+varip int internalShortLowTime = na
 varip float reversalLongFirst = na
 varip int reversalLongFirstTime = na
 varip float reversalLongLow = na
@@ -585,21 +592,26 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             point2Time := sweptShortSecondTime
             stage := 4
         bool sweptLongBreak = sweptShortActive and barstate.isconfirmed and low >= point1 and structureAbove(close, close[1], sweptShortSecond)
+        // LONG после отдельного отката выше исходной 1Sh: обновлять её low не требуется.
+        bool higherLowLongBreak = dailyEntries == 0 and direction == -1 and stage == 4 and internalShortEpoch == candidateEpoch and internalShortSecondTime == point2Time and not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= point2Time + 900000 and barstate.isconfirmed and low >= internalShortLow and structureAbove(close, close[1], point2)
         bool confirmedRangeFailed = not na(failedSweepBar) and failedFirstTime == point1Time and failedSecondTime == point2Time
         bool hasFailedFirst = (direction == 1 ? earlyFailedLong : earlyFailedShort) and not confirmedRangeFailed
         // Откат первой LONG-структуры внутри H1 не меняет приоритет на SHORT.
         // Разворот ниже 2L допустим, если нижняя сторона H1 уже была подтверждена.
         bool shortPriorityEstablished = firstDirection == -1 or not na(h1BelowCloseBar)
         bool internalBreak = dailyEntries == 0 and stage == 4 and not na(point2Time) and barstate.isconfirmed and (direction == 1 ? (shortPriorityEstablished and (na(rejectedSpecialEpoch) or rejectedSpecialEpoch != candidateEpoch) and point2Time > point1Time + 300000 and high <= point1 and structureBelow(close, close[1], point2)) : (thirdLowReadyEpoch == candidateEpoch and bar_index > thirdLowConfirmedBar and low >= point1 and structureAbove(close, close[1], point2)))
-        internalBreak := internalBreak or sweptLongBreak
+        internalBreak := internalBreak or sweptLongBreak or higherLowLongBreak
         if recoverLong or recoverShort or internalBreak
-            bool retainUpdatedOrigin = internalBreak and direction == -1 and thirdLowReadyEpoch == candidateEpoch and point1Time > point2Time
-            float reversalStopAnchor = point1
-            int reversalStopTime = point1Time
+            bool retainUpdatedOrigin = higherLowLongBreak or (internalBreak and direction == -1 and thirdLowReadyEpoch == candidateEpoch and point1Time > point2Time)
+            if higherLowLongBreak
+                higherLowOriginFirst := point1
+                higherLowOriginTime := point1Time
+            float reversalStopAnchor = higherLowLongBreak ? internalShortLow : point1
+            int reversalStopTime = higherLowLongBreak ? internalShortLowTime : point1Time
             float nextFirst = sweptLongBreak ? sweptShortSecond : recoverLong ? savedLong1 : recoverShort ? savedShort1 : point2
             int nextFirstTime = sweptLongBreak ? sweptShortSecondTime : recoverLong ? savedLong1Time : recoverShort ? savedShort1Time : point2Time
-            float nextSecond = recoverLong ? savedLong2 : recoverShort ? savedShort2 : point1
-            int nextSecondTime = recoverLong ? savedLong2Time : recoverShort ? savedShort2Time : point1Time
+            float nextSecond = higherLowLongBreak ? internalShortLow : recoverLong ? savedLong2 : recoverShort ? savedShort2 : point1
+            int nextSecondTime = higherLowLongBreak ? internalShortLowTime : recoverLong ? savedLong2Time : recoverShort ? savedShort2Time : point1Time
             direction := recoverLong ? 1 : recoverShort ? -1 : -direction
             lockedDirection := direction
             point1 := nextFirst
@@ -620,7 +632,7 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             setupConfirmedBar := bar_index
             setupBreakLevel := point1
             setupBreakClose := close
-            positionLeft := sweptLongBreak ? nextSecondTime : time
+            positionLeft := sweptLongBreak or higherLowLongBreak ? nextSecondTime : time
             drawingRight := na
             signalBar := na
             structureSwitchBar := bar_index
@@ -637,7 +649,8 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             fibReanchored := false
             tightReversal := false
             candidateEpoch := candidateEpoch + 1
-            sweptLongPlanEpoch := sweptLongBreak ? candidateEpoch : na
+            sweptLongPlanEpoch := sweptLongBreak or higherLowLongBreak ? candidateEpoch : na
+            higherLowLongEpoch := higherLowLongBreak ? candidateEpoch : na
             reverseOriginEpoch := internalBreak ? candidateEpoch : na
             retainedUpdatedOriginEpoch := retainUpdatedOrigin ? candidateEpoch : na
             stage := 5
@@ -1026,7 +1039,8 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
         firstPivot := firstPivot and (direction == -1 ? na(rejectedFirstLow) or low[1] < rejectedFirstLow : na(rejectedFirstHigh) or high[1] > rejectedFirstHigh)
         bool secondPivot = direction == -1 ? upperPivot and high[1] > point1 and highRunLow >= point1 : lowerPivot and low[1] < point1 and lowRunHigh <= point1
         // Ложный выход выше сохранённой 2Sh не создаёт новую 2Sh.
-        bool falseShortSecond = direction == -1 and sweptShortEpoch == candidateEpoch and not na(sweptShortSecond) and high[1] > sweptShortSecond and not structureAbove(close[1], close[2], sweptShortSecond, 1) and not structureAbove(close, close[1], sweptShortSecond)
+        float protectedShortHigh = sweptShortEpoch == candidateEpoch ? sweptShortSecond : internalShortEpoch == candidateEpoch and not na(internalShortLow) ? point2 : na
+        bool falseShortSecond = direction == -1 and not na(protectedShortHigh) and high[1] > protectedShortHigh and not structureAbove(close[1], close[2], protectedShortHigh, 1) and not structureAbove(close, close[1], protectedShortHigh)
         secondPivot := secondPivot and not falseShortSecond
         if stage == 2 and firstPivot and firstPivotBar >= breakBar
             rejectedFirstLow := na
@@ -1167,6 +1181,41 @@ if barstate.isconfirmed and direction == 1 and stage >= 3 and stage <= 4 and not
     continuationLongFirstTime := point1Time
 if barstate.isconfirmed and direction == 1 and stage == 4 and not na(continuationLongFirst) and point2Time >= continuationLongFirstTime + 900000
     continuationLongPullback := true
+// Внутренний SHORT после 2Sh: закреп под локальным low, затем отдельный ретест.
+if barstate.isconfirmed and dailyEntries == 0 and direction == -1 and stage == 4 and not na(point2Time) and tradingDay and searchWindow
+    if na(internalShortEpoch) or internalShortEpoch != candidateEpoch or internalShortSecondTime != point2Time
+        internalShortEpoch := candidateEpoch
+        internalShortSecondTime := point2Time
+        internalShortLow := na
+        internalShortLowTime := na
+    bool localShortBreak = not na(internalShortLow) and structureBelow(close, close[1], internalShortLow)
+    if localShortBreak
+        point1 := internalShortLow
+        point1Time := internalShortLowTime
+        point1Bar := bar_index - int((time - point1Time) / 300000)
+        point3 := math.min(low, low[1])
+        stopFibo := point2
+        planStopAnchorTime := point2Time
+        fixedFiboOne := point2
+        fixedFiboZero := point2
+        stop := point2 + stopOffset
+        fiboTarget := point3
+        entry := (stop + fiboTarget) / 2.0
+        rrEntryThreshold := entry
+        lastExtremeBar := bar_index
+        setupConfirmedBar := bar_index
+        setupBreakLevel := point1
+        setupBreakClose := close
+        positionLeft := point2Time
+        signalBar := na
+        drawingRight := na
+        partialRetest := false
+        pendingEntryTouched := false
+        stage := 5
+        seededPoint3 := true
+    else if lowerPivot and firstPivotTime >= point2Time + 900000 and (na(internalShortLow) or low[1] < internalShortLow)
+        internalShortLow := low[1]
+        internalShortLowTime := firstPivotTime
 if stage == 4 and (na(originalBreakEpoch) or originalBreakEpoch != candidateEpoch)
     originalBreakLevel := point1
     originalBreakEpoch := candidateEpoch
@@ -1685,8 +1734,8 @@ plot(structureCloseOffset,"Structure Close Offset",display=display.none)
 bool structureMarksVisible = drawReference and not hideUnentered and stage >= 3 and stage <= 6
 bool reversalMarks = reverseOriginEpoch == candidateEpoch
 string structureSuffix = reversalMarks ? (direction == 1 ? "Sh" : "L") : (direction == -1 ? "Sh" : "L")
-float markedFirst = reversalMarks ? point2 : point1
-int markedFirstTime = reversalMarks ? point2Time : point1Time
+float markedFirst = higherLowLongEpoch == candidateEpoch ? higherLowOriginFirst : reversalMarks ? point2 : point1
+int markedFirstTime = higherLowLongEpoch == candidateEpoch ? higherLowOriginTime : reversalMarks ? point2Time : point1Time
 float markedSecond = reversalMarks ? point1 : point2
 int markedSecondTime = reversalMarks ? point1Time : point2Time
 bool firstIsHigh = reversalMarks ? direction == -1 : direction == 1
