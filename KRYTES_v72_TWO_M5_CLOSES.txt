@@ -733,7 +733,8 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             direction := crossedPriorityBoundary ? -direction : direction
             lockedDirection := direction
             stage := below and above and na(longFloor0) ? 7 : 2
-            breakBar := bar_index
+            // Первая свеча подтверждающей пары остаётся допустимой точкой 1.
+            breakBar := crossedPriorityBoundary ? bar_index - 1 : bar_index
             point1 := na
             point1Bar := na
             point1Time := na
@@ -932,8 +933,9 @@ if stage == 5 and reverseOriginEpoch == candidateEpoch and (na(retainedUpdatedOr
     originStopEpoch := na
     originStopSide := 0
     reverseOriginEpoch := na
-    breakBar := bar_index
-    h1ExpiredPlanBar := bar_index
+    // Сброс плана не должен исключать экстремум первой свечи закрепа.
+    breakBar := bar_index - 1
+    h1ExpiredPlanBar := bar_index - 1
     retiredStatus := direction == -1 ? "Закрытие ниже H1 · Шорт отменён без входа" : "Закрытие выше H1 · Лонг отменён без входа"
 if barstate.isconfirmed and tradingDay and searchWindow
     if na(h1AboveCloseBar) and close <= h1High and high > h1High
