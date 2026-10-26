@@ -153,6 +153,7 @@ varip int retainedUpdatedOriginEpoch = na
 // Уровни прежней SHORT-структуры после неподтверждённого обновления P1.
 // Основная LONG-структура сохраняется через внутренние движения отката.
 // Разворот: обновление high 1L без закрепа, затем закреп ниже low отката.
+varip int symmetricShortEpoch = na
 varip int higherLowLongEpoch = na
 varip float higherLowOriginFirst = na
 varip int higherLowOriginTime = na
@@ -367,8 +368,10 @@ if retry
     float stoppedLow = low[stoppedDistance]
     preservedStructureActive := false
     failedSetupActive := false
-    float reverseFirst = stopFibo
-    int reverseFirstTime = not na(planStopAnchorTime) and stopFibo != point2 ? planStopAnchorTime : point2Time
+    // LONG после higher-low помнит исходную 1Sh: после стопа подтверждаем SHORT по ней.
+    bool restoreOriginalShort = direction == 1 and higherLowLongEpoch == candidateEpoch and not na(higherLowOriginFirst)
+    float reverseFirst = restoreOriginalShort ? higherLowOriginFirst : stopFibo
+    int reverseFirstTime = restoreOriginalShort ? higherLowOriginTime : not na(planStopAnchorTime) and stopFibo != point2 ? planStopAnchorTime : point2Time
     float reverseSecond = point3
     int reverseSecondTime = time[bar_index - lastExtremeBar]
     longOriginGuard := na
@@ -456,7 +459,7 @@ if updated2SHForLong
     thirdLowConfirmedBar := bar_index
 // Верхний ложный пробой сохраняет low прежнего отката для подтверждения SHORT.
 if barstate.isconfirmed and not na(reversalLongFirst) and not reversalLongConsumed and tradingDay and searchWindow and dailyEntries == 0
-    if reversalLongBaseLocked and time[1] > reversalLongFirstTime and structureAbove(close, close[1], reversalLongFirst)
+    if reversalLongBaseLocked and time[1] > reversalLongFirstTime and structureAbove(close, close[1], direction == 1 and stage >= 3 and stage <= 4 ? math.max(reversalLongFirst, point1) : reversalLongFirst)
         reversalLongConsumed := true
     else
         if reversalLongBaseLocked and not reversalLongArmed and high > reversalLongFirst and not na(reversalLongLow) and reversalLongLowTime < time
@@ -485,8 +488,8 @@ if reversalShortConfirmed
     fixedFiboOne := point2
     fixedFiboZero := point2
     stop := point2 + stopOffset
-    fiboTarget := point3
-    entry := (stop + fiboTarget) / 2.0
+    fiboTarget := point3 - stopOffset
+    entry := (point2 + point3) / 2.0
     rrEntryThreshold := entry
     lastExtremeBar := bar_index
     setupConfirmedBar := bar_index
@@ -505,16 +508,19 @@ if reversalShortConfirmed
     candidateEpoch := candidateEpoch + 1
     reverseOriginEpoch := candidateEpoch
     retainedUpdatedOriginEpoch := candidateEpoch
+    symmetricShortEpoch := candidateEpoch
     reversalLongConsumed := true
     stage := 5
     seededPoint3 := true
-// Пробой исходной 1L двумя M5 подтверждает LONG; вход только на ретесте.
-bool continuationLongConfirmed = barstate.isconfirmed and dailyEntries == 0 and stage >= 3 and stage <= 5 and not afterTPMode and not continuationLongConsumed and continuationLongPullback and not na(continuationLongFirst) and time[1] > continuationLongFirstTime and structureAbove(close, close[1], continuationLongFirst)
+// Подтверждение LONG использует актуальную 1L и её время, а не устаревший сохранённый high.
+float continuationLongLevel = direction == 1 and stage >= 3 and stage <= 4 ? math.max(continuationLongFirst, point1) : continuationLongFirst
+int continuationLongLevelTime = direction == 1 and stage >= 3 and stage <= 4 and point1 > continuationLongFirst ? point1Time : continuationLongFirstTime
+bool continuationLongConfirmed = barstate.isconfirmed and dailyEntries == 0 and stage >= 3 and stage <= 5 and not afterTPMode and not continuationLongConsumed and continuationLongPullback and not na(continuationLongFirst) and time[1] > continuationLongLevelTime and structureAbove(close, close[1], continuationLongLevel)
 if continuationLongConfirmed
     direction := 1
     lockedDirection := 1
-    point1 := continuationLongFirst
-    point1Time := continuationLongFirstTime
+    point1 := continuationLongLevel
+    point1Time := continuationLongLevelTime
     point1Bar := bar_index - int((time - point1Time) / 300000)
     point2 := continuationLongLow
     point2Time := continuationLongLowTime
@@ -582,7 +588,8 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
         bool oppositeH1Break = not postStopSearch and not preservedStructureActive and (failedSetupActive ? (barstate.isconfirmed and (direction == 1 ? structureBelow(close, close[1], point2) : structureAbove(close, close[1], point2))) : (direction == -1 ? priorityAbove : priorityBelow))
         bool recoverLong = dailyEntries == 0 and direction == -1 and preservedStructureActive and not na(savedLong1) and not na(savedLong2) and barstate.isconfirmed and not na(point2) and structureAbove(close, close[1], math.max(savedLong1, point2))
         bool recoverShort = dailyEntries == 0 and direction == 1 and preservedStructureActive and not na(savedShort1) and not na(savedShort2) and barstate.isconfirmed and not na(point2) and structureBelow(close, close[1], math.min(savedShort1, point2))
-        bool sweptShortActive = dailyEntries == 0 and direction == -1 and stage >= 3 and stage <= 4 and sweptShortEpoch == candidateEpoch
+        // После стопа первой сделки восстановление SHORT использует ту же сохранённую структуру.
+        bool sweptShortActive = (dailyEntries == 0 or (dailyEntries == 1 and postStopSearch)) and direction == -1 and stage >= 3 and stage <= 4 and sweptShortEpoch == candidateEpoch
         // Закреп ниже старой P1 подтверждает SHORT со старой P2.
         if sweptShortActive and barstate.isconfirmed and structureBelow(close, close[1], sweptShortFirst)
             point1 := sweptShortFirst
@@ -591,7 +598,7 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             point2 := sweptShortSecond
             point2Time := sweptShortSecondTime
             stage := 4
-        bool sweptLongBreak = sweptShortActive and barstate.isconfirmed and low >= point1 and structureAbove(close, close[1], sweptShortSecond)
+        bool sweptLongBreak = dailyEntries == 0 and sweptShortActive and barstate.isconfirmed and low >= point1 and structureAbove(close, close[1], sweptShortSecond)
         // LONG после отдельного отката выше исходной 1Sh: обновлять её low не требуется.
         bool higherLowLongBreak = dailyEntries == 0 and direction == -1 and stage == 4 and internalShortEpoch == candidateEpoch and internalShortSecondTime == point2Time and not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= point2Time + 900000 and barstate.isconfirmed and low >= internalShortLow and structureAbove(close, close[1], point2)
         bool confirmedRangeFailed = not na(failedSweepBar) and failedFirstTime == point1Time and failedSecondTime == point2Time
@@ -843,9 +850,10 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
                 partialRetest := false
                 point3 := direction == -1 ? low : high
                 bool symmetricLongOffsets = direction == 1 and higherLowLongEpoch == candidateEpoch
-                entry := symmetricLongOffsets ? (stopFibo + point3) / 2.0 : (stop + point3) / 2.0
+                bool symmetricShortOffsets = direction == -1 and symmetricShortEpoch == candidateEpoch
+                entry := symmetricLongOffsets or symmetricShortOffsets ? (stopFibo + point3) / 2.0 : (stop + point3) / 2.0
                 rrEntryThreshold := entry
-                fiboTarget := point3 + (symmetricLongOffsets ? stopOffset : 0.0)
+                fiboTarget := point3 + (symmetricLongOffsets ? stopOffset : symmetricShortOffsets ? -stopOffset : 0.0)
                 lastExtremeBar := bar_index
                 pendingEntryTouched := false
                 if false

@@ -36,5 +36,6 @@ assert.equal(oct16.entries[0].side,'SHORT','failed upper breakout followed by co
 assert.equal(oct16.entries[0].time,'2026-10-16T21:15','retest after 20:30 is now allowed');
 assert.equal(oct16.entries[0].multiplier,1);
 assert.ok(Math.abs(oct16.entries[0].stop-107.39)<1e-8);
-assert.ok(Math.abs(oct16.entries[0].target-104.93)<1e-8);
+assert.ok(Math.abs(oct16.entries[0].target-104.90)<1e-8,'SHORT target includes the 0.03 extension');
+assert.ok(Math.abs(oct16.entries[0].entry-106.145)<1e-8,'SHORT entry uses the base swing before offsets');
 console.log(JSON.stringify({oct16:{candles:oct16.data.length,entries:oct16.entries}},null,2));
