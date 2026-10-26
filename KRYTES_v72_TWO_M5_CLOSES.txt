@@ -162,6 +162,7 @@ varip float higherLowOriginFirst = na
 varip int higherLowOriginTime = na
 varip int internalShortEpoch = na
 varip int internalShortSecondTime = na
+varip int internalShortPullbackBaseTime = na
 varip float internalShortLow = na
 varip int internalShortLowTime = na
 varip float reversalLongFirst = na
@@ -594,7 +595,14 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
         bool recoverShort = dailyEntries == 0 and direction == 1 and preservedStructureActive and not na(savedShort1) and not na(savedShort2) and barstate.isconfirmed and not na(point2) and structureBelow(close, close[1], math.min(savedShort1, point2))
         // После стопа первой сделки восстановление SHORT использует ту же сохранённую структуру.
         bool sweptShortActive = (dailyEntries == 0 or (dailyEntries == 1 and postStopSearch)) and direction == -1 and stage >= 3 and stage <= 4 and sweptShortEpoch == candidateEpoch
-        // После обновления low прежнюю пару восстанавливает только прерванный закреп:
+        // Новый low без закрепа заменяет P1, но не теряет последний опорный high.
+        // Последующая пара должна подтвердить именно обновлённую P1, не устаревший low.
+        bool latestSweptLowConfirmed = sweptShortActive and stage == 3 and barstate.isconfirmed and structureBelow(close, close[1], point1)
+        if latestSweptLowConfirmed
+            point2 := sweptShortSecond
+            point2Time := sweptShortSecondTime
+            stage := 4
+        // Прерванный закреп восстанавливает предыдущую пару на четвёртой M5:
         // ниже — выше — ниже — ниже относительно одного опорного low.
         if sweptShortActive and barstate.isconfirmed and time - time[3] == 900000 and point1Time == time[3] and priceBelowStructure(close[3], sweptShortFirst) and close[2] > sweptShortFirst and structureBelow(close, close[1], sweptShortFirst)
             interruptedShortConfirmed := true
@@ -606,7 +614,7 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             stage := 4
         bool sweptLongBreak = dailyEntries == 0 and sweptShortActive and barstate.isconfirmed and low >= point1 and structureAbove(close, close[1], sweptShortSecond)
         // LONG после отдельного отката выше исходной 1Sh: обновлять её low не требуется.
-        bool higherLowLongBreak = dailyEntries == 0 and direction == -1 and stage == 4 and internalShortEpoch == candidateEpoch and internalShortSecondTime == point2Time and not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= point2Time + 900000 and barstate.isconfirmed and low >= internalShortLow and structureAbove(close, close[1], point2)
+        bool higherLowLongBreak = dailyEntries == 0 and direction == -1 and stage == 4 and internalShortEpoch == candidateEpoch and internalShortSecondTime == point2Time and not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= internalShortPullbackBaseTime + 900000 and barstate.isconfirmed and low >= internalShortLow and structureAbove(close, close[1], point2)
         bool confirmedRangeFailed = not na(failedSweepBar) and failedFirstTime == point1Time and failedSecondTime == point2Time
         bool hasFailedFirst = (direction == 1 ? earlyFailedLong : earlyFailedShort) and not confirmedRangeFailed
         // Откат первой LONG-структуры внутри H1 не меняет приоритет на SHORT.
@@ -1059,7 +1067,8 @@ if barstate.isconfirmed and (na(lastPivotBar) or lastPivotBar != bar_index)
         // Ложный выход выше сохранённой 2Sh не создаёт новую 2Sh.
         float protectedShortHigh = sweptShortEpoch == candidateEpoch ? sweptShortSecond : internalShortEpoch == candidateEpoch and not na(internalShortLow) ? point2 : na
         bool falseShortSecond = direction == -1 and not na(protectedShortHigh) and high[1] > protectedShortHigh and not structureAbove(close[1], close[2], protectedShortHigh, 1) and not structureAbove(close, close[1], protectedShortHigh)
-        falseShortSecond := falseShortSecond and shortSweepCount == 0
+        bool qualifiedShortPullback = internalShortEpoch == candidateEpoch and not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= internalShortPullbackBaseTime + 900000
+        falseShortSecond := falseShortSecond and shortSweepCount == 0 and not qualifiedShortPullback
         secondPivot := secondPivot and not falseShortSecond
         if stage == 2 and firstPivot and firstPivotBar >= breakBar
             rejectedFirstLow := na
@@ -1202,11 +1211,20 @@ if barstate.isconfirmed and direction == 1 and stage == 4 and not na(continuatio
     continuationLongPullback := true
 // Внутренний SHORT после 2Sh: закреп под локальным low, затем отдельный ретест.
 if barstate.isconfirmed and dailyEntries == 0 and direction == -1 and stage == 4 and not na(point2Time) and tradingDay and searchWindow
-    if na(internalShortEpoch) or internalShortEpoch != candidateEpoch or internalShortSecondTime != point2Time
+    if na(internalShortEpoch) or internalShortEpoch != candidateEpoch
         internalShortEpoch := candidateEpoch
         internalShortSecondTime := point2Time
+        internalShortPullbackBaseTime := point2Time
         internalShortLow := na
         internalShortLowTime := na
+    else if internalShortSecondTime != point2Time
+        // Новый high меняет уровень закрепа, но готовый откат остаётся опорой стопа.
+        bool keepCompletedPullback = not na(internalShortLow) and internalShortLow > point1 and internalShortLowTime >= internalShortPullbackBaseTime + 900000
+        internalShortSecondTime := point2Time
+        if not keepCompletedPullback
+            internalShortPullbackBaseTime := point2Time
+            internalShortLow := na
+            internalShortLowTime := na
     bool localShortBreak = shortSweepCount == 0 and not na(internalShortLow) and structureBelow(close, close[1], internalShortLow)
     if localShortBreak
         point1 := internalShortLow

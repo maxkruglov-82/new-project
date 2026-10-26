@@ -34,7 +34,7 @@ assert.ok(Math.abs(short.entries[0].entry-72.57)<1e-8);
 assert.equal(short.outcomes.length,1);assert.equal(short.outcomes[0].result,1);assert.equal(short.outcomes[0].time,'2026-08-03T19:05');
 const long=await run('2026-08-04');
 assert.equal(long.entries.length,1);assert.equal(long.entries[0].side,'LONG');assert.equal(long.entries[0].time,'2026-08-04T19:15');
-assert.ok(Math.abs(long.entries[0].setupLevel-73.69)<1e-8,'confirmed break above 2Sh');
+assert.ok(Math.abs(long.entries[0].setupLevel-73.72)<1e-8,'confirmed break above the updated 2Sh while retaining the completed pullback');
 assert.ok(Math.abs(long.entries[0].stop-73.48)<1e-8,'stop at higher pullback low minus configured offset');
 assert.ok(Math.abs(long.entries[0].entry-73.73)<1e-8,'entry uses the midpoint before offsets');
 assert.ok(Math.abs(long.entries[0].target-73.98)<1e-8,'target extends 0.03 above the original high');

@@ -54,6 +54,13 @@ assert.equal(at(shortCtx,'Stage',23),3,'closes below an obsolete P1 cannot confi
 assert.equal(at(shortCtx,'Direction',23),-1);
 assert.equal(at(shortCtx,'Test P1',23),97,'latest low remains the active structural extreme');
 assert.ok(Number.isNaN(at(shortCtx,'Test P2',23)),'obsolete pullback cannot restore a premature SHORT');
+const latestShortBars=[...data.slice(0,22),c(22,101,103,96.9,96.99),c(23,96.99,102,96.8,96.98)];
+const latestShort=await run(72,latestShortBars);
+assert.equal(at(latestShort,'Stage',23),5,'pair below latest swept low confirms SHORT');
+assert.equal(at(latestShort,'Test P1',23),97,'confirmation uses latest P1, not obsolete 98');
+assert.equal(at(latestShort,'Test P2',23),105,'last structural high survives the low update');
+assert.equal(at(latestShort,'SHORT',23),0,'confirmation itself cannot execute a retest');
+
 const noSweep=[...data.slice(0,20),c(20,102,106,99,105.5),c(21,105.5,107,100,106)];
 assert.equal(at(await run(72,noSweep),'Direction',21),-1,'no lower P1: no special LONG');
 const interrupted=[...data.slice(0,22),c(22,101,106,100,105.5),c(23,105.5,107,101,104.9)];
