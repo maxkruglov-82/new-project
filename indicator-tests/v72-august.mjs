@@ -33,10 +33,14 @@ assert.equal(short.entries.length,1);assert.equal(short.entries[0].side,'SHORT')
 assert.ok(Math.abs(short.entries[0].entry-72.57)<1e-8);
 assert.equal(short.outcomes.length,1);assert.equal(short.outcomes[0].result,1);assert.equal(short.outcomes[0].time,'2026-08-03T19:05');
 const long=await run('2026-08-04');
-assert.equal(long.entries.length,1);assert.equal(long.entries[0].side,'LONG');assert.equal(long.entries[0].time,'2026-08-04T19:55');
+assert.equal(long.entries.length,1);assert.equal(long.entries[0].side,'LONG');assert.equal(long.entries[0].time,'2026-08-04T19:15');
 assert.ok(Math.abs(long.entries[0].setupLevel-73.69)<1e-8,'confirmed break above 2Sh');
 assert.ok(Math.abs(long.entries[0].stop-73.48)<1e-8,'stop at higher pullback low minus configured offset');
-assert.equal(long.outcomes[0].result,-1,'record actual stop, not an assumed win from a screenshot');
+assert.ok(Math.abs(long.entries[0].entry-73.73)<1e-8,'entry uses the midpoint before offsets');
+assert.ok(Math.abs(long.entries[0].target-73.98)<1e-8,'target extends 0.03 above the original high');
+assert.ok(Math.abs((long.entries[0].target-long.entries[0].entry)/(long.entries[0].entry-long.entries[0].stop)-1)<1e-8,'actual RR remains 1:1');
+assert.equal(long.outcomes[0].result,1);
+assert.equal(long.outcomes[0].time,'2026-08-04T19:35');
 const retry=await run('2026-10-08');
 assert.equal(retry.entries.length,2);assert.deepEqual(retry.outcomes.map(o=>o.result),[-1,1]);
 console.log(JSON.stringify({aug03:short,aug04:long,oct08:retry},null,2));

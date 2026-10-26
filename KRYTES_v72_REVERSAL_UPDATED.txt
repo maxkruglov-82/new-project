@@ -625,8 +625,9 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
             fixedFiboOne := point2
             fixedFiboZero := 5.0 * point2 - 4.0 * stopFibo
             stop := stopFibo - direction * stopOffset
-            fiboTarget := point3
-            entry := (stop + fiboTarget) / 2.0
+            // Вход — середина исходного свинга; SL/TP расширены симметрично.
+            fiboTarget := point3 + (higherLowLongBreak ? stopOffset : 0.0)
+            entry := higherLowLongBreak ? (stopFibo + point3) / 2.0 : (stop + fiboTarget) / 2.0
             rrEntryThreshold := entry
             lastExtremeBar := bar_index
             setupConfirmedBar := bar_index
@@ -841,9 +842,10 @@ if stage >= 1 and stage <= 5 and dailyEntries < 2 and not afterTPMode
                 fibReanchored := false
                 partialRetest := false
                 point3 := direction == -1 ? low : high
-                entry := (stop + point3) / 2.0
+                bool symmetricLongOffsets = direction == 1 and higherLowLongEpoch == candidateEpoch
+                entry := symmetricLongOffsets ? (stopFibo + point3) / 2.0 : (stop + point3) / 2.0
                 rrEntryThreshold := entry
-                fiboTarget := point3
+                fiboTarget := point3 + (symmetricLongOffsets ? stopOffset : 0.0)
                 lastExtremeBar := bar_index
                 pendingEntryTouched := false
                 if false
