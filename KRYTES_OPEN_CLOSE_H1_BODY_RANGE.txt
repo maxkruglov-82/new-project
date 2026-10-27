@@ -38,9 +38,16 @@ var float candidateOppositeBody = na
 var int candidateExtremeBar = na
 var int pullbackCloseCount = 0
 var bool secondPointReady = false
+var float pullbackOppositeBody = na
+var int pullbackExtremeBar = na
 var float pullbackExtreme = na
 var int pullbackExtremeTime = na
 var label secondPointLabel = na
+var label movingThirdLabel = na
+var float thirdOppositeBody = na
+var int thirdExtremeBar = na
+var int thirdRetreatCloses = 0
+var bool thirdLocked = false
 var int structureSide = 0
 var float structureFirstPrice = na
 var int structureFirstBar = na
@@ -97,6 +104,11 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         pullbackExtreme := na
         pullbackExtremeTime := na
         secondPointLabel := na
+        movingThirdLabel := na
+        thirdOppositeBody := na
+        thirdExtremeBar := na
+        thirdRetreatCloses := 0
+        thirdLocked := false
         structureSide := 0
         structureFirstPrice := na
         structureFirstBar := na
@@ -208,6 +220,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             if na(pullbackExtreme) or (structureSide == -1 ? retreatPrice < pullbackExtreme : retreatPrice > pullbackExtreme)
                 pullbackExtreme := retreatPrice
                 pullbackExtremeTime := time
+                pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
+                pullbackExtremeBar := bar_index
             if pullbackCloseCount >= 4
                 secondPointReady := true
                 confirmedSecondPrice := middlePrice
@@ -222,6 +236,11 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             confirmedThirdPrice := crossedSecond ? pullbackExtreme : (structureSide == -1 ? math.min(bodyLow, bodyLow[1]) : math.max(bodyHigh, bodyHigh[1]))
             int thirdPointTime = crossedSecond ? pullbackExtremeTime : (structureSide == -1 ? (bodyLow <= bodyLow[1] ? time : time[1]) : (bodyHigh >= bodyHigh[1] ? time : time[1]))
             label thirdLabel = label.new(x=thirdPointTime, y=confirmedThirdPrice, text="3", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+            movingThirdLabel := thirdLabel
+            thirdOppositeBody := crossedSecond ? pullbackOppositeBody : thirdPointTime == time ? (structureSide == -1 ? bodyHigh : bodyLow) : thirdPointTime == time[1] ? (structureSide == -1 ? bodyHigh[1] : bodyLow[1]) : na
+            thirdExtremeBar := crossedSecond ? pullbackExtremeBar : thirdPointTime == time ? bar_index : thirdPointTime == time[1] ? bar_index - 1 : bar_index
+            thirdRetreatCloses := 0
+            thirdLocked := false
             array.push(firstPointLabels, thirdLabel)
             structureCompleted := true
         else
@@ -229,5 +248,24 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             if na(pullbackExtreme) or (structureSide == -1 ? retreatPrice < pullbackExtreme : retreatPrice > pullbackExtreme)
                 pullbackExtreme := retreatPrice
                 pullbackExtremeTime := time
+                pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
+                pullbackExtremeBar := bar_index
     while array.size(firstPointLabels) > 450
         label.delete(array.shift(firstPointLabels))
+
+
+// Подтверждённая 3 сопровождает продолжение до отдельного четырёхсвечного отката.
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureCompleted and not thirdLocked and not na(movingThirdLabel)
+    float nextThirdPrice = structureSide == -1 ? bodyLow : bodyHigh
+    bool extendsThird = structureSide == -1 ? nextThirdPrice < confirmedThirdPrice : nextThirdPrice > confirmedThirdPrice
+    if extendsThird
+        confirmedThirdPrice := nextThirdPrice
+        thirdOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
+        thirdExtremeBar := bar_index
+        thirdRetreatCloses := 0
+        label.set_xy(movingThirdLabel, time, confirmedThirdPrice)
+    else if bar_index > thirdExtremeBar and not na(thirdOppositeBody)
+        bool outsideThirdBody = structureSide == -1 ? close > thirdOppositeBody : close < thirdOppositeBody
+        thirdRetreatCloses := outsideThirdBody ? (time - time[1] == 300000 ? thirdRetreatCloses + 1 : 1) : 0
+        if thirdRetreatCloses >= 4
+            thirdLocked := true
