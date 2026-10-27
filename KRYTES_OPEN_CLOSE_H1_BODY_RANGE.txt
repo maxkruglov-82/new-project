@@ -636,7 +636,9 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
     bool zeroInitialDown = structureFirstPrice < confirmedZeroPrice
     bool zeroBreak = zeroInitialUp ? confirmedZeroPrice - close >= firstPointOffset - 0.000000001 : zeroInitialDown and close - confirmedZeroPrice >= firstPointOffset - 0.000000001
     if zeroBreak
-        removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
+        // Исполненные сделки предыдущих дней сохраняем; заменяем только ожидание.
+        if positionState == 1
+            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
         positionRiskBox := na
         positionRewardBox := na
         positionInfo := na
