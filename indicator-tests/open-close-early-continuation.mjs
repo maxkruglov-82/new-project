@@ -18,7 +18,7 @@ for(const mirror of [false,true]){
  assert.equal(v('Вход LONG/SHORT',18),0,'break is not entry');
  assert.equal(v('P3',19),ref(111.31));
  assert.equal(v('Вход LONG/SHORT',20),mirror?1:-1);
- assert.equal(v('Стоп позиции',20),ref(112.98));
+ assert.equal(v('Стоп позиции',20),ref(mirror?112.98:112.8));
  assert.equal(v('Цель позиции',20),ref(111.31));
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',21),1);
  console.log('PASS five-bar pullback then immediate continuation break and retest',mirror?'LONG':'SHORT');

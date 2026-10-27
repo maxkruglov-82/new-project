@@ -17,6 +17,6 @@ for(const mirror of [false,true])for(const outside of [false,true]){
  assert.equal(v('Ready1'),1);
  const expected=102;
  assert.ok(Math.abs(v('Цена точки 0')-(mirror?200-expected:expected))<1e-8);
- assert.equal(v('T0'),start+(outside?3:14)*300000);
+ assert.equal(v('T0'),start+(outside&&mirror?3:14)*300000);
  console.log('PASS zero search from 13:00, prior bars excluded and H1 price cap removed',mirror?'low':'high',outside?'price cap':'13:00 boundary');
 }

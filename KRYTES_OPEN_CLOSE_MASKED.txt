@@ -7,7 +7,8 @@ int minimumRetreatBars = 5
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + 1 : 1
 
-// 0 — крайняя цена тела от 13:00 строго до 1, включая цены вне H1.
+// High 0: край тела от 13:00 строго до 1, с пятью M5 слева,
+// не перебивающими его high. Low 0 сохраняет прежний выбор.
 // При равной цене сохраняем первое достижение экстремума.
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
@@ -20,7 +21,14 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                 float scanOpen = array.get(savedOpens, scanIndex)
                 float scanClose = array.get(savedCloses, scanIndex)
                 float candidate = wantedSide == 1 ? math.max(scanOpen, scanClose) : math.min(scanOpen, scanClose)
-                if na(foundPrice) or (wantedSide == 1 ? candidate > foundPrice : candidate < foundPrice)
+                bool validLeft = wantedSide == -1 or scanIndex >= 5
+                if wantedSide == 1 and validLeft
+                    for lookback = 1 to 5
+                        int leftIndex = scanIndex - lookback
+                        float leftPrice = wantedSide == 1 ? math.max(array.get(savedOpens, leftIndex), array.get(savedCloses, leftIndex)) : math.min(array.get(savedOpens, leftIndex), array.get(savedCloses, leftIndex))
+                        if scanTime - array.get(savedTimes, leftIndex) != lookback * 300000 or (wantedSide == 1 ? leftPrice > candidate : leftPrice < candidate)
+                            validLeft := false
+                if validLeft and (na(foundPrice) or (wantedSide == 1 ? candidate > foundPrice : candidate < foundPrice))
                     foundPrice := candidate
                     foundTime := scanTime
     [foundPrice, foundTime]
@@ -416,8 +424,8 @@ int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
 int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)
-// Сохраняем тела M5 с 13:00 для выбора 0 и окраски участков.
-if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
+// Предыдущие пять M5 нужны только для проверки 0; кандидат остаётся >=13:00.
+if barstate.isconfirmed and m5Chart and time >= zeroSearchStart - 1500000
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
         if array.size(colorDayDrawings) > 0
             for drawingIndex = 0 to array.size(colorDayDrawings) - 1
