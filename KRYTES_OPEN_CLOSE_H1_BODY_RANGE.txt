@@ -7,7 +7,7 @@ int minimumRetreatBars = 5
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + ((upward ? candleClose > candleOpen : candleClose < candleOpen) ? 1 : 0) : 1
 
-// 0 — крайняя цена тела внутри H1, по времени от 14:00 строго до 1.
+// 0 — крайняя цена тела внутри H1, по времени от 13:00 строго до 1.
 // При равной цене сохраняем первое достижение экстремума.
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, float upperBound, float lowerBound, int fromTime, int beforeFirst) =>
     float foundPrice = na
@@ -386,8 +386,8 @@ var array<label> firstPointLabels = array.new_label()
 int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 1, 0, 0)
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
-int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 14, 0)
-// Сохраняем тела M5 с 14:00 для выбора 0 и окраски участков.
+int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)
+// Сохраняем тела M5 с 13:00 для выбора 0 и окраски участков.
 if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
         colorArchiveRed := archiveColoredDay(colorArchiveRedPoints, colorDayRedPoints, colorArchiveRed, colorSealedHistory, fallingTrendColor)
