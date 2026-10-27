@@ -213,6 +213,13 @@ var bool firstStopped = false
 var float firstPositionStop = na
 var int firstPositionSide = 0
 var int firstStopBar = na
+var float fridayFirstPrice = na
+var int fridayFirstTime = na
+var int fridayFirstBar = na
+var int fridayRetreatCount = 0
+var bool fridayFirstReady = false
+var float fridayPullbackPrice = na
+var int fridayPullbackTime = na
 var bool firstPositionUsesFourth = false
 var bool firstPositionUsesFifth = false
 var bool continuationAfterFourthUsed = false
@@ -298,6 +305,7 @@ int rangeDayKey = rangeYear * 10000 + rangeMonth * 100 + rangeDay
 int bodyHourStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 14, 0)
 int bodyHourEnd = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 15, 0)
 
+bool rangeFriday = dayofweek(time, rangeTimezone) == dayofweek.friday
 bool rangeWeekday = dayofweek(time, rangeTimezone) != dayofweek.saturday and dayofweek(time, rangeTimezone) != dayofweek.sunday
 
 if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bodyHourEnd
@@ -330,6 +338,13 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         firstPositionStop := na
         firstPositionSide := 0
         firstStopBar := na
+        fridayFirstPrice := na
+        fridayFirstTime := na
+        fridayFirstBar := na
+        fridayRetreatCount := 0
+        fridayFirstReady := false
+        fridayPullbackPrice := na
+        fridayPullbackTime := na
         firstPositionUsesFourth := false
         firstPositionUsesFifth := false
         continuationAfterFourthUsed := false
@@ -674,7 +689,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
 
 
 // Следующий экстремум 5 после противоположного пробоя за стопом первой позиции.
-if barstate.isconfirmed and firstPointWindow and m5Chart and (positionIsSecond or positionUsesFifth) and not na(fifthLabel) and not fifthLocked
+if barstate.isconfirmed and firstPointWindow and m5Chart and (positionIsSecond or positionUsesFifth) and not na(fifthLabel) and (not fifthLocked or (rangeFriday and positionIsSecond and positionState == 1))
     float fifthCandidate = positionSide == 1 ? bodyHigh : bodyLow
     bool extendsFifth = positionSide == 1 ? fifthCandidate > confirmedFifthPrice : fifthCandidate < confirmedFifthPrice
     if extendsFifth
@@ -844,23 +859,54 @@ if barstate.isconfirmed and m5Chart
             if positionState == 4 and dailyPositionEntries == 1 and positionPlanDay == rangeDayKey
                 firstStopped := true
                 firstStopBar := bar_index
-    // Только стоп первой исполненной позиции разрешает вторую, противоположную.
+                if rangeFriday
+                    fridayFirstPrice := firstPositionSide == -1 ? bodyLow : bodyHigh
+                    fridayFirstTime := time
+                    fridayFirstBar := bar_index
+                    fridayRetreatCount := 1
+                    fridayFirstReady := false
+                    fridayPullbackPrice := na
+                    fridayPullbackTime := na
+    // Пятница: отдельная новая структура в сторону первой сделки.
+    bool fridayBreak = false
+    if rangeFriday and firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and bar_index > firstStopBar
+        float fridayCandidate = firstPositionSide == -1 ? bodyLow : bodyHigh
+        bool extendsFriday = firstPositionSide == -1 ? close < fridayFirstPrice : close > fridayFirstPrice
+        if not fridayFirstReady and extendsFriday
+            fridayFirstPrice := fridayCandidate
+            fridayFirstTime := time
+            fridayFirstBar := bar_index
+            fridayRetreatCount := 1
+            fridayPullbackPrice := na
+            fridayPullbackTime := na
+        else
+            float fridayOpposite = firstPositionSide == -1 ? bodyHigh : bodyLow
+            if na(fridayPullbackPrice) or (firstPositionSide == -1 ? fridayOpposite > fridayPullbackPrice : fridayOpposite < fridayPullbackPrice)
+                fridayPullbackPrice := fridayOpposite
+                fridayPullbackTime := time
+            if not fridayFirstReady
+                fridayRetreatCount := nextRetreatCount(fridayRetreatCount, time - time[1] == 300000, open, close, firstPositionSide == -1)
+                if fridayRetreatCount >= minimumRetreatBars
+                    fridayFirstReady := true
+            else
+                fridayBreak := firstPositionSide == -1 ? fridayFirstPrice - close >= firstPointOffset - 0.000000001 : close - fridayFirstPrice >= firstPointOffset - 0.000000001
+    // Остальные дни: прежняя противоположная сделка после закрепа за стопом.
     bool reverseBreak = firstPositionSide == -1 ? close - firstPositionStop >= firstPointOffset - 0.000000001 : firstPositionStop - close >= firstPointOffset - 0.000000001
-    if firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and reverseBreak
+    if firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and ((not rangeFriday and reverseBreak) or fridayBreak)
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
             label.set_xy(positionInfo, time + 600000, positionEntry)
             label.set_text(positionInfo, "Вход: " + str.tostring(positionEntry, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
             box.set_right(positionRiskBox, time + 600000)
             box.set_right(positionRewardBox, time + 600000)
-        positionSide := -firstPositionSide
+        positionSide := rangeFriday ? firstPositionSide : -firstPositionSide
         positionIsSecond := true
         positionUsesFifth := false
         positionIsZero := false
         if firstPositionUsesFifth or firstPositionIsZero
             fifthLabel := na
-        positionAnchorTime := (firstPositionIsZero or firstPositionUsesFifth) ? zeroReversalTime : firstPositionUsesFourth ? fourthColorTime : thirdColorTime
-        positionStop := (firstPositionIsZero or firstPositionUsesFifth) ? zeroReversalStop : firstPositionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
+        positionAnchorTime := rangeFriday ? fridayPullbackTime : (firstPositionIsZero or firstPositionUsesFifth) ? zeroReversalTime : firstPositionUsesFourth ? fourthColorTime : thirdColorTime
+        positionStop := rangeFriday ? fridayPullbackPrice : (firstPositionIsZero or firstPositionUsesFifth) ? zeroReversalStop : firstPositionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
         confirmedFifthPrice := positionSide == 1 ? bodyHigh : bodyLow
         positionTarget := confirmedFifthPrice
         positionThreshold := (positionStop + positionTarget) / 2.0
