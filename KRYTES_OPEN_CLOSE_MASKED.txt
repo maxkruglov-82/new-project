@@ -1,6 +1,78 @@
 //@version=5
 indicator("BingX — Open–Close без теней + точки 0–5", overlay=true, max_boxes_count=500, max_labels_count=500)
 
+// Повторный поиск после определения границ H1: внешний экстремум
+// не должен блокировать допустимое начало движения внутри этих границ.
+findBoundedOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, float upperBound, float lowerBound, int beforeFirst) =>
+    float foundPrice = na
+    int foundTime = na
+    int legSide = wantedSide
+    float primaryPrice = na
+    float primaryOpen = na
+    int primaryTime = na
+    int primaryIndex = na
+    float oppositePrice = na
+    float oppositeOpen = na
+    int oppositeTime = na
+    int oppositeIndex = na
+    int count = array.size(savedTimes)
+    if count > 0
+        for scanIndex = 0 to count - 1
+            float scanOpen = array.get(savedOpens, scanIndex)
+            float scanClose = array.get(savedCloses, scanIndex)
+            int scanTime = array.get(savedTimes, scanIndex)
+            float scanHigh = math.max(scanOpen, scanClose)
+            float scanLow = math.min(scanOpen, scanClose)
+            if scanIndex > 0 and scanTime - array.get(savedTimes, scanIndex - 1) != 300000
+                primaryPrice := na
+                oppositePrice := na
+                legSide := wantedSide
+            float legPrice = legSide == 1 ? scanHigh : scanLow
+            bool legAllowed = legSide != wantedSide or (wantedSide == 1 ? legPrice <= upperBound : legPrice >= lowerBound)
+            bool localSeed = false
+            if scanIndex > 0 and scanIndex < count - 1
+                float leftOpen = array.get(savedOpens, scanIndex - 1)
+                float leftClose = array.get(savedCloses, scanIndex - 1)
+                float rightOpen = array.get(savedOpens, scanIndex + 1)
+                float rightClose = array.get(savedCloses, scanIndex + 1)
+                localSeed := legSide == 1 ? legPrice >= math.max(leftOpen, leftClose) and legPrice > math.max(rightOpen, rightClose) : legPrice <= math.min(leftOpen, leftClose) and legPrice < math.min(rightOpen, rightClose)
+            bool extendsLeg = legAllowed and (na(primaryPrice) ? localSeed : (legSide == 1 ? legPrice > primaryPrice : legPrice < primaryPrice))
+            if extendsLeg
+                primaryPrice := legPrice
+                primaryOpen := scanOpen
+                primaryTime := scanTime
+                primaryIndex := scanIndex
+                oppositePrice := na
+            float otherPrice = legSide == 1 ? scanLow : scanHigh
+            bool otherAllowed = -legSide != wantedSide or (wantedSide == 1 ? otherPrice <= upperBound : otherPrice >= lowerBound)
+            if not na(primaryPrice) and otherAllowed and (na(oppositePrice) or (legSide == 1 ? otherPrice < oppositePrice : otherPrice > oppositePrice))
+                oppositePrice := otherPrice
+                oppositeOpen := scanOpen
+                oppositeTime := scanTime
+                oppositeIndex := scanIndex
+            bool closedRetreat = not na(primaryPrice) and scanIndex - primaryIndex + 1 >= 4 and scanTime - primaryTime == (scanIndex - primaryIndex) * 300000 and (legSide == 1 ? scanClose < primaryOpen : scanClose > primaryOpen)
+            if closedRetreat and not na(oppositePrice)
+                if legSide == wantedSide and primaryTime < beforeFirst
+                    foundPrice := primaryPrice
+                    foundTime := primaryTime
+                legSide := -legSide
+                primaryPrice := oppositePrice
+                primaryOpen := oppositeOpen
+                primaryTime := oppositeTime
+                primaryIndex := oppositeIndex
+                oppositePrice := na
+                for innerIndex = primaryIndex to scanIndex
+                    float innerOpen = array.get(savedOpens, innerIndex)
+                    float innerClose = array.get(savedCloses, innerIndex)
+                    float innerPrice = legSide == 1 ? math.min(innerOpen, innerClose) : math.max(innerOpen, innerClose)
+                    bool innerAllowed = -legSide != wantedSide or (wantedSide == 1 ? innerPrice <= upperBound : innerPrice >= lowerBound)
+                    if innerAllowed and (na(oppositePrice) or (legSide == 1 ? innerPrice < oppositePrice : innerPrice > oppositePrice))
+                        oppositePrice := innerPrice
+                        oppositeOpen := innerOpen
+                        oppositeTime := array.get(savedTimes, innerIndex)
+                        oppositeIndex := innerIndex
+    [foundPrice, foundTime]
+
 // Подберите цвет точно под фон графика KRYTES.
 color backgroundColor = input.color(color.rgb(245, 246, 248), "Цвет фона графика (маска теней)")
 color flatColor = color.black
@@ -92,6 +164,9 @@ var array<float> priorHighPrices = array.new_float()
 var array<int> priorHighTimes = array.new_int()
 var array<float> priorLowPrices = array.new_float()
 var array<int> priorLowTimes = array.new_int()
+var array<float> zeroSavedOpens = array.new_float()
+var array<float> zeroSavedCloses = array.new_float()
+var array<int> zeroSavedTimes = array.new_int()
 var int zeroTrackingDay = na
 var int zeroLegDirection = 0
 var float zeroHighCandidate = na
@@ -228,10 +303,16 @@ if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
         zeroLegDirection := 0
         zeroHighCandidate := na
         zeroLowCandidate := na
+        array.clear(zeroSavedOpens)
+        array.clear(zeroSavedCloses)
+        array.clear(zeroSavedTimes)
         array.clear(priorHighPrices)
         array.clear(priorHighTimes)
         array.clear(priorLowPrices)
         array.clear(priorLowTimes)
+    array.push(zeroSavedOpens, open)
+    array.push(zeroSavedCloses, close)
+    array.push(zeroSavedTimes, time)
     if time - time[1] != 300000
         zeroLegDirection := 0
         zeroHighCandidate := na
@@ -417,6 +498,10 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                     confirmedZeroTime := precedingTime
                     break
                 zeroIndex := zeroIndex - 1
+            if na(confirmedZeroPrice)
+                [boundedPrice, boundedTime] = findBoundedOrigin(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, -structureSide, activeRangeHigh, activeRangeLow, firstExtremeTime)
+                confirmedZeroPrice := boundedPrice
+                confirmedZeroTime := boundedTime
             if not na(confirmedZeroPrice)
                 zeroLabel := label.new(x=confirmedZeroTime, y=confirmedZeroPrice, text="0", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
                 array.push(firstPointLabels, zeroLabel)
