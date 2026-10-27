@@ -634,8 +634,9 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         label.delete(array.shift(firstPointLabels))
 
 
-// Подтверждённая 3 сопровождает продолжение до отдельного пятисвечного отката.
-if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureCompleted and not thirdLocked and not na(movingThirdLabel)
+// До входа продолжения 3 сопровождает каждый новый экстремум,
+// даже если ранее уже было пять свечей отката. Стоп на 2 не меняется.
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureCompleted and (not thirdLocked or (positionState == 1 and not positionIsZero and not positionIsSecond and not positionUsesFourth and not positionUsesFifth)) and not na(movingThirdLabel)
     float nextThirdPrice = structureSide == -1 ? bodyLow : bodyHigh
     bool extendsThird = structureSide == -1 ? nextThirdPrice < confirmedThirdPrice : nextThirdPrice > confirmedThirdPrice
     if extendsThird
@@ -644,6 +645,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         thirdOppositeBody := open
         thirdExtremeBar := bar_index
         thirdRetreatCloses := 1
+        thirdLocked := false
         label.set_xy(movingThirdLabel, time, confirmedThirdPrice)
     else if bar_index > thirdExtremeBar and not na(thirdOppositeBody)
         bool outsideThirdBody = structureSide == -1 ? close > confirmedThirdPrice : close < confirmedThirdPrice
