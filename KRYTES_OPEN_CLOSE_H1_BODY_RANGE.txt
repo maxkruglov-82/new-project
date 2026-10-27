@@ -894,8 +894,8 @@ if barstate.isconfirmed and m5Chart
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
             label.set_text(positionInfo, (firstPositionSide == 1 ? "LONG" : "SHORT") + " · Стоп\nВход: " + str.tostring(positionEntry, "#.#####") + " · Стоп: " + str.tostring(positionStop, "#.#####"))
-            box.set_right(positionRiskBox, time_close)
-            box.set_right(positionRewardBox, time_close)
+            box.set_right(positionRiskBox, time + 600000)
+            box.set_right(positionRewardBox, time + 600000)
         positionSide := -firstPositionSide
         positionIsSecond := true
         positionIsZero := false
@@ -929,8 +929,8 @@ if barstate.isconfirmed and m5Chart
         positionRewardBox := na
         positionInfo := na
     if newPositionPlan
-        positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time_close, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.red, bgcolor=color.new(color.red, 85))
-        positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time_close, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.teal, bgcolor=color.new(color.teal, 85))
+        positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.red, bgcolor=color.new(color.red, 85))
+        positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.teal, bgcolor=color.new(color.teal, 85))
         positionInfo := label.new(x=time, y=positionThreshold, text="Ожидание RR ≥ 1:1", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 15), textcolor=color.black, size=size.small)
         array.push(positionBoxes, positionRiskBox)
         array.push(positionBoxes, positionRewardBox)
@@ -945,8 +945,8 @@ if barstate.isconfirmed and m5Chart
         box.set_bottom(positionRiskBox, math.min(positionStop, drawnEntry))
         box.set_top(positionRewardBox, math.max(positionTarget, drawnEntry))
         box.set_bottom(positionRewardBox, math.min(positionTarget, drawnEntry))
-        box.set_right(positionRiskBox, time_close)
-        box.set_right(positionRewardBox, time_close)
+        box.set_right(positionRiskBox, time + 600000)
+        box.set_right(positionRewardBox, time + 600000)
         label.set_xy(positionInfo, time, drawnEntry)
         string sideText = positionSide == 1 ? "LONG" : "SHORT"
         string conditionText = firstPositionIsZero and not positionIsSecond ? " · Нулевое условие" : ""
