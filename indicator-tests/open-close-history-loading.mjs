@@ -36,5 +36,8 @@ console.log('PASS history reload',data.length,'M5 bars, 120 days; bounded drawin
 
 const polylines=full.plots.__polylines__.data[0].value;
 assert.ok(polylines.length<=94,'bounded archive plus active-day polylines');
-assert.ok(polylines.some(p=>p.points.some(pt=>pt.time===start+20*300000&&pt.price===100.5)),'oldest day color retained beyond former 150-candle cap');
-console.log('PASS full historical color archive including oldest day');
+for(const poly of polylines){
+ const dates=new Set(poly.points.filter(pt=>Number.isFinite(pt.price)).map(pt=>Math.floor((pt.time+7*3600000)/86400000)));
+ assert.ok(dates.size<=1,'historical polylines cannot connect different days');
+}
+console.log('PASS bounded daily color archive without inter-day diagonals');

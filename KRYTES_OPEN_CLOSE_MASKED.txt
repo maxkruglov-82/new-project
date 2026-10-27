@@ -34,27 +34,23 @@ appendColoredCandle(array<chart.point> points, int candleTime, float candleOpen,
     array.push(points, chart.point.from_time(candleTime + 60000, candleClose))
     array.push(points, chart.point.from_time(candleTime + 120000, na))
 
-// Сохраняем прошлые дни пакетами до 9000 точек, а не удаляем цвет после 150 свечей.
+// Каждый день — отдельный объект: na внутри polyline не гарантирует разрыв
+// в терминале. Никогда не объединяем точки разных дней в одну ломаную.
 archiveColoredDay(array<chart.point> archivePoints, array<chart.point> dayPoints, polyline activeArchive, array<polyline> sealedHistory, color ink) =>
-    polyline result = activeArchive
+    polyline result = na
+    array.clear(archivePoints)
+    if not na(activeArchive)
+        array.push(sealedHistory, activeArchive)
     if array.size(dayPoints) > 0
-        if array.size(archivePoints) + array.size(dayPoints) > 9000
-            if not na(result)
-                array.push(sealedHistory, result)
-            result := na
-            array.clear(archivePoints)
-        else
-            polyline.delete(result)
-        for pointIndex = 0 to array.size(dayPoints) - 1
-            array.push(archivePoints, array.get(dayPoints, pointIndex))
-        result := polyline.new(archivePoints, xloc=xloc.bar_time, line_color=ink, line_width=2)
-        while array.size(sealedHistory) > 90
-            polyline.delete(array.shift(sealedHistory))
+        polyline archivedDay = polyline.new(dayPoints, xloc=xloc.bar_time, line_color=ink, line_width=2)
+        array.push(sealedHistory, archivedDay)
+    while array.size(sealedHistory) > 90
+        polyline.delete(array.shift(sealedHistory))
     result
 
 // Базовый тренд 0–1 сохраняется до закрепа за 0. После смены
 // откат сохраняет цвет; новая опора 3 защищает подтверждённый участок 3–4.
-rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int originBreakTime, int fourthBreakTime, float thirdPrice, float fourthPrice, bool fifthReady, int fifthTime, float fifthPrice, int fifthSide, float offset) =>
+rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int originBreakTime, int fourthBreakTime, float thirdPrice, float fourthPrice, bool fifthReady, int fifthTime, float fifthPrice, int fifthSide, float offset, int endTime) =>
     array.clear(redPoints)
     array.clear(greenPoints)
     int initialSide = firstPrice > zeroPrice ? 1 : -1
@@ -70,7 +66,7 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
             int candleTime = array.get(savedTimes, candleIndex)
             float candleOpen = array.get(savedOpens, candleIndex)
             float candleClose = array.get(savedCloses, candleIndex)
-            if candleTime >= zeroTime
+            if candleTime >= zeroTime and (na(endTime) or candleTime <= endTime)
                 if not originApplied and not na(originBreakTime) and candleTime >= originBreakTime
                     originApplied := true
                     trend := -initialSide
@@ -238,6 +234,7 @@ var int thirdColorTime = na
 var int fourthColorTime = na
 var int fifthColorTime = na
 var int colorFourthBreakTime = na
+var int colorStopTime = na
 var int colorOriginBreakTime = na
 var int activeStructuralTrend = 0
 var array<chart.point> colorDayRedPoints = array.new<chart.point>()
@@ -350,6 +347,7 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         activeStructuralTrend := 0
         colorFourthBreakTime := na
         colorOriginBreakTime := na
+        colorStopTime := na
         confirmedZeroPrice := na
         confirmedZeroTime := na
         zeroLabel := na
@@ -812,12 +810,14 @@ if barstate.isconfirmed and m5Chart
                     positionRR := rewardAtClose / riskAtClose
                     positionEntryBar := bar_index
                     positionEntryEvent := true
+                    colorStopTime := na
                     positionState := 2
     // Внутрисвечное движение ДО входа по close не является результатом сделки.
     if positionState == 2 and bar_index > positionEntryBar
         bool hitStop = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
         bool hitTarget = positionSide == 1 ? bodyHigh >= positionTarget : bodyLow <= positionTarget
         if hitStop or hitTarget
+            colorStopTime := time
             positionExitEvent := hitStop and hitTarget ? 2 : hitStop ? -1 : 1
             positionState := hitStop and hitTarget ? 6 : hitStop ? 4 : 3
             // Фиксируем подписи предыдущей сделки до возможного создания второй.
@@ -933,7 +933,7 @@ plot(continuationAfterFourthUsed ? 1 : 0, "Продолжение после п�
 
 // Окраска истории пересчитывается только по телам. Финансовые сигналы не меняются.
 if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice)
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, confirmedZeroTime, confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, colorFourthBreakTime, confirmedThirdPrice, confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset)
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, confirmedZeroTime, confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, colorFourthBreakTime, confirmedThirdPrice, confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorStopTime)
     polyline.delete(colorDayRed)
     polyline.delete(colorDayGreen)
     colorDayRed := na

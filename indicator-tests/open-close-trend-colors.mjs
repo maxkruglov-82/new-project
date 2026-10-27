@@ -28,14 +28,14 @@ for(const mirror of [false,true])for(const result of ['sl','tp']){
  for(let i=14;i<=18;i++)assert.equal(colors.get(data[i].openTime),falling,'countertrend pullback stays initial color before origin confirmation');
  for(let i=19;i<=26;i++)assert.equal(colors.get(data[i].openTime),rising,'origin breakout changes color, then 2–3 and 3–4 retain it');
  if(result==='sl'){
-  for(let i=27;i<=29;i++)assert.equal(colors.get(data[i].openTime),rising,'touch SL/equality/0.005 past 3 do not change color');
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',28),-1);
-  assert.equal(colors.get(data[30].openTime),falling,'close 0.01 beyond 3 changes color from that candle');
-  assert.equal(colors.get(data[31].openTime),falling,'bounce does not flip trend');
-  assert.equal(colors.get(data[32].openTime),rising,'new confirmed breakout of prior high/low reverses back');
+  assert.equal(colors.get(data[28].openTime),rising,'stop candle remains colored');
+  // A subsequent permitted second entry may resume coloring; the first
+  // completed trade must not force rendering indefinitely on its own.
  }else{
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',27),1);
-  for(let i=27;i<data.length;i++)assert.equal(colors.get(data[i].openTime),rising,'trend color continues through TP and following pullback');
+  assert.equal(colors.get(data[27].openTime),rising,'target candle remains colored');
+  for(let i=28;i<data.length;i++)assert.equal(colors.has(data[i].openTime),false,'no color after TP');
  }
  if(baseline){
  const prior=await new PineTS(data,'SOLUSDT','5').run(baseline);

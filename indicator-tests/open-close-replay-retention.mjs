@@ -17,5 +17,13 @@ for(const mirror of [false,true])for(const outcome of ['tp','sl']){
  assert.equal(v('Labels',288+19),6,'completed label retained beside new scenario');
  assert.equal(v('RetainedTP',288+22),2,'both days retain completed outcomes');
  assert.ok(c.plots.__polylines__.data[0].value.some(p=>p.line_color===(mirror?'#00E676':'#F23645')&&p.points.some(pt=>pt.time===day[8].openTime&&pt.price===day[8].open)),'earlier 0–1 color survives next day');
+ for(const poly of c.plots.__polylines__.data[0].value){
+  const days=new Set(poly.points.filter(pt=>Number.isFinite(pt.price)).map(pt=>Math.floor((pt.time+7*3600000)/86400000)));
+  assert.ok(days.size<=1,'a colored polyline must never join different local days');
+  for(const pt of poly.points.filter(pt=>Number.isFinite(pt.price))){
+   const relative=(pt.time-day[0].openTime)%86400000;
+   assert.ok(relative<23*300000,'color ends on outcome candle, not subsequent candles');
+  }
+ }
  console.log('PASS replay outcome survives later day and new setup',mirror?'SHORT':'LONG',outcome);
 }
