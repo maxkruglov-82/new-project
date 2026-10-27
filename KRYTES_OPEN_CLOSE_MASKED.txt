@@ -162,6 +162,7 @@ var box positionRewardBox = na
 var label positionInfo = na
 var array<box> positionBoxes = array.new_box()
 var array<label> positionLabels = array.new_label()
+var array<label> positionOutcomeLabels = array.new_label()
 color risingTrendColor = input.color(color.lime, "Восходящее движение между точками")
 color fallingTrendColor = input.color(color.red, "Нисходящее движение между точками")
 var array<line> trendHistoryLines = array.new_line()
@@ -721,6 +722,13 @@ if barstate.isconfirmed and m5Chart
         if hitStop or hitTarget
             positionExitEvent := hitStop and hitTarget ? 2 : hitStop ? -1 : 1
             positionState := hitStop and hitTarget ? 6 : hitStop ? 4 : 3
+            // Одна отметка справа от достигнутого уровня, только после реального входа.
+            if positionExitEvent == 1 or positionExitEvent == -1
+                label outcomeMark = label.new(x=time + 900000, y=positionExitEvent == 1 ? positionTarget : positionStop, text=positionExitEvent == 1 ? "take+" : "stop+", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 100), textcolor=positionExitEvent == 1 ? color.green : color.red, size=size.normal)
+                array.push(positionOutcomeLabels, outcomeMark)
+                // 400 структурных + 50 подписей + 40 результатов: запас до 500.
+                while array.size(positionOutcomeLabels) > 40
+                    label.delete(array.shift(positionOutcomeLabels))
             if positionState == 4 and dailyPositionEntries == 1 and positionPlanDay == rangeDayKey
                 firstStopped := true
                 firstStopBar := bar_index

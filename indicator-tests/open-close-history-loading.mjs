@@ -4,7 +4,7 @@ import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js
 const original=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8');
 assert.ok(original.includes('max_bars_back=600'),'explicit history buffer for dynamic offsets');
 assert.ok(!original.includes('scanIndex > 0 and scanTime - array.get'),'no eager negative-index expression');
-const source=original+'\nplot(array.size(firstPointLabels),"LabelsCount")\nplot(array.size(positionLabels),"PositionLabelsCount")\nplot(array.size(bodyRanges),"RangesCount")\nplot(array.size(positionBoxes),"PositionBoxesCount")\nplot(array.size(trendHistoryLines),"TrendLinesCount")';
+const source=original+'\nplot(array.size(firstPointLabels),"LabelsCount")\nplot(array.size(positionLabels),"PositionLabelsCount")\nplot(array.size(positionOutcomeLabels),"OutcomeLabelsCount")\nplot(array.size(bodyRanges),"RangesCount")\nplot(array.size(positionBoxes),"PositionBoxesCount")\nplot(array.size(trendHistoryLines),"TrendLinesCount")';
 const start=Date.parse('2026-06-01T13:00:00+07:00'),days=120,data=[];
 for(let day=0;day<days;day++){
  const raw=Array.from({length:288},(_,i)=>({open:100,close:100,high:i<12?103:101,low:99}));
@@ -20,6 +20,8 @@ for(let i=0;i<data.length;i++){
  assert.ok(value(full,'TrendLinesCount',i)<=450);
  assert.ok(value(full,'LabelsCount',i)<=400);
  assert.ok(value(full,'PositionLabelsCount',i)<=50);
+ assert.ok(value(full,'OutcomeLabelsCount',i)<=40);
+ assert.ok(value(full,'LabelsCount',i)+value(full,'PositionLabelsCount',i)+value(full,'OutcomeLabelsCount',i)<=490);
  assert.ok(value(full,'RangesCount',i)<=350);
  assert.ok(value(full,'PositionBoxesCount',i)<=100);
 }
