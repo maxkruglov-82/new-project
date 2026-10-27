@@ -1,6 +1,8 @@
 //@version=5
 indicator("BingX — Open–Close без теней + точки 0–5", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500, max_bars_back=600)
 
+int minimumRetreatBars = 5
+
 // 0 — крайняя цена тела внутри H1, по времени от 14:00 строго до 1.
 // При равной цене сохраняем первое достижение экстремума.
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, float upperBound, float lowerBound, int fromTime, int beforeFirst) =>
@@ -418,7 +420,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart
         lowerMarked := true
 
 
-// Четыре M5 включают свечу экстремума. Выход за open не требуется;
+// Пять M5 включают свечу экстремума. Выход за open не требуется;
 // сохраняются направление отката, непрерывность и сброс при новом экстремуме.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureSide != 0 and not firstSwingDisplayLocked
     float candidateFirst = structureSide == -1 ? bodyLow : bodyHigh
@@ -449,7 +451,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         else if reboundPrice == middlePrice and time - middleLastEqualTime == 300000
             middleTime := int((middleTime + time) / 2)
             middleLastEqualTime := time
-        if firstRetreatCloses >= 4 and firstRetreatClose
+        if firstRetreatCloses >= minimumRetreatBars and firstRetreatClose
             firstSwingDisplayLocked := true
             firstConfirmedBar := bar_index
             structureFirstBar := firstExtremeBar
@@ -494,7 +496,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackOpen := open
                 pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
                 pullbackExtremeBar := bar_index
-            if pullbackCloseCount >= 4 and beyondCandidateBody
+            if pullbackCloseCount >= minimumRetreatBars and beyondCandidateBody
                 secondPointReady := true
                 confirmedSecondPrice := middlePrice
                 secondPointLabel := label.new(x=middleTime, y=middlePrice, text="2", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
@@ -574,7 +576,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         label.delete(array.shift(firstPointLabels))
 
 
-// Подтверждённая 3 сопровождает продолжение до отдельного четырёхсвечного отката.
+// Подтверждённая 3 сопровождает продолжение до отдельного пятисвечного отката.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureCompleted and not thirdLocked and not na(movingThirdLabel)
     float nextThirdPrice = structureSide == -1 ? bodyLow : bodyHigh
     bool extendsThird = structureSide == -1 ? nextThirdPrice < confirmedThirdPrice : nextThirdPrice > confirmedThirdPrice
@@ -588,11 +590,11 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
     else if bar_index > thirdExtremeBar and not na(thirdOppositeBody)
         bool outsideThirdBody = structureSide == -1 ? close > confirmedThirdPrice : close < confirmedThirdPrice
         thirdRetreatCloses := time - time[1] == 300000 ? thirdRetreatCloses + 1 : 1
-        if thirdRetreatCloses >= 4 and outsideThirdBody
+        if thirdRetreatCloses >= minimumRetreatBars and outsideThirdBody
             thirdLocked := true
 
 
-// 4 движется до отката: минимум четыре M5, включая свечу экстремума,
+// 4 движется до отката: минимум пять M5, включая свечу экстремума,
 // последняя закрывается за open первой в обратную сторону.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and not na(movingFourthLabel) and not fourthLocked
     float fourthCandidate = structureSide == -1 ? bodyHigh : bodyLow
@@ -607,7 +609,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
     else if bar_index > fourthExtremeBar
         bool fourthRetreatClose = structureSide == -1 ? close < confirmedFourthPrice : close > confirmedFourthPrice
         fourthRetreatCloses := time - time[1] == 300000 ? fourthRetreatCloses + 1 : 1
-        if fourthRetreatCloses >= 4 and fourthRetreatClose
+        if fourthRetreatCloses >= minimumRetreatBars and fourthRetreatClose
             fourthLocked := true
 
 
@@ -624,7 +626,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and positionIsSecond an
         label.set_xy(fifthLabel, time, confirmedFifthPrice)
     else if bar_index > fifthExtremeBar
         fifthRetreatBars := time - time[1] == 300000 ? fifthRetreatBars + 1 : 1
-        if fifthRetreatBars >= 4 and (positionSide == 1 ? close < confirmedFifthPrice : close > confirmedFifthPrice)
+        if fifthRetreatBars >= minimumRetreatBars and (positionSide == 1 ? close < confirmedFifthPrice : close > confirmedFifthPrice)
             fifthLocked := true
 
 // Нулевая сделка следует движению 0–1 после подтверждения 1.

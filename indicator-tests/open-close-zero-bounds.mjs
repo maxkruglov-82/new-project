@@ -16,7 +16,7 @@ for(const mode of ['time','price'])for(const mirror of [false,true]){
  const tail=[[100,98.8],[98.8,98.6],[98.6,98.7],[98.7,99],[99,98.95],[98.95,98.95]];
  raw.push(...tail.map(([open,close])=>({open,close,high:Math.max(open,close)+0.01,low:Math.min(open,close)-0.01})));
  const data=raw.map((b,i)=>{if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
- const ctx=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>ctx.plots[n].data[i].value,i=40;
+ const ctx=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>ctx.plots[n].data[i].value,i=41;
  assert.equal(v('Ready',i),1);
  const p=v('Цена точки 0',i),t=v('T0',i);
  if(mode==='time'){

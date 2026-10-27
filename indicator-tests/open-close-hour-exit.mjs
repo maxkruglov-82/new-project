@@ -10,7 +10,7 @@ async function run(mirror,mode="valid"){
  const data=raw.map((b,i)=>{if(mirror)b={open:230-b.open,close:230-b.close,high:230-b.low,low:230-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
  const ctx=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>ctx.plots[n].data[i].value;
  assert.equal(v('Side',12),mode==='valid'?(mirror?1:-1):0,'initial close requires full 0.01 beyond H1');
- if(mode==='valid'){assert.equal(v('FirstReady',15),1);assert.ok(Math.abs(v('P1',15)-(mirror?115.13:114.87))<1e-8);}
+ if(mode==='valid'){assert.equal(v('FirstReady',15),0,'four M5 insufficient');assert.equal(v('FirstReady',16),1,'fifth M5 confirms');assert.ok(Math.abs(v('P1',16)-(mirror?115.13:114.87))<1e-8);}
  console.log('PASS initial H1 exit',mirror?'upper':'lower',mode);
 }
 for(const mode of ["valid","equal","tiny"]){await run(false,mode);await run(true,mode);}

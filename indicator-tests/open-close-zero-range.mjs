@@ -12,13 +12,13 @@ for(const mirror of [false,true])for(const mode of ['late','first','boundary','o
  if(mode==='first')raw[12]={open:100,close:100.9,high:101,low:99};
  if(mode==='boundary')raw[22]={open:100.6,close:101,high:101,low:99};
  const firstOpen=mode==='outside'?102:100.4;
- raw.push(...[[firstOpen,98.8],[98.8,98.6],[98.6,98.7],[98.7,99],[99,99.1],[99.1,102]].map(([open,close])=>({open,close,high:150,low:50})));
+ raw.push(...[[firstOpen,98.8],[98.8,98.6],[98.6,98.7],[98.7,99],[99,99.1],[99.1,102],[102,102]].map(([open,close])=>({open,close,high:150,low:50})));
  const data=raw.map((b,i)=>{if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
- const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i=28)=>c.plots[n].data[i].value;
+ const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i=29)=>c.plots[n].data[i].value;
  const price=mode==='first'?100.9:mode==='boundary'?101:100.8;
  assert.ok(Math.abs(v('Цена точки 0')-(mirror?200-price:price))<1e-8);
  assert.equal(v('T0'),start+(mode==='first'?12:22)*300000,'maximum/minimum inside H1 between 14 and 1');
  assert.ok(v('T0')<v('T1'));
- assert.equal(v('Цена точки 0',29),v('Цена точки 0'),'later movement after 1 cannot rewrite origin');
+ assert.equal(v('Цена точки 0',30),v('Цена точки 0'),'later movement after 1 cannot rewrite origin');
  console.log('PASS range origin',mode,mirror?'low':'high');
 }
