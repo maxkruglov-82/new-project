@@ -10,7 +10,7 @@ for(let day=0;day<days;day++){
  const raw=Array.from({length:288},(_,i)=>({open:100,close:100,high:i<12?103:101,low:99}));
  [[101,101.2],[101.2,101.5],[101.5,102],[101.999,100]].forEach(([open,close],i)=>raw[i]={open,close,high:103,low:99});
  [[100,100.5],[100.5,100.8],[100.8,100.4],[100.4,100.3],[100.3,100.2]].forEach(([open,close],i)=>raw[19+i]={open,close,high:101,low:99});
- [[100.2,98.8],[98.8,98.6],[98.6,98.7],[98.7,99],[99,98.95],[98.95,98.95]].forEach(([open,close],i)=>raw[24+i]={open,close,high:Math.max(open,close)+0.01,low:Math.min(open,close)-0.01});
+ [[100.2,98.8],[98.8,98.6],[98.6,98.7],[98.7,99],[99,99.05],[99.05,99.1]].forEach(([open,close],i)=>raw[24+i]={open,close,high:Math.max(open,close)+0.01,low:Math.min(open,close)-0.01});
  for(let i=0;i<288;i++)data.push({...raw[i],volume:1,openTime:start+(day*288+i)*300000,closeTime:start+(day*288+i+1)*300000-1});
 }
 const full=await new PineTS(data,'SOLUSDT','5').run(source);
