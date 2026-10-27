@@ -629,12 +629,13 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and positionIsSecond an
         if fifthRetreatBars >= minimumRetreatBars and (positionSide == 1 ? close < confirmedFifthPrice : close > confirmedFifthPrice)
             fifthLocked := true
 
-// Нулевая сделка следует движению 0–1 после подтверждения 1.
-// Стоп на 0, цель на 1; не ждём пробоя 0.
+// 0–1 задаёт только направление. Сценарий смены тренда требует пробоя 0.
+// Третья опора — новый экстремум за 0, затем ждём ретест зоны RR1.
 if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice) and not zeroConditionUsed and dailyPositionEntries == 0 and positionState != 2
     bool zeroInitialUp = structureFirstPrice > confirmedZeroPrice
     bool zeroInitialDown = structureFirstPrice < confirmedZeroPrice
-    if zeroInitialUp or zeroInitialDown
+    bool zeroBreak = zeroInitialUp ? confirmedZeroPrice - close >= firstPointOffset - 0.000000001 : zeroInitialDown and close - confirmedZeroPrice >= firstPointOffset - 0.000000001
+    if zeroBreak
         removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
         positionRiskBox := na
         positionRewardBox := na
@@ -643,12 +644,12 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
         positionIsZero := true
         firstPositionIsZero := true
         positionIsSecond := false
-        positionSide := zeroInitialUp ? 1 : -1
-        positionAnchorTime := confirmedZeroTime
-        positionStop := confirmedZeroPrice
-        positionTarget := structureFirstPrice
+        positionSide := zeroInitialUp ? -1 : 1
+        positionAnchorTime := firstExtremeTime
+        positionStop := structureFirstPrice
+        positionTarget := positionSide == 1 ? bodyHigh : bodyLow
         zeroReversalStop := positionTarget
-        zeroReversalTime := firstExtremeTime
+        zeroReversalTime := time
         firstPositionStop := positionStop
         firstPositionSide := positionSide
         firstPositionUsesFourth := false
@@ -692,7 +693,7 @@ if barstate.isconfirmed and m5Chart
         if positionPlanDay != rangeDayKey or not firstPointWindow
             positionState := 5
         else
-            float currentTarget = positionIsZero ? structureFirstPrice : (positionIsSecond and firstPositionIsZero) ? (positionSide == 1 ? bodyHigh : bodyLow) : positionIsSecond ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
+            float currentTarget = positionIsZero or (positionIsSecond and firstPositionIsZero) ? (positionSide == 1 ? bodyHigh : bodyLow) : positionIsSecond ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
             positionThreshold := (positionStop + positionTarget) / 2.0
             bool stopBeforeEntry = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop

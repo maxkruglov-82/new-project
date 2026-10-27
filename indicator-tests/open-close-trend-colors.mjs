@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
-let source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8').replace('int minimumRetreatBars = 5','int minimumRetreatBars = 4').replace('bool originConfirmed = not againstInitialTrend or zeroTrendReversed','bool originConfirmed = true').replace('if zeroInitialUp or zeroInitialDown','if false'); // Isolate drawing regression from origin-entry gate, covered separately.
+let source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8').replace('int minimumRetreatBars = 5','int minimumRetreatBars = 4').replace('bool originConfirmed = not againstInitialTrend or zeroTrendReversed','bool originConfirmed = true').replace('if zeroBreak','if false'); // Isolate drawing regression from origin-entry gate, covered separately.
 for(const segment of ['01','12','23','34','45'])source+=`\nplot(trend${segment}Direction,"Direction${segment}")\nplot(array.size(trend${segment}Lines),"Lines${segment}")`;
 source+='\nplot(array.size(trendHistoryLines),"AllLines")\nfloat firstStrokeLow = na\nfloat firstStrokeHigh = na\nif array.size(trend01Lines) > 0\n    firstStrokeLow := line.get_y1(array.get(trend01Lines,0))\n    firstStrokeHigh := line.get_y2(array.get(trend01Lines,0))\nplot(firstStrokeLow,"StrokeLow")\nplot(firstStrokeHigh,"StrokeHigh")';
 const start=Date.parse('2026-10-21T13:00:00+07:00');

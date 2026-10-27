@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import {scenario} from './open-close-zero-condition.mjs';
 for(const mirror of [false,true]){
- const {v}=await scenario(mirror,[[99,99.2],[99.2,99.1]]);
- assert.equal(v('Первая позиция по нулевому условию',17),1);
- assert.equal(v('Стоп позиции',17),v('Цена точки 0',17));
- assert.equal(v('Входов за день',19),0,'plan is not an executed entry');
- assert.equal(v('Состояние позиции',19),1,'no RR1 touch means keep waiting');
- console.log('PASS origin defines stop and initial trade direction',mirror?'LONG':'SHORT');
+ const {v}=await scenario(mirror,[[99.05,99.9],[99.9,100],[100,99.7]]);
+ assert.equal(v('Ready1',17),1);
+ for(let i=17;i<=20;i++){
+  assert.equal(v('Входов за день',i),0,'0–1 and initial bounce never trigger a trade');
+  assert.equal(v('BoxCount',i),0,'no two-point entry instrument');
+  assert.equal(v('Разворот закреплён за 0',i),0);
+ }
+ console.log('PASS no entry with only 0–1, no reversal without origin breakout',mirror?'mirror':'original');
 }
