@@ -17,15 +17,10 @@ for(let i=0;i<data.length;i++){
  const expectedTarget={'16:15':111.66,'16:20':111.58,'16:45':111.31,'17:40':111.31}[t.slice(11)];
  if(expectedTarget!==undefined){
   assert.equal(v('Цель позиции',i),expectedTarget,'pending target follows new low even after five-bar pause');
-  assert.equal(v('Стоп позиции',i),112.25,'stop remains on point 2');
+  assert.equal(v('Стоп позиции',i),112.97,'stop remains on origin 0');
  }
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
- if(side){
-  assert.equal(v('Цена входа по close',i),111.78);
-  assert.equal(v('Стоп позиции',i),112.25);
-  assert.equal(v('Цель позиции',i),111.31);
- }
  if(side||exit)events.push([t.slice(11),side,exit]);
 }
-assert.deepEqual(events,[['17:45',-1,0],['18:00',0,1]]);
-console.log('PASS real MEXC Oct 12: trailing 3, SHORT 17:45, TP 18:00');
+assert.deepEqual(events,[]);
+console.log('PASS real MEXC Oct 12: trailing 3, origin stop prevents prior point-2 entry');

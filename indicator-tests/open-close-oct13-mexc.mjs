@@ -16,11 +16,11 @@ for(let i=0;i<data.length;i++){
  }
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side){
-  assert.equal(v('Цена входа по close',i),107.42);
-  assert.equal(v('Стоп позиции',i),107.62);
-  assert.equal(v('Цель позиции',i),107.09);
+  assert.equal(v('Цена входа по close',i),107.14);
+  assert.equal(v('Стоп позиции',i),108.87);
+  assert.equal(v('Цель позиции',i),105.66);
  }
  if(side||exit)events.push([t.slice(11),side,exit]);
 }
-assert.deepEqual(events,[['16:35',-1,0],['16:45',0,1]]);
-console.log('PASS real MEXC Oct 13: early SHORT 16:35, TP 16:45');
+assert.deepEqual(events,[['18:20',-1,0]]);
+console.log('PASS real MEXC Oct 13: origin stop: SHORT 18:20, no same-day outcome');

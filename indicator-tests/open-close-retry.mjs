@@ -7,7 +7,7 @@ const start=Date.parse('2026-10-21T14:00:00+07:00');
 const prefix=[[98.8,98.5],[98.5,98.4],[98.4,98.6],[98.6,98.7],[98.7,98.8],[98.8,98.9],[98.9,98.7],[98.7,98.6],[98.6,98.7],[98.7,98.6],[98.6,98.91],[98.91,98.9],[98.9,99.2],[99.2,98.8]];
 async function scenario(tail,mirror){
  const seq=[...prefix,...tail];
- const raw=Array.from({length:12},()=>({open:100,close:100,high:101,low:99})).concat(seq.map(([open,close])=>({open,close,high:110,low:90})));
+ const raw=Array.from({length:12},()=>({open:100,close:100,high:101,low:99})).concat(seq.map(([open,close])=>({open,close,high:Math.max(open,close),low:Math.min(open,close)})));
  const data=raw.map((b,i)=>{if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
  const ctx=await new PineTS(data,'SOLUSDT','5').run(source+'\nplot(firstStopped?1:0,"Stopped")\nplot(firstStopBar,"StopBar")\nplot(confirmedFourthPrice,"P4")\nplot(positionIsSecond?1:0,"Second")');
  const v=(n,i)=>ctx.plots[n].data[i].value;

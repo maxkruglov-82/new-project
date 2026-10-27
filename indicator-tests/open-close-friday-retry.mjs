@@ -6,9 +6,9 @@ for(const mirror of [false,true])for(const take of [false,true]){
  const start=Date.parse('2026-10-23T14:00:00+07:00');
  const hour=Array.from({length:12},()=>({open:100,close:100,high:101,low:99}));
  [[100,100.5],[100.5,100.8],[100.8,100.4],[100.4,100.3],[100.3,100.2]].forEach(([open,close],i)=>hour[7+i]={open,close,high:101,low:99});
- const seq=[[100.2,98.8],[98.8,98.6],[98.6,98.7],[98.7,98.8],[98.8,99],[99,99.05],[99.05,99.2],[99.2,99.1],[99.1,98.9],[98.9,98.7],[98.7,98.5],[98.5,98.9],[98.9,take?98.4:99.3],
- [take?98.4:99.3,98.7],[98.7,98.9],[98.9,99.1],[99.1,99],[99,99.05],[99.05,98.6],[98.6,98.4],[98.4,98.8],[98.8,98.4],[98.4,99.2],[99.2,98],[98,99.4]];
- const data=[...hour,...seq.map(([open,close])=>({open,close,high:150,low:50}))].map((b,i)=>{if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
+ const seq=[[100.2,98.8],[98.8,98.6],[98.6,98.7],[98.7,98.8],[98.8,99],[99,99.05],[99.05,99.2],[99.2,99.1],[99.1,98.9],[98.9,98.7],[98.7,98.5],[98.5,98.9],[98.9,take?98.4:100.8],
+ [take?98.4:100.8,98.7],[98.7,98.9],[98.9,99.1],[99.1,99],[99,99.05],[99.05,98.6],[98.6,98.4],[98.4,98.8],[98.8,98.4],[98.4,99.2],[99.2,98],[98,99.4]];
+ const data=[...hour,...seq.map(([open,close])=>({open,close,high:Math.max(open,close),low:Math.min(open,close)}))].map((b,i)=>{if(i===23)b={...b,high:99.8};if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
  const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>c.plots[n].data[i].value;
  const entries=data.flatMap((_,i)=>v('Вход LONG/SHORT',i)?[{i,side:v('Вход LONG/SHORT',i)}]:[]);
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',24),take?1:-1);

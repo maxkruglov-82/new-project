@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {scenario} from './open-close-zero-condition.mjs';
 for(const mirror of [false,true]){
- const {v}=await scenario(mirror,[[99.05,99.2],[99.2,99.1],[99.1,98.9],[98.9,98.7],[98.7,98.5],[98.5,98.9],[98.9,99.3],[99.3,99.4],[99.4,100.805],[100.805,100.81],[100.81,99.6],[99.6,101]]);
+ const {v}=await scenario(mirror,[[99.05,99.2],[99.2,99.1],[99.1,98.9],[98.9,98.7],[98.7,98.5],[98.5,98.9],[98.9,100.8],[100.8,99.4],[99.4,100.805],[100.805,100.81],[100.81,99.6],[99.6,101]],{23:{high:99.8}});
  assert.equal(v('Вход LONG/SHORT',23),mirror?1:-1,'first continuation trade');
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',24),-1,'first SL');
  for(let i=24;i<=26;i++){

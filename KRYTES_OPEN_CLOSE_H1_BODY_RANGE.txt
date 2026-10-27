@@ -615,7 +615,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 positionIsZero := false
                 firstPositionIsZero := false
                 positionIsSecond := false
-                firstPositionStop := crossedSecond ? confirmedThirdPrice : confirmedSecondPrice
+                firstPositionStop := crossedSecond ? confirmedThirdPrice : not na(confirmedZeroPrice) ? confirmedZeroPrice : confirmedSecondPrice
                 firstPositionSide := crossedSecond ? -structureSide : structureSide
                 firstPositionUsesFourth := crossedSecond
                 positionSide := crossedSecond ? -structureSide : structureSide
@@ -623,7 +623,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 firstPositionUsesFifth := false
                 positionUsesFourth := crossedSecond
                 positionAnchorTime := crossedSecond ? thirdPointTime : middleTime
-                positionStop := crossedSecond ? confirmedThirdPrice : confirmedSecondPrice
+                positionStop := crossedSecond ? confirmedThirdPrice : not na(confirmedZeroPrice) ? confirmedZeroPrice : confirmedSecondPrice
                 positionTarget := crossedSecond ? confirmedFourthPrice : confirmedThirdPrice
                 positionThreshold := (positionStop + positionTarget) / 2.0
                 positionState := 1
@@ -810,7 +810,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and (firstPositionIsZer
         zeroReversalTime := time
     zeroReversalStop := firstPositionSide == -1 ? math.min(zeroReversalStop, bodyLow) : math.max(zeroReversalStop, bodyHigh)
 
-// Касание RR1 телом M5 разрешает вход по close; итоговый RR может быть меньше 1.
+// Продолжение после пробоя 1: стоп на 0, касание RR1 по high/low.
+// Остальные сценарии сохраняют прежние входы; вход по close, RR может быть меньше 1.
 // State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired, 6 ambiguous.
 int positionExitEvent = 0
 bool positionEntryEvent = false
@@ -834,7 +835,8 @@ if barstate.isconfirmed and m5Chart
             else if bar_index > positionSetupBar
                 float riskAtClose = positionSide == 1 ? close - positionStop : positionStop - close
                 float rewardAtClose = positionSide == 1 ? positionTarget - close : close - positionTarget
-                bool touchedRRZone = positionSide == 1 ? bodyLow <= positionThreshold : bodyHigh >= positionThreshold
+                bool originContinuation = not positionIsZero and not positionIsSecond and not positionUsesFourth and not positionUsesFifth and not na(confirmedZeroPrice)
+                bool touchedRRZone = positionSide == 1 ? (originContinuation ? low : bodyLow) <= positionThreshold : (originContinuation ? high : bodyHigh) >= positionThreshold
                 bool againstInitialTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
                 bool originConfirmed = not againstInitialTrend or zeroTrendReversed
                 if dailyPositionEntries < 2 and (not positionIsSecond or firstStopped) and originConfirmed and riskAtClose > 0 and rewardAtClose > 0 and touchedRRZone
@@ -848,7 +850,7 @@ if barstate.isconfirmed and m5Chart
     // Внутрисвечное движение ДО входа по close не является результатом сделки.
     if positionState == 2 and bar_index > positionEntryBar
         bool hitStop = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
-        bool hitTarget = positionSide == 1 ? bodyHigh >= positionTarget : bodyLow <= positionTarget
+        bool hitTarget = positionSide == 1 ? high >= positionTarget : low <= positionTarget
         if hitStop or hitTarget
             colorStopTime := time
             positionExitEvent := hitStop and hitTarget ? 2 : hitStop ? -1 : 1

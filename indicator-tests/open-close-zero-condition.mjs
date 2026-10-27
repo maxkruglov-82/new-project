@@ -40,11 +40,11 @@ if not na(positionInfo)
 plot(entryHasRR,"EntryHasRR")
 `;
 const start=Date.parse('2026-10-21T14:00:00+07:00');
-export async function scenario(mirror,tail){
+export async function scenario(mirror,tail,wickOverrides={}){
  const hour=Array.from({length:12},()=>({open:100,close:100,high:101,low:99}));
  [[100,100.5],[100.5,100.8],[100.8,100.4],[100.4,100.3],[100.3,100.2]].forEach(([open,close],i)=>hour[7+i]={open,close,high:101,low:99});
  const seq=[[100.2,98.8],[98.8,98.6],[98.6,98.7],[98.7,98.8],[98.8,99],[99,99.05],...tail];
- const data=[...hour,...seq.map(([open,close])=>({open,close,high:150,low:50}))].map((b,i)=>{if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
+ const data=[...hour,...seq.map(([open,close])=>({open,close,high:Math.max(open,close),low:Math.min(open,close)}))].map((b,i)=>{b={...b,...(wickOverrides[i]??{})};if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
  const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>c.plots[n].data[i].value;
  return {c,v,data};
 }
