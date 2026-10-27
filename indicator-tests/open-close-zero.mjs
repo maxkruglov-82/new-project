@@ -9,6 +9,8 @@ async function run(mirror,priorPeak=true,qualifiedBounce=true){
   raw[1]={open:100,close:101,high:150,low:50};
   if(qualifiedBounce){
    [[101,99.8],[99.8,99.7],[99.7,99.6],[99.6,99.8],[99.8,100],[100,100.5]].forEach(([open,close],i)=>raw[i+2]={open,close,high:150,low:50});
+  }else{
+   [[101,100.5],[100.5,100.4],[100.4,100.3],[100.3,100.4],[100.4,100.2],[100.2,100.1]].forEach(([open,close],i)=>raw[i+2]={open,close,high:150,low:50});
   }
   const seq=[[100.5,100.8],[100.8,100.4],[100.4,100.3],[100.3,100.2]];
   seq.forEach(([open,close],i)=>raw[8+i]={open,close,high:150,low:50});
@@ -22,11 +24,11 @@ async function run(mirror,priorPeak=true,qualifiedBounce=true){
  const ctx=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>ctx.plots[n].data[i].value;
  if(priorPeak){
   assert.ok(!Number.isFinite(v('Цена точки 0',15)),'0 waits for confirmed point 1');
-  const expected=qualifiedBounce?(mirror?99.2:100.8):(mirror?99:101);
+  const expected=mirror?99.2:100.8;
   assert.equal(v('Цена точки 0',16),expected,'ignore internal peaks unless a full opposite retreat intervenes');
-  assert.equal(v('ZeroTime',16),start+(qualifiedBounce?8:1)*300000);
+  assert.equal(v('ZeroTime',16),start+8*300000);
   assert.ok(v('ZeroTime',16)<v('FirstTime',16));
-  console.log('PASS whole-leg zero',qualifiedBounce?'new origin after full retreat':'retain higher/lower origin through micro-bounce',mirror?'low':'high');
+  console.log('PASS whole-leg zero',qualifiedBounce?'new origin after full retreat':'four-bar retreat inside prior candle body',mirror?'low':'high');
  } else {
   assert.ok(!Number.isFinite(v('Цена точки 0',16)),'do not fabricate 0 without confirmed earlier pivot');
   console.log('PASS missing earlier pivot leaves zero absent');

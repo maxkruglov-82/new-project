@@ -14,7 +14,7 @@ for(const mirror of [false,true]){
  const current=await new PineTS(data,'SOLUSDT','5').run(newSource+'\nplot(confirmedZeroTime,"T0")\nplot(structureFirstPrice,"P1")');
  if(old)assert.ok(!Number.isFinite(old.plots['Цена точки 0'].data[28].value),'published version reproduces missing 0');
  assert.ok(Math.abs(current.plots['Цена точки 0'].data[28].value-(mirror?99.2:100.8))<1e-8,'bounded replay recovers eligible origin');
- assert.equal(current.plots.T0.data[28].value,start+21*300000,'time is at the in-range peak plateau');
+ assert.equal(current.plots.T0.data[28].value,start+20*300000,'time is at the in-range peak plateau');
  assert.ok(Math.abs(current.plots.P1.data[28].value-(mirror?101.4:98.6))<1e-8);
  console.log('PASS reproduced missing zero fixed without changing point 1',mirror?'low':'high');
 }

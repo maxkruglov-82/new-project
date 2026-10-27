@@ -53,7 +53,7 @@ findBoundedOrigin(array<float> savedOpens, array<float> savedCloses, array<int> 
                 oppositeOpen := scanOpen
                 oppositeTime := scanTime
                 oppositeIndex := scanIndex
-            bool closedRetreat = not na(primaryPrice) and scanIndex - primaryIndex + 1 >= 4 and scanTime - primaryTime == (scanIndex - primaryIndex) * 300000 and (legSide == 1 ? scanClose < primaryOpen : scanClose > primaryOpen)
+            bool closedRetreat = not na(primaryPrice) and scanIndex - primaryIndex + 1 >= 4 and scanTime - primaryTime == (scanIndex - primaryIndex) * 300000 and (legSide == 1 ? scanClose < primaryPrice : scanClose > primaryPrice)
             if closedRetreat and not na(oppositePrice)
                 if legSide == wantedSide and primaryTime < beforeFirst
                     foundPrice := primaryPrice
@@ -486,7 +486,7 @@ if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
             zeroLowOpen := open
             zeroLowTime := time
             zeroLowBar := bar_index
-        if bar_index - zeroHighBar + 1 >= 4 and time - zeroHighTime == (bar_index - zeroHighBar) * 300000 and close < zeroHighOpen
+        if bar_index - zeroHighBar + 1 >= 4 and time - zeroHighTime == (bar_index - zeroHighBar) * 300000 and close < zeroHighCandidate
             array.push(priorHighPrices, zeroHighCandidate)
             array.push(priorHighTimes, zeroHighTime)
             if array.size(priorHighTimes) > 500
@@ -518,7 +518,7 @@ if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
             zeroHighOpen := open
             zeroHighTime := time
             zeroHighBar := bar_index
-        if bar_index - zeroLowBar + 1 >= 4 and time - zeroLowTime == (bar_index - zeroLowBar) * 300000 and close > zeroLowOpen
+        if bar_index - zeroLowBar + 1 >= 4 and time - zeroLowTime == (bar_index - zeroLowBar) * 300000 and close > zeroLowCandidate
             array.push(priorLowPrices, zeroLowCandidate)
             array.push(priorLowTimes, zeroLowTime)
             if array.size(priorLowTimes) > 500
@@ -582,8 +582,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart
         lowerMarked := true
 
 
-// Четыре M5 включают свечу экстремума. Последняя закрывается за open первой
-// в направлении отката; промежуточные close могут оставаться с другой стороны.
+// Четыре M5 включают свечу экстремума. Выход за open не требуется;
+// сохраняются направление отката, непрерывность и сброс при новом экстремуме.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureSide != 0 and not firstSwingDisplayLocked
     float candidateFirst = structureSide == -1 ? bodyLow : bodyHigh
     bool extendsFirst = structureSide == -1 ? candidateFirst < structureFirstPrice : candidateFirst > structureFirstPrice
@@ -600,7 +600,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         candidateExtremeBar := na
         middleLastEqualTime := na
     else if bar_index > firstExtremeBar
-        bool firstRetreatClose = structureSide == -1 ? close > firstExtremeOpen : close < firstExtremeOpen
+        bool firstRetreatClose = structureSide == -1 ? close > structureFirstPrice : close < structureFirstPrice
         firstRetreatCloses := time - time[1] == 300000 ? firstRetreatCloses + 1 : 1
         float reboundPrice = structureSide == -1 ? bodyHigh : bodyLow
         if na(middlePrice) or (structureSide == -1 ? reboundPrice > middlePrice : reboundPrice < middlePrice)
@@ -674,7 +674,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 middleTime := int((middleTime + time) / 2)
                 middleLastEqualTime := time
             bool contiguousM5 = time - time[1] == 300000
-            bool beyondCandidateBody = structureSide == -1 ? close < candidateOpen : close > candidateOpen
+            bool beyondCandidateBody = structureSide == -1 ? close < middlePrice : close > middlePrice
             pullbackCloseCount := contiguousM5 ? math.min(pullbackCloseCount + 1, bar_index - candidateExtremeBar + 1) : 1
             float retreatPrice = structureSide == -1 ? bodyLow : bodyHigh
             if na(pullbackExtreme) or (structureSide == -1 ? retreatPrice < pullbackExtreme : retreatPrice > pullbackExtreme)
@@ -767,7 +767,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         thirdRetreatCloses := 1
         label.set_xy(movingThirdLabel, time, confirmedThirdPrice)
     else if bar_index > thirdExtremeBar and not na(thirdOppositeBody)
-        bool outsideThirdBody = structureSide == -1 ? close > thirdOppositeBody : close < thirdOppositeBody
+        bool outsideThirdBody = structureSide == -1 ? close > confirmedThirdPrice : close < confirmedThirdPrice
         thirdRetreatCloses := time - time[1] == 300000 ? thirdRetreatCloses + 1 : 1
         if thirdRetreatCloses >= 4 and outsideThirdBody
             thirdLocked := true
@@ -786,7 +786,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         fourthRetreatCloses := 1
         label.set_xy(movingFourthLabel, time, confirmedFourthPrice)
     else if bar_index > fourthExtremeBar
-        bool fourthRetreatClose = structureSide == -1 ? close < fourthAnchorOpen : close > fourthAnchorOpen
+        bool fourthRetreatClose = structureSide == -1 ? close < confirmedFourthPrice : close > confirmedFourthPrice
         fourthRetreatCloses := time - time[1] == 300000 ? fourthRetreatCloses + 1 : 1
         if fourthRetreatCloses >= 4 and fourthRetreatClose
             fourthLocked := true
@@ -805,7 +805,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and positionIsSecond an
         label.set_xy(fifthLabel, time, confirmedFifthPrice)
     else if bar_index > fifthExtremeBar
         fifthRetreatBars := time - time[1] == 300000 ? fifthRetreatBars + 1 : 1
-        if fifthRetreatBars >= 4 and (positionSide == 1 ? close < fifthAnchorOpen : close > fifthAnchorOpen)
+        if fifthRetreatBars >= 4 and (positionSide == 1 ? close < confirmedFifthPrice : close > confirmedFifthPrice)
             fifthLocked := true
 
 // Нулевое условие: пробой начала движения 0 отменяет направление 0–1.

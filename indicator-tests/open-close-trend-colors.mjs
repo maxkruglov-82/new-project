@@ -19,8 +19,8 @@ for(const mirror of [false,true]){
   assert.ok(v('Lines'+seg,last)>0,'painted '+seg);
   assert.equal(v('Lines'+seg,last)%3,0,'complete OHLC body-only bar strokes');
  }
- assert.ok(Math.abs(v('StrokeLow',last)-(mirror?99.2:100.4))<1e-8,'paint uses body low, not hidden wick');
- assert.ok(Math.abs(v('StrokeHigh',last)-(mirror?99.6:100.8))<1e-8,'paint uses body high, not hidden wick');
+ assert.ok(Math.abs(v('StrokeLow',last)-(mirror?99.2:100.5))<1e-8,'paint uses body low, not hidden wick');
+ assert.ok(Math.abs(v('StrokeHigh',last)-(mirror?99.5:100.8))<1e-8,'paint uses body high, not hidden wick');
  for(let i=0;i<data.length;i++)assert.ok(v('AllLines',i)<=450,'bounded drawing history');
  assert.ok(v('Lines34',33)>v('Lines34',32),'moving 4 extends colored segment');
  console.log('PASS alternating segment colors 0–1 through 4–5 and moving endpoint',mirror?'mirror':'original');
