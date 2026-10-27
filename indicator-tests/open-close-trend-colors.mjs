@@ -7,11 +7,11 @@ function candleColors(ctx,data){
  const colors=new Map(),bars=new Map(data.map(b=>[b.openTime,b]));
  for(const poly of ctx.plots.__polylines__.data[0].value){
   assert.equal(poly.curved,false);assert.equal(poly.closed,false);
-  assert.equal(poly.points.length%5,0);
-  for(let i=0;i<poly.points.length;i+=5){
-   const p=poly.points.slice(i,i+5),bar=bars.get(p[1].time);assert.ok(bar);
+  assert.equal(poly.points.length%4,0);
+  for(let i=0;i<poly.points.length;i+=4){
+   const p=poly.points.slice(i,i+4),bar=bars.get(p[1].time);assert.ok(bar);
    assert.deepEqual(p.slice(0,4).map(x=>x.price),[bar.open,bar.open,bar.close,bar.close],'body and ticks only, no wicks');
-   assert.ok(!Number.isFinite(p[4].price),'separate candle geometry, no connecting segment between bars');
+   if(i>0)assert.equal(p[1].time-poly.points[i-3].time,300000,'one polyline contains only contiguous candles, never jumps over other colors');
    assert.equal(p[0].time,bar.openTime-60000);assert.equal(p[3].time,bar.openTime+60000);
    assert.ok(!colors.has(bar.openTime),'each candle has one final color');
    colors.set(bar.openTime,poly.line_color);

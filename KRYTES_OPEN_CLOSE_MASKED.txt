@@ -25,7 +25,8 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                     foundTime := scanTime
     [foundPrice, foundTime]
 
-// Отдельная геометрия каждого open–close бара: na разделяет соседние свечи.
+// Внутренний формат: четыре точки тела и служебный разделитель.
+// drawColoredRuns удаляет разделитель и разделяет объекты по разрывам времени.
 appendColoredCandle(array<chart.point> points, int candleTime, float candleOpen, float candleClose) =>
     array.push(points, chart.point.from_time(candleTime - 60000, candleOpen))
     array.push(points, chart.point.from_time(candleTime, candleOpen))
@@ -33,19 +34,34 @@ appendColoredCandle(array<chart.point> points, int candleTime, float candleOpen,
     array.push(points, chart.point.from_time(candleTime + 60000, candleClose))
     array.push(points, chart.point.from_time(candleTime + 120000, na))
 
-// Каждый день — отдельный объект: na внутри polyline не гарантирует разрыв
-// в терминале. Никогда не объединяем точки разных дней в одну ломаную.
-archiveColoredDay(array<chart.point> archivePoints, array<chart.point> dayPoints, polyline activeArchive, array<polyline> sealedHistory, color ink) =>
-    polyline result = na
-    array.clear(archivePoints)
-    if not na(activeArchive)
-        array.push(sealedHistory, activeArchive)
-    if array.size(dayPoints) > 0
-        polyline archivedDay = polyline.new(dayPoints, xloc=xloc.bar_time, line_color=ink, line_width=2)
-        array.push(sealedHistory, archivedDay)
-    while array.size(sealedHistory) > 90
-        polyline.delete(array.shift(sealedHistory))
-    result
+// Отдельная ломаная на непрерывный участок одного цвета.
+// Не полагаемся на na: терминал может соединять соседние конечные точки.
+saveColoredRun(array<chart.point> run, array<polyline> drawings, array<polyline> history, color ink) =>
+    while array.size(history) + array.size(drawings) >= 94
+        if array.size(history) > 0
+            polyline.delete(array.shift(history))
+        else
+            polyline.delete(array.shift(drawings))
+    array.push(drawings, polyline.new(run, xloc=xloc.bar_time, line_color=ink, line_width=2))
+
+drawColoredRuns(array<chart.point> points, array<polyline> drawings, array<polyline> history, color ink) =>
+    array<chart.point> run = array.new<chart.point>()
+    int previousCandle = na
+    int count = array.size(points)
+    if count >= 5
+        for candleIndex = 0 to int(count / 5) - 1
+            int base = candleIndex * 5
+            chart.point firstPoint = array.get(points, base)
+            int candleStart = firstPoint.time
+            if not na(previousCandle) and candleStart - previousCandle != 300000
+                saveColoredRun(run, drawings, history, ink)
+                array.clear(run)
+            for component = 0 to 3
+                array.push(run, array.get(points, base + component))
+            previousCandle := candleStart
+        if array.size(run) > 0
+            saveColoredRun(run, drawings, history, ink)
+    array.size(drawings)
 
 // Базовый тренд 0–1 сохраняется до закрепа за 0. После смены
 // откат сохраняет цвет; новая опора 3 защищает подтверждённый участок 3–4.
@@ -241,6 +257,7 @@ var array<chart.point> colorDayGreenPoints = array.new<chart.point>()
 var array<chart.point> colorArchiveRedPoints = array.new<chart.point>()
 var array<chart.point> colorArchiveGreenPoints = array.new<chart.point>()
 var array<polyline> colorSealedHistory = array.new<polyline>()
+var array<polyline> colorDayDrawings = array.new<polyline>()
 var polyline colorDayRed = na
 var polyline colorDayGreen = na
 var polyline colorArchiveRed = na
@@ -387,12 +404,12 @@ int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 
 // Сохраняем тела M5 с 13:00 для выбора 0 и окраски участков.
 if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
-        colorArchiveRed := archiveColoredDay(colorArchiveRedPoints, colorDayRedPoints, colorArchiveRed, colorSealedHistory, fallingTrendColor)
-        colorArchiveGreen := archiveColoredDay(colorArchiveGreenPoints, colorDayGreenPoints, colorArchiveGreen, colorSealedHistory, risingTrendColor)
-        polyline.delete(colorDayRed)
-        polyline.delete(colorDayGreen)
-        colorDayRed := na
-        colorDayGreen := na
+        if array.size(colorDayDrawings) > 0
+            for drawingIndex = 0 to array.size(colorDayDrawings) - 1
+                array.push(colorSealedHistory, array.get(colorDayDrawings, drawingIndex))
+        array.clear(colorDayDrawings)
+        while array.size(colorSealedHistory) > 90
+            polyline.delete(array.shift(colorSealedHistory))
         array.clear(colorDayRedPoints)
         array.clear(colorDayGreenPoints)
         zeroTrackingDay := rangeDayKey
@@ -933,12 +950,16 @@ plot(continuationAfterFourthUsed ? 1 : 0, "Продолжение после п�
 // Окраска истории пересчитывается только по телам. Финансовые сигналы не меняются.
 if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice)
     activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, confirmedZeroTime, confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, colorFourthBreakTime, confirmedThirdPrice, confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorStopTime)
-    polyline.delete(colorDayRed)
-    polyline.delete(colorDayGreen)
-    colorDayRed := na
-    colorDayGreen := na
-    if array.size(colorDayRedPoints) > 0
-        colorDayRed := polyline.new(colorDayRedPoints, xloc=xloc.bar_time, line_color=fallingTrendColor, line_width=2)
-    if array.size(colorDayGreenPoints) > 0
-        colorDayGreen := polyline.new(colorDayGreenPoints, xloc=xloc.bar_time, line_color=risingTrendColor, line_width=2)
+    while array.size(colorDayDrawings) > 0
+        polyline.delete(array.pop(colorDayDrawings))
+    // Освобождаем бюджет перед созданием новых участков.
+    while array.size(colorSealedHistory) > 50
+        polyline.delete(array.shift(colorSealedHistory))
+    drawColoredRuns(colorDayRedPoints, colorDayDrawings, colorSealedHistory, fallingTrendColor)
+    drawColoredRuns(colorDayGreenPoints, colorDayDrawings, colorSealedHistory, risingTrendColor)
+    while array.size(colorSealedHistory) + array.size(colorDayDrawings) > 94
+        if array.size(colorSealedHistory) > 0
+            polyline.delete(array.shift(colorSealedHistory))
+        else
+            polyline.delete(array.shift(colorDayDrawings))
 plot(activeStructuralTrend, "Действующий цвет тренда", display=display.data_window)
