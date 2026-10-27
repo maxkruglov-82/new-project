@@ -530,7 +530,10 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackOpen := open
                 pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
                 pullbackExtremeBar := bar_index
-            if pullbackCloseCount >= minimumRetreatBars and beyondCandidateBody
+            // Пять свечей отката от 1 уже подтверждены. Закреп за 1
+            // фиксирует максимум/минимум 2 без ожидания ещё пяти свечей от 2.
+            bool continuationConfirmsSecond = structureSide == -1 ? structureFirstPrice - close >= firstPointOffset - 0.000000001 : close - structureFirstPrice >= firstPointOffset - 0.000000001
+            if (pullbackCloseCount >= minimumRetreatBars and beyondCandidateBody) or continuationConfirmsSecond
                 secondPointReady := true
                 confirmedSecondPrice := middlePrice
                 secondPointLabel := label.new(x=middleTime, y=middlePrice, text="2", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
