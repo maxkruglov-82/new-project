@@ -13,7 +13,7 @@ for(const mirror of [false,true]){
  assert.equal(v('Цель позиции',26),ref(111.31));
  assert.equal(v('P3',27),ref(111.1),'new extreme repositions point 3 after five-bar pause');
  assert.equal(v('Цель позиции',27),ref(111.1));
- assert.equal(v('Стоп позиции',27),ref(mirror?112.98:112.8));
+ assert.equal(v('Стоп позиции',27),ref(112.24));
  assert.equal(v('Вход LONG/SHORT',28),mirror?1:-1);
  assert.equal(v('Цена входа по close',28),ref(112.1));
  assert.equal(v('Цель позиции',28),ref(111.1));

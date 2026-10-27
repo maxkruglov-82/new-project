@@ -623,7 +623,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 positionIsZero := false
                 firstPositionIsZero := false
                 positionIsSecond := false
-                firstPositionStop := crossedSecond ? confirmedThirdPrice : not na(confirmedZeroPrice) ? confirmedZeroPrice : confirmedSecondPrice
+                firstPositionStop := crossedSecond ? confirmedThirdPrice : confirmedSecondPrice
                 firstPositionSide := crossedSecond ? -structureSide : structureSide
                 firstPositionUsesFourth := crossedSecond
                 positionSide := crossedSecond ? -structureSide : structureSide
@@ -631,7 +631,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 firstPositionUsesFifth := false
                 positionUsesFourth := crossedSecond
                 positionAnchorTime := crossedSecond ? thirdPointTime : middleTime
-                positionStop := crossedSecond ? confirmedThirdPrice : not na(confirmedZeroPrice) ? confirmedZeroPrice : confirmedSecondPrice
+                positionStop := crossedSecond ? confirmedThirdPrice : confirmedSecondPrice
                 positionTarget := crossedSecond ? confirmedFourthPrice : confirmedThirdPrice
                 positionThreshold := (positionStop + positionTarget) / 2.0
                 positionState := 1
@@ -818,7 +818,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and (firstPositionIsZer
         zeroReversalTime := time
     zeroReversalStop := firstPositionSide == -1 ? math.min(zeroReversalStop, bodyLow) : math.max(zeroReversalStop, bodyHigh)
 
-// Продолжение после пробоя 1: стоп на 0, касание RR1 по high/low.
+// Продолжение 1–2–3: стоп за откатом 2, касание RR1 по high/low.
 // Остальные сценарии сохраняют прежние входы; вход по close, RR может быть меньше 1.
 // State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired, 6 ambiguous.
 int positionExitEvent = 0

@@ -11,7 +11,7 @@ for(let i=0;i<data.length;i++){
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side||exit)events.push([new Date(data[i].openTime+7*3600000).toISOString().slice(11,16),side,exit]);
 }
-assert.deepEqual(events,[['16:50',-1,0],['17:30',0,-1],['20:05',1,0],['20:25',0,1]]);
+assert.deepEqual(events,[['16:05',-1,0],['16:10',0,2]]);
 const originIndex=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T14:00:00+07:00'));
 for(let k=1;k<=5;k++)assert.ok(Math.max(data[originIndex-k].open,data[originIndex-k].close)<=104.57);
-console.log('PASS MEXC Oct 22: five-left origin 14:00 / 104.57, SHORT SL then LONG TP');
+console.log('PASS MEXC Oct 22: five-left origin 14:00 / 104.57, SHORT then ambiguous dual-level candle; no forced outcome');

@@ -16,8 +16,8 @@ for(const mirror of [false,true]){
  assert.equal(v('Вход LONG/SHORT',21),0,'break candle is not retest entry');
  assert.equal(v('P3',22),ref(111.31));assert.equal(v('Вход LONG/SHORT',23),0,'pullback has not reached RR1 yet');
  assert.equal(v('Вход LONG/SHORT',24),mirror?1:-1);
- assert.equal(v('Стоп позиции',24),ref(mirror?112.98:112.8));assert.equal(v('Цель позиции',24),ref(111.31));assert.equal(v('Цена входа по close',24),ref(112.2));
- assert.ok(Math.abs(v('RR входа',24)-0.89/(mirror?0.78:0.60))<1e-8);
+ assert.equal(v('Стоп позиции',24),ref(112.24));assert.equal(v('Цель позиции',24),ref(111.31));assert.equal(v('Цена входа по close',24),ref(112.2));
+ assert.ok(Math.abs(v('RR входа',24)-0.89/0.04)<1e-8);
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',25),1);assert.equal(v('TargetPlus',25),1);
  const originColor=mirror?'#00E676':'#F23645';
  for(const pl of c.plots.__polylines__.data[0].value)assert.equal(pl.line_color,originColor,'no reversal of origin means no color change, including retest');

@@ -7,7 +7,7 @@ for(const mirror of [false,true])for(const extend of [false,true]){
  const hour=Array.from({length:12},()=>({open:108.5,close:108.5,high:109,low:107.95}));
  // User's five marked bars: extreme, rebound, then three falling candles
  // whose closes remain above the initial 107.265 low.
- const tail=[[108.5,107.618],[107.618,107.265],[107.265,107.654],[107.654,107.44],[107.44,extend?107.25:107.41],[extend?107.25:107.41,107.38],[107.38,107.2],[107.2,107.06],[107.06,108.1],[108.1,107.06]];
+ const tail=[[108.5,107.618],[107.618,107.265],[107.265,107.654],[107.654,107.44],[107.44,extend?107.25:107.41],[extend?107.25:107.41,107.38],[107.38,107.2],[107.2,107.06],[107.06,107.36],[107.36,107.06]];
  const data=[...hour,...tail.map(([open,close])=>({open,close,high:Math.max(open,close),low:Math.min(open,close)}))].map((b,i)=>{if(mirror)b={open:216-b.open,close:216-b.close,high:216-b.low,low:216-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
  const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>c.plots[n].data[i].value;
  for(const [i,count] of [[13,1],[14,2],[15,3]]){assert.equal(v('Count',i),count);assert.equal(v('Ready',i),0);}

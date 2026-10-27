@@ -17,5 +17,5 @@ for(let i=0;i<data.length;i++){
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side||exit)events.push([t.slice(11),side,exit]);
 }
-assert.deepEqual(events,[['17:00',1,0],['17:55',0,1]]);
-console.log('PASS MEXC Oct 16: origin 13:10 / 105.62, origin-stop continuation: LONG 17:00, wick TP 17:55');
+assert.deepEqual(events,[['21:10',-1,0],['22:05',0,1]]);
+console.log('PASS MEXC Oct 16: origin 13:10 / 105.62, pullback-stop continuation: SHORT 21:10, TP 22:05');
