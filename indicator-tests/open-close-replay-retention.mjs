@@ -7,7 +7,7 @@ const source=original+'\nplot(array.size(positionBoxes),"Boxes")\nplot(array.siz
 for(const mirror of [false,true])for(const outcome of ['tp','sl']){
  const {data:day}=await scenario(mirror,[[99.05,100.805],[100.805,100.81],[100.81,101.2],[101.2,99.8],[99.8,outcome==='tp'?101.3:98.6]]);
  const data=[...day];
- while(data.length<288){const prev=data.at(-1),t=prev.openTime+300000;data.push({...prev,open:prev.close,high:prev.close,low:prev.close,openTime:t,closeTime:t+299999});}
+ while(data.length<288){const prev=data.at(-1),t=prev.openTime+300000;data.push({...prev,open:new Date(t+7*3600000).getUTCHours()===13?100:prev.close,high:new Date(t+7*3600000).getUTCHours()===13?100:prev.close,low:new Date(t+7*3600000).getUTCHours()===13?100:prev.close,close:new Date(t+7*3600000).getUTCHours()===13?100:prev.close,openTime:t,closeTime:t+299999});}
  data.push(...day.map(b=>({...b,openTime:b.openTime+86400000,closeTime:b.closeTime+86400000})));
  const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>c.plots[n].data[i].value;
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',22),outcome==='tp'?1:-1);

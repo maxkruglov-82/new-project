@@ -22,7 +22,7 @@ for(const mode of ['time','price'])for(const mirror of [false,true]){
  if(mode==='time'){
   assert.ok(!Number.isFinite(t)||t>=Date.parse('2026-10-21T13:00:00+07:00'),'no origin earlier than 13:00');
  }else{
-  assert.ok(!Number.isFinite(p)||(mirror?p>=99:p<=101),'origin must respect H1 price boundary');
+  assert.equal(p,mirror?98:102,'origin outside H1 is eligible');
  }
  console.log('PASS zero bound',mode,mirror?'low':'high',p);
 }

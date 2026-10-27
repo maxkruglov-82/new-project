@@ -7,9 +7,9 @@ int minimumRetreatBars = 5
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + ((upward ? candleClose > candleOpen : candleClose < candleOpen) ? 1 : 0) : 1
 
-// 0 — крайняя цена тела внутри H1, по времени от 13:00 строго до 1.
+// 0 — крайняя цена тела от 13:00 строго до 1, включая цены вне H1.
 // При равной цене сохраняем первое достижение экстремума.
-findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, float upperBound, float lowerBound, int fromTime, int beforeFirst) =>
+findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
     int foundTime = na
     int count = array.size(savedTimes)
@@ -20,10 +20,9 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                 float scanOpen = array.get(savedOpens, scanIndex)
                 float scanClose = array.get(savedCloses, scanIndex)
                 float candidate = wantedSide == 1 ? math.max(scanOpen, scanClose) : math.min(scanOpen, scanClose)
-                if candidate >= lowerBound and candidate <= upperBound
-                    if na(foundPrice) or (wantedSide == 1 ? candidate > foundPrice : candidate < foundPrice)
-                        foundPrice := candidate
-                        foundTime := scanTime
+                if na(foundPrice) or (wantedSide == 1 ? candidate > foundPrice : candidate < foundPrice)
+                    foundPrice := candidate
+                    foundTime := scanTime
     [foundPrice, foundTime]
 
 // Отдельная геометрия каждого open–close бара: na разделяет соседние свечи.
@@ -487,7 +486,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             firstSwingDisplayLocked := true
             firstConfirmedBar := bar_index
             structureFirstBar := firstExtremeBar
-            [rangeOriginPrice, rangeOriginTime] = findRangeOrigin(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, -structureSide, activeRangeHigh, activeRangeLow, zeroSearchStart, firstExtremeTime)
+            [rangeOriginPrice, rangeOriginTime] = findRangeOrigin(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, -structureSide, zeroSearchStart, firstExtremeTime)
             confirmedZeroPrice := rangeOriginPrice
             confirmedZeroTime := rangeOriginTime
             if not na(confirmedZeroPrice)
