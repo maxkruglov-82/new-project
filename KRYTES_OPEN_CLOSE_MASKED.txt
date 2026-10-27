@@ -1,5 +1,5 @@
 //@version=5
-indicator("BingX — Open–Close без теней + точки 0–5", overlay=true, max_boxes_count=500, max_labels_count=500)
+indicator("BingX — Open–Close без теней + точки 0–5", overlay=true, max_boxes_count=500, max_labels_count=500, max_bars_back=600)
 
 // Повторный поиск после определения границ H1: внешний экстремум
 // не должен блокировать допустимое начало движения внутри этих границ.
@@ -23,10 +23,13 @@ findBoundedOrigin(array<float> savedOpens, array<float> savedCloses, array<int> 
             int scanTime = array.get(savedTimes, scanIndex)
             float scanHigh = math.max(scanOpen, scanClose)
             float scanLow = math.min(scanOpen, scanClose)
-            if scanIndex > 0 and scanTime - array.get(savedTimes, scanIndex - 1) != 300000
-                primaryPrice := na
-                oppositePrice := na
-                legSide := wantedSide
+            // Pine v5 может вычислять обе стороны and: array.get(-1) недопустим.
+            if scanIndex > 0
+                int previousSavedTime = array.get(savedTimes, scanIndex - 1)
+                if scanTime - previousSavedTime != 300000
+                    primaryPrice := na
+                    oppositePrice := na
+                    legSide := wantedSide
             float legPrice = legSide == 1 ? scanHigh : scanLow
             bool legAllowed = legSide != wantedSide or (wantedSide == 1 ? legPrice <= upperBound : legPrice >= lowerBound)
             bool localSeed = false
@@ -92,7 +95,7 @@ string localTimezone = "Asia/Krasnoyarsk"
 bool showBodyRange = input.bool(true, "Показывать диапазон H1 как в v83")
 color bullishRange = input.color(color.teal, "Диапазон растущей H1")
 color bearishRange = input.color(color.red, "Диапазон падающей H1")
-int keepRanges = input.int(100, "Хранить диапазонов", minval=1, maxval=450)
+int keepRanges = input.int(100, "Хранить диапазонов", minval=1, maxval=350)
 var array<box> bodyRanges = array.new_box()
 var float activeRangeHigh = na
 var float activeRangeLow = na
@@ -507,7 +510,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 array.push(firstPointLabels, zeroLabel)
             firstSwingLabel := label.new(x=firstExtremeTime, y=structureFirstPrice, text="1", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
             array.push(firstPointLabels, firstSwingLabel)
-            if array.size(firstPointLabels) > 450
+            if array.size(firstPointLabels) > 400
                 label.delete(array.shift(firstPointLabels))
 
 // Поиск 2 и 3 начинается только после подтверждения полноценной 1.
@@ -601,7 +604,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackOpen := open
                 pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
                 pullbackExtremeBar := bar_index
-    while array.size(firstPointLabels) > 450
+    while array.size(firstPointLabels) > 400
         label.delete(array.shift(firstPointLabels))
 
 
@@ -719,7 +722,7 @@ if barstate.isconfirmed and m5Chart
         fifthLocked := false
         fifthLabel := label.new(x=time, y=confirmedFifthPrice, text=firstPositionUsesFourth ? "5" : "4", xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
         array.push(firstPointLabels, fifthLabel)
-        if array.size(firstPointLabels) > 450
+        if array.size(firstPointLabels) > 400
             label.delete(array.shift(firstPointLabels))
     if newPositionPlan
         positionRiskBox := box.new(left=time, top=math.max(positionStop, positionThreshold), right=time_close, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.red, bgcolor=color.new(color.red, 85))
