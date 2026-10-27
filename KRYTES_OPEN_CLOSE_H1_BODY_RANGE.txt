@@ -1,5 +1,5 @@
 //@version=5
-indicator("BingX — Open–Close без теней + точки 0–5", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500, max_bars_back=600)
+indicator("BingX — Open–Close без теней + точки 0–5", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500, max_polylines_count=100, max_bars_back=600)
 
 int minimumRetreatBars = 5
 
@@ -26,38 +26,84 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                         foundTime := scanTime
     [foundPrice, foundTime]
 
-// Окраска уже сформированных участков. Исходные свечи/теневые экстремумы не меняются.
-paintTrendSegment(array<line> segmentLines, array<line> historyLines, array<float> candleOpens, array<float> candleCloses, array<int> candleTimes, int fromTime, float fromPrice, int toTime, float toPrice, color risingColor, color fallingColor, bool includeStart) =>
-    while array.size(segmentLines) > 0
-        line previousLine = array.pop(segmentLines)
-        int retainedIndex = array.indexof(historyLines, previousLine)
-        if retainedIndex >= 0
-            array.remove(historyLines, retainedIndex)
-            line.delete(previousLine)
-    int paintedBars = 0
-    if not na(fromTime) and not na(toTime) and not na(fromPrice) and not na(toPrice) and toTime >= fromTime and toPrice != fromPrice
-        color trendInk = toPrice > fromPrice ? risingColor : fallingColor
-        int candleCount = array.size(candleTimes)
-        if candleCount > 0
-            for candleIndex = 0 to candleCount - 1
-                int candleTime = array.get(candleTimes, candleIndex)
-                if (includeStart ? candleTime >= fromTime : candleTime > fromTime) and candleTime <= toTime
-                    float candleOpen = array.get(candleOpens, candleIndex)
-                    float candleClose = array.get(candleCloses, candleIndex)
-                    // Запас до лимита 500 линий, без неограниченного накопления истории.
-                    while array.size(historyLines) + 3 > 450
-                        line.delete(array.shift(historyLines))
-                    line bodyStroke = line.new(x1=candleTime, y1=math.min(candleOpen, candleClose), x2=candleTime, y2=math.max(candleOpen, candleClose), xloc=xloc.bar_time, color=trendInk, width=2)
-                    line openStroke = line.new(x1=candleTime - 60000, y1=candleOpen, x2=candleTime, y2=candleOpen, xloc=xloc.bar_time, color=trendInk, width=2)
-                    line closeStroke = line.new(x1=candleTime, y1=candleClose, x2=candleTime + 60000, y2=candleClose, xloc=xloc.bar_time, color=trendInk, width=2)
-                    array.push(historyLines, bodyStroke)
-                    array.push(historyLines, openStroke)
-                    array.push(historyLines, closeStroke)
-                    array.push(segmentLines, bodyStroke)
-                    array.push(segmentLines, openStroke)
-                    array.push(segmentLines, closeStroke)
-                    paintedBars := paintedBars + 1
-    paintedBars
+// Отдельная геометрия каждого open–close бара: na разделяет соседние свечи.
+appendColoredCandle(array<chart.point> points, int candleTime, float candleOpen, float candleClose) =>
+    array.push(points, chart.point.from_time(candleTime - 60000, candleOpen))
+    array.push(points, chart.point.from_time(candleTime, candleOpen))
+    array.push(points, chart.point.from_time(candleTime, candleClose))
+    array.push(points, chart.point.from_time(candleTime + 60000, candleClose))
+    array.push(points, chart.point.from_time(candleTime + 120000, na))
+
+// Сохраняем прошлые дни пакетами до 9000 точек, а не удаляем цвет после 150 свечей.
+archiveColoredDay(array<chart.point> archivePoints, array<chart.point> dayPoints, polyline activeArchive, array<polyline> sealedHistory, color ink) =>
+    polyline result = activeArchive
+    if array.size(dayPoints) > 0
+        if array.size(archivePoints) + array.size(dayPoints) > 9000
+            if not na(result)
+                array.push(sealedHistory, result)
+            result := na
+            array.clear(archivePoints)
+        else
+            polyline.delete(result)
+        for pointIndex = 0 to array.size(dayPoints) - 1
+            array.push(archivePoints, array.get(dayPoints, pointIndex))
+        result := polyline.new(archivePoints, xloc=xloc.bar_time, line_color=ink, line_width=2)
+        while array.size(sealedHistory) > 90
+            polyline.delete(array.shift(sealedHistory))
+    result
+
+// Базовый тренд 0–1 сохраняется до закрепа за 0. После смены
+// откат сохраняет цвет; новая опора 3 защищает подтверждённый участок 3–4.
+rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int originBreakTime, int fourthBreakTime, float thirdPrice, float fourthPrice, bool fifthReady, int fifthTime, float fifthPrice, int fifthSide, float offset) =>
+    array.clear(redPoints)
+    array.clear(greenPoints)
+    int initialSide = firstPrice > zeroPrice ? 1 : -1
+    int trend = initialSide
+    float floorPrice = math.min(zeroPrice, firstPrice)
+    float ceilingPrice = math.max(zeroPrice, firstPrice)
+    bool originApplied = false
+    bool fourthApplied = false
+    int result = 0
+    int count = array.size(savedTimes)
+    if count > 0
+        for candleIndex = 0 to count - 1
+            int candleTime = array.get(savedTimes, candleIndex)
+            float candleOpen = array.get(savedOpens, candleIndex)
+            float candleClose = array.get(savedCloses, candleIndex)
+            if candleTime >= zeroTime
+                if not originApplied and not na(originBreakTime) and candleTime >= originBreakTime
+                    originApplied := true
+                    trend := -initialSide
+                    floorPrice := trend == 1 ? firstPrice : math.min(candleOpen, candleClose)
+                    ceilingPrice := trend == 1 ? math.max(candleOpen, candleClose) : firstPrice
+                if originApplied
+                    if not na(fourthBreakTime) and candleTime >= fourthBreakTime and not fourthApplied
+                        fourthApplied := true
+                        if fourthPrice > thirdPrice
+                            floorPrice := thirdPrice
+                            ceilingPrice := math.max(ceilingPrice, math.max(candleOpen, candleClose))
+                        else
+                            ceilingPrice := thirdPrice
+                            floorPrice := math.min(floorPrice, math.min(candleOpen, candleClose))
+                    if trend == 1 and floorPrice - candleClose >= offset - 0.000000001
+                        trend := -1
+                    else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001
+                        trend := 1
+                    if trend == 1
+                        ceilingPrice := math.max(ceilingPrice, math.max(candleOpen, candleClose))
+                    else
+                        floorPrice := math.min(floorPrice, math.min(candleOpen, candleClose))
+                    if fifthReady and candleTime >= fifthTime
+                        if fifthSide == 1
+                            ceilingPrice := fifthPrice
+                        else
+                            floorPrice := fifthPrice
+                if trend == 1
+                    appendColoredCandle(greenPoints, candleTime, candleOpen, candleClose)
+                else
+                    appendColoredCandle(redPoints, candleTime, candleOpen, candleClose)
+                result := trend
+    result
 
 // Подписи уровней как в v72: прозрачный фон, цвет уровня, плюс по результату.
 updatePositionPrice(label id, int atTime, float price, string caption, color ink) =>
@@ -157,6 +203,8 @@ var float firstPositionStop = na
 var int firstPositionSide = 0
 var int firstStopBar = na
 var bool firstPositionUsesFourth = false
+var bool firstPositionUsesFifth = false
+var bool continuationAfterFourthUsed = false
 var float confirmedFifthPrice = na
 var label fifthLabel = na
 var float fifthAnchorOpen = na
@@ -171,6 +219,7 @@ var int zeroReversalTime = na
 var int positionEntryBar = na
 var int positionPlanDay = na
 var bool positionUsesFourth = false
+var bool positionUsesFifth = false
 var float positionStop = na
 var float positionTarget = na
 var float positionThreshold = na
@@ -185,40 +234,21 @@ var array<box> positionBoxes = array.new_box()
 var array<label> positionLabels = array.new_label()
 color risingTrendColor = input.color(color.lime, "Восходящее движение между точками")
 color fallingTrendColor = input.color(color.red, "Нисходящее движение между точками")
-var array<line> trendHistoryLines = array.new_line()
 var int thirdColorTime = na
 var int fourthColorTime = na
 var int fifthColorTime = na
-var array<line> trend01Lines = array.new_line()
-var int trend01FromTime = na
-var int trend01ToTime = na
-var float trend01FromPrice = na
-var float trend01ToPrice = na
-var int trend01Direction = 0
-var array<line> trend12Lines = array.new_line()
-var int trend12FromTime = na
-var int trend12ToTime = na
-var float trend12FromPrice = na
-var float trend12ToPrice = na
-var int trend12Direction = 0
-var array<line> trend23Lines = array.new_line()
-var int trend23FromTime = na
-var int trend23ToTime = na
-var float trend23FromPrice = na
-var float trend23ToPrice = na
-var int trend23Direction = 0
-var array<line> trend34Lines = array.new_line()
-var int trend34FromTime = na
-var int trend34ToTime = na
-var float trend34FromPrice = na
-var float trend34ToPrice = na
-var int trend34Direction = 0
-var array<line> trend45Lines = array.new_line()
-var int trend45FromTime = na
-var int trend45ToTime = na
-var float trend45FromPrice = na
-var float trend45ToPrice = na
-var int trend45Direction = 0
+var int colorFourthBreakTime = na
+var int colorOriginBreakTime = na
+var int activeStructuralTrend = 0
+var array<chart.point> colorDayRedPoints = array.new<chart.point>()
+var array<chart.point> colorDayGreenPoints = array.new<chart.point>()
+var array<chart.point> colorArchiveRedPoints = array.new<chart.point>()
+var array<chart.point> colorArchiveGreenPoints = array.new<chart.point>()
+var array<polyline> colorSealedHistory = array.new<polyline>()
+var polyline colorDayRed = na
+var polyline colorDayGreen = na
+var polyline colorArchiveRed = na
+var polyline colorArchiveGreen = na
 var float confirmedZeroPrice = na
 var int confirmedZeroTime = na
 var label zeroLabel = na
@@ -288,6 +318,8 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         firstPositionSide := 0
         firstStopBar := na
         firstPositionUsesFourth := false
+        firstPositionUsesFifth := false
+        continuationAfterFourthUsed := false
         confirmedFifthPrice := na
         fifthLabel := na
         fifthLocked := false
@@ -315,36 +347,9 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         thirdColorTime := na
         fourthColorTime := na
         fifthColorTime := na
-        array.clear(trend01Lines)
-        trend01FromTime := na
-        trend01ToTime := na
-        trend01FromPrice := na
-        trend01ToPrice := na
-        trend01Direction := 0
-        array.clear(trend12Lines)
-        trend12FromTime := na
-        trend12ToTime := na
-        trend12FromPrice := na
-        trend12ToPrice := na
-        trend12Direction := 0
-        array.clear(trend23Lines)
-        trend23FromTime := na
-        trend23ToTime := na
-        trend23FromPrice := na
-        trend23ToPrice := na
-        trend23Direction := 0
-        array.clear(trend34Lines)
-        trend34FromTime := na
-        trend34ToTime := na
-        trend34FromPrice := na
-        trend34ToPrice := na
-        trend34Direction := 0
-        array.clear(trend45Lines)
-        trend45FromTime := na
-        trend45ToTime := na
-        trend45FromPrice := na
-        trend45ToPrice := na
-        trend45Direction := 0
+        activeStructuralTrend := 0
+        colorFourthBreakTime := na
+        colorOriginBreakTime := na
         confirmedZeroPrice := na
         confirmedZeroTime := na
         zeroLabel := na
@@ -385,6 +390,14 @@ int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 
 // Сохраняем тела M5 с 14:00 для выбора 0 и окраски участков.
 if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
+        colorArchiveRed := archiveColoredDay(colorArchiveRedPoints, colorDayRedPoints, colorArchiveRed, colorSealedHistory, fallingTrendColor)
+        colorArchiveGreen := archiveColoredDay(colorArchiveGreenPoints, colorDayGreenPoints, colorArchiveGreen, colorSealedHistory, risingTrendColor)
+        polyline.delete(colorDayRed)
+        polyline.delete(colorDayGreen)
+        colorDayRed := na
+        colorDayGreen := na
+        array.clear(colorDayRedPoints)
+        array.clear(colorDayGreenPoints)
         zeroTrackingDay := rangeDayKey
         array.clear(zeroSavedOpens)
         array.clear(zeroSavedCloses)
@@ -544,6 +557,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             label thirdLabel = label.new(x=thirdPointTime, y=confirmedThirdPrice, text="3", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
             if crossedSecond
                 // 4 — новый экстремум свечи, закрепившейся за 2; 3 — край отката перед ней.
+                colorFourthBreakTime := time
                 confirmedFourthPrice := structureSide == -1 ? bodyHigh : bodyLow
                 int fourthPointTime = time
                 fourthColorTime := fourthPointTime
@@ -573,6 +587,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 firstPositionSide := crossedSecond ? -structureSide : structureSide
                 firstPositionUsesFourth := crossedSecond
                 positionSide := crossedSecond ? -structureSide : structureSide
+                positionUsesFifth := false
+                firstPositionUsesFifth := false
                 positionUsesFourth := crossedSecond
                 positionAnchorTime := crossedSecond ? thirdPointTime : middleTime
                 positionStop := crossedSecond ? confirmedThirdPrice : confirmedSecondPrice
@@ -639,7 +655,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
 
 
 // Следующий экстремум 5 после противоположного пробоя за стопом первой позиции.
-if barstate.isconfirmed and firstPointWindow and m5Chart and positionIsSecond and not na(fifthLabel) and not fifthLocked
+if barstate.isconfirmed and firstPointWindow and m5Chart and (positionIsSecond or positionUsesFifth) and not na(fifthLabel) and not fifthLocked
     float fifthCandidate = positionSide == 1 ? bodyHigh : bodyLow
     bool extendsFifth = positionSide == 1 ? fifthCandidate > confirmedFifthPrice : fifthCandidate < confirmedFifthPrice
     if extendsFifth
@@ -653,6 +669,53 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and positionIsSecond an
         fifthRetreatBars := nextRetreatCount(fifthRetreatBars, time - time[1] == 300000, open, close, positionSide == -1)
         if fifthRetreatBars >= minimumRetreatBars and (positionSide == 1 ? close < confirmedFifthPrice : close > confirmedFifthPrice)
             fifthLocked := true
+
+// Пробой 2 ниже/выше 0 не разрешает контртрендовую сделку.
+// Если затем пробита 3 в исходную сторону, ищем продолжение: стоп 4, цель 5.
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureCompleted and not na(confirmedFourthPrice) and not na(confirmedThirdPrice) and not zeroTrendReversed and not continuationAfterFourthUsed and dailyPositionEntries == 0 and positionState != 2
+    bool brokeThirdWithTrend = structureSide == -1 ? confirmedThirdPrice - close >= firstPointOffset - 0.000000001 : close - confirmedThirdPrice >= firstPointOffset - 0.000000001
+    if brokeThirdWithTrend
+        if positionState == 1
+            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
+        continuationAfterFourthUsed := true
+        positionIsZero := false
+        firstPositionIsZero := false
+        positionIsSecond := false
+        positionUsesFifth := true
+        firstPositionUsesFifth := true
+        firstPositionUsesFourth := false
+        positionUsesFourth := false
+        positionSide := structureSide
+        firstPositionSide := positionSide
+        positionStop := confirmedFourthPrice
+        firstPositionStop := positionStop
+        positionAnchorTime := fourthColorTime
+        confirmedFifthPrice := positionSide == 1 ? bodyHigh : bodyLow
+        positionTarget := confirmedFifthPrice
+        zeroReversalStop := positionTarget
+        zeroReversalTime := time
+        fifthColorTime := time
+        fifthAnchorOpen := open
+        fifthExtremeBar := bar_index
+        fifthRetreatBars := 1
+        fifthLocked := false
+        fifthLabel := label.new(x=time, y=confirmedFifthPrice, text="5", xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red,100), textcolor=color.red, size=size.large)
+        array.push(firstPointLabels, fifthLabel)
+        while array.size(firstPointLabels) > 360
+            label.delete(array.shift(firstPointLabels))
+        positionThreshold := (positionStop + positionTarget) / 2.0
+        positionState := 1
+        positionPlanDay := rangeDayKey
+        positionSetupBar := bar_index
+        positionEntryBar := na
+        positionEntry := na
+        positionRR := na
+        positionRiskBox := na
+        positionRewardBox := na
+        positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
+        newPositionPlan := true
 
 // 0–1 задаёт только направление. Сценарий смены тренда требует пробоя 0.
 // Третья опора — новый экстремум за 0, затем ждём ретест зоны RR1.
@@ -671,6 +734,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
         positionTargetInfo := na
         zeroConditionUsed := true
         positionIsZero := true
+        firstPositionUsesFifth := false
+        positionUsesFifth := false
         firstPositionIsZero := true
         positionIsSecond := false
         positionSide := zeroInitialUp ? -1 : 1
@@ -701,10 +766,12 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
     bool initialUptrend = structureFirstPrice > confirmedZeroPrice
     bool crossedOrigin = initialUptrend ? confirmedZeroPrice - close >= firstPointOffset - 0.000000001 : close - confirmedZeroPrice >= firstPointOffset - 0.000000001
     if crossedOrigin
+        if na(colorOriginBreakTime)
+            colorOriginBreakTime := time
         zeroTrendReversed := true
 
 // Край всего движения после 1 нужен для стопа противоположной попытки после SL.
-if barstate.isconfirmed and firstPointWindow and m5Chart and firstPositionIsZero and not positionIsSecond
+if barstate.isconfirmed and firstPointWindow and m5Chart and (firstPositionIsZero or firstPositionUsesFifth) and not positionIsSecond
     if na(zeroReversalStop) or (firstPositionSide == -1 ? bodyLow < zeroReversalStop : bodyHigh > zeroReversalStop)
         zeroReversalTime := time
     zeroReversalStop := firstPositionSide == -1 ? math.min(zeroReversalStop, bodyLow) : math.max(zeroReversalStop, bodyHigh)
@@ -724,7 +791,7 @@ if barstate.isconfirmed and m5Chart
         if positionPlanDay != rangeDayKey or not firstPointWindow
             positionState := 5
         else
-            float currentTarget = positionIsZero or (positionIsSecond and firstPositionIsZero) ? (positionSide == 1 ? bodyHigh : bodyLow) : positionIsSecond ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
+            float currentTarget = positionIsZero or (positionIsSecond and (firstPositionIsZero or firstPositionUsesFifth)) ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
             positionThreshold := (positionStop + positionTarget) / 2.0
             bool stopBeforeEntry = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
@@ -762,14 +829,17 @@ if barstate.isconfirmed and m5Chart
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
             label.set_xy(positionInfo, time + 600000, positionEntry)
-            label.set_text(positionInfo, "Вход: " + str.tostring(positionEntry, "#.#####"))
+            label.set_text(positionInfo, "Вход: " + str.tostring(positionEntry, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
             box.set_right(positionRiskBox, time + 600000)
             box.set_right(positionRewardBox, time + 600000)
         positionSide := -firstPositionSide
         positionIsSecond := true
+        positionUsesFifth := false
         positionIsZero := false
-        positionAnchorTime := firstPositionIsZero ? zeroReversalTime : firstPositionUsesFourth ? fourthColorTime : thirdColorTime
-        positionStop := firstPositionIsZero ? zeroReversalStop : firstPositionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
+        if firstPositionUsesFifth or firstPositionIsZero
+            fifthLabel := na
+        positionAnchorTime := (firstPositionIsZero or firstPositionUsesFifth) ? zeroReversalTime : firstPositionUsesFourth ? fourthColorTime : thirdColorTime
+        positionStop := (firstPositionIsZero or firstPositionUsesFifth) ? zeroReversalStop : firstPositionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
         confirmedFifthPrice := positionSide == 1 ? bodyHigh : bodyLow
         positionTarget := confirmedFifthPrice
         positionThreshold := (positionStop + positionTarget) / 2.0
@@ -789,7 +859,7 @@ if barstate.isconfirmed and m5Chart
         fifthRetreatBars := 1
         fifthLocked := false
         fifthColorTime := time
-        if not firstPositionIsZero
+        if not firstPositionIsZero and not firstPositionUsesFifth
             fifthLabel := label.new(x=time, y=confirmedFifthPrice, text=firstPositionUsesFourth ? "5" : "4", xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
             array.push(firstPointLabels, fifthLabel)
             if array.size(firstPointLabels) > 360
@@ -830,7 +900,9 @@ if barstate.isconfirmed and m5Chart
         box.set_bottom(positionRewardBox, math.min(positionTarget, drawnEntry))
         box.set_right(positionRiskBox, time + 600000)
         box.set_right(positionRewardBox, time + 600000)
-        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (na(positionEntry) ? "Граница RR1: " : "Вход: ") + str.tostring(drawnEntry, "#.#####") + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        float entryCaptionRisk = math.abs(drawnEntry - positionStop)
+        string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (na(positionEntry) ? "Граница RR1: " : "Вход: ") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
         positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
         positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
@@ -853,63 +925,18 @@ plot(zeroScenarioCancelled ? 1 : 0, "Нулевой сценарий отмен�
 plot(zeroTrendReversed ? 1 : 0, "Разворот закреплён за 0", display=display.data_window)
 
 plot(confirmedZeroPrice, "Цена точки 0", display=display.data_window)
+plot(continuationAfterFourthUsed ? 1 : 0, "Продолжение после пробоя 3", display=display.data_window)
 
 
-// Общий бар у соседних участков относится к заканчивающемуся движению.
-// Окраска ретроспективна: участок появляется, когда известны обе его точки.
-if barstate.isconfirmed and structureDay == rangeDayKey
-    int segment01EndTime = firstExtremeTime
-    float segment01EndPrice = structureFirstPrice
-    if firstSwingDisplayLocked and not na(confirmedZeroPrice)
-        bool refresh01 = na(trend01FromTime) or na(trend01ToTime) or trend01FromTime != confirmedZeroTime or trend01ToTime != segment01EndTime or trend01FromPrice != confirmedZeroPrice or trend01ToPrice != segment01EndPrice
-        if refresh01
-            paintTrendSegment(trend01Lines, trendHistoryLines, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, confirmedZeroTime, confirmedZeroPrice, segment01EndTime, segment01EndPrice, risingTrendColor, fallingTrendColor, true)
-            trend01FromTime := confirmedZeroTime
-            trend01ToTime := segment01EndTime
-            trend01FromPrice := confirmedZeroPrice
-            trend01ToPrice := segment01EndPrice
-            trend01Direction := segment01EndPrice > confirmedZeroPrice ? 1 : segment01EndPrice < confirmedZeroPrice ? -1 : 0
-    int segment12EndTime = middleTime
-    float segment12EndPrice = confirmedSecondPrice
-    if secondPointReady
-        bool refresh12 = na(trend12FromTime) or na(trend12ToTime) or trend12FromTime != firstExtremeTime or trend12ToTime != segment12EndTime or trend12FromPrice != structureFirstPrice or trend12ToPrice != segment12EndPrice
-        if refresh12
-            paintTrendSegment(trend12Lines, trendHistoryLines, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, firstExtremeTime, structureFirstPrice, segment12EndTime, segment12EndPrice, risingTrendColor, fallingTrendColor, false)
-            trend12FromTime := firstExtremeTime
-            trend12ToTime := segment12EndTime
-            trend12FromPrice := structureFirstPrice
-            trend12ToPrice := segment12EndPrice
-            trend12Direction := segment12EndPrice > structureFirstPrice ? 1 : segment12EndPrice < structureFirstPrice ? -1 : 0
-    int segment23EndTime = thirdColorTime
-    float segment23EndPrice = confirmedThirdPrice
-    if structureCompleted
-        bool refresh23 = na(trend23FromTime) or na(trend23ToTime) or trend23FromTime != middleTime or trend23ToTime != segment23EndTime or trend23FromPrice != confirmedSecondPrice or trend23ToPrice != segment23EndPrice
-        if refresh23
-            paintTrendSegment(trend23Lines, trendHistoryLines, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, middleTime, confirmedSecondPrice, segment23EndTime, segment23EndPrice, risingTrendColor, fallingTrendColor, false)
-            trend23FromTime := middleTime
-            trend23ToTime := segment23EndTime
-            trend23FromPrice := confirmedSecondPrice
-            trend23ToPrice := segment23EndPrice
-            trend23Direction := segment23EndPrice > confirmedSecondPrice ? 1 : segment23EndPrice < confirmedSecondPrice ? -1 : 0
-    int segment34EndTime = not na(confirmedFourthPrice) ? fourthColorTime : fifthColorTime
-    float segment34EndPrice = not na(confirmedFourthPrice) ? confirmedFourthPrice : confirmedFifthPrice
-    if structureCompleted and (not na(confirmedFourthPrice) or (positionIsSecond and not firstPositionUsesFourth and not firstPositionIsZero))
-        bool refresh34 = na(trend34FromTime) or na(trend34ToTime) or trend34FromTime != thirdColorTime or trend34ToTime != segment34EndTime or trend34FromPrice != confirmedThirdPrice or trend34ToPrice != segment34EndPrice
-        if refresh34
-            paintTrendSegment(trend34Lines, trendHistoryLines, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, thirdColorTime, confirmedThirdPrice, segment34EndTime, segment34EndPrice, risingTrendColor, fallingTrendColor, false)
-            trend34FromTime := thirdColorTime
-            trend34ToTime := segment34EndTime
-            trend34FromPrice := confirmedThirdPrice
-            trend34ToPrice := segment34EndPrice
-            trend34Direction := segment34EndPrice > confirmedThirdPrice ? 1 : segment34EndPrice < confirmedThirdPrice ? -1 : 0
-    int segment45EndTime = fifthColorTime
-    float segment45EndPrice = confirmedFifthPrice
-    if positionIsSecond and firstPositionUsesFourth and not na(confirmedFifthPrice)
-        bool refresh45 = na(trend45FromTime) or na(trend45ToTime) or trend45FromTime != fourthColorTime or trend45ToTime != segment45EndTime or trend45FromPrice != confirmedFourthPrice or trend45ToPrice != segment45EndPrice
-        if refresh45
-            paintTrendSegment(trend45Lines, trendHistoryLines, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, fourthColorTime, confirmedFourthPrice, segment45EndTime, segment45EndPrice, risingTrendColor, fallingTrendColor, false)
-            trend45FromTime := fourthColorTime
-            trend45ToTime := segment45EndTime
-            trend45FromPrice := confirmedFourthPrice
-            trend45ToPrice := segment45EndPrice
-            trend45Direction := segment45EndPrice > confirmedFourthPrice ? 1 : segment45EndPrice < confirmedFourthPrice ? -1 : 0
+// Окраска истории пересчитывается только по телам. Финансовые сигналы не меняются.
+if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice)
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, confirmedZeroTime, confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, colorFourthBreakTime, confirmedThirdPrice, confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset)
+    polyline.delete(colorDayRed)
+    polyline.delete(colorDayGreen)
+    colorDayRed := na
+    colorDayGreen := na
+    if array.size(colorDayRedPoints) > 0
+        colorDayRed := polyline.new(colorDayRedPoints, xloc=xloc.bar_time, line_color=fallingTrendColor, line_width=2)
+    if array.size(colorDayGreenPoints) > 0
+        colorDayGreen := polyline.new(colorDayGreenPoints, xloc=xloc.bar_time, line_color=risingTrendColor, line_width=2)
+plot(activeStructuralTrend, "Действующий цвет тренда", display=display.data_window)

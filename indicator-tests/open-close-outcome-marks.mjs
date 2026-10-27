@@ -12,6 +12,7 @@ for(const mirror of [false,true])for(const result of ['tp','sl','waiting']){
   assert.equal(v('StopLabelY',21),v('Стоп позиции',21),'red stop caption on stop level');
   assert.equal(v('TargetLabelY',21),v('Цель позиции',21),'green target caption on target level');
   assert.equal(v('EntryLabelY',21),v('Цена входа по close',21),'blue entry caption on entry level');
+  assert.equal(v('EntryHasRR',21),1,'RR printed beside entry price');
   assert.equal(v('MarkY',22),v(result==='tp'?'Цель позиции':'Стоп позиции',21),'mark on actual target or stop price');
   assert.equal(v('MarkX',22),data[22].openTime+600000,'aligned with tool right endpoint, as v72');
  }

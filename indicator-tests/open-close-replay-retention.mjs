@@ -16,5 +16,6 @@ for(const mirror of [false,true])for(const outcome of ['tp','sl']){
  assert.equal(v('Boxes',288+19),4,'completed and new pending tools coexist');
  assert.equal(v('Labels',288+19),6,'completed label retained beside new scenario');
  assert.equal(v('RetainedTP',288+22),2,'both days retain completed outcomes');
+ assert.ok(c.plots.__polylines__.data[0].value.some(p=>p.line_color===(mirror?'#00E676':'#F23645')&&p.points.some(pt=>pt.time===day[8].openTime&&pt.price===day[8].open)),'earlier 0–1 color survives next day');
  console.log('PASS replay outcome survives later day and new setup',mirror?'SHORT':'LONG',outcome);
 }

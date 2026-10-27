@@ -34,6 +34,10 @@ plot(box.get_left(positionRiskBox),"Left")
 plot(label.get_y(positionStopInfo),"StopLabelY")
 plot(label.get_y(positionTargetInfo),"TargetLabelY")
 plot(label.get_y(positionInfo),"EntryLabelY")
+float entryHasRR = 0
+if not na(positionInfo)
+    entryHasRR := str.contains(label.get_text(positionInfo),"RR 1:") ? 1 : 0
+plot(entryHasRR,"EntryHasRR")
 `;
 const start=Date.parse('2026-10-21T14:00:00+07:00');
 export async function scenario(mirror,tail){

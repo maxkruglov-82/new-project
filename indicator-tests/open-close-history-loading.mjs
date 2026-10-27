@@ -4,7 +4,7 @@ import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js
 const original=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8');
 assert.ok(original.includes('max_bars_back=600'),'explicit history buffer for dynamic offsets');
 assert.ok(!original.includes('scanIndex > 0 and scanTime - array.get'),'no eager negative-index expression');
-const source=original+'\nplot(array.size(firstPointLabels),"LabelsCount")\nplot(array.size(positionLabels),"PositionLabelsCount")\nplot(array.size(bodyRanges),"RangesCount")\nplot(array.size(positionBoxes),"PositionBoxesCount")\nplot(array.size(trendHistoryLines),"TrendLinesCount")';
+const source=original+'\nplot(array.size(firstPointLabels),"LabelsCount")\nplot(array.size(positionLabels),"PositionLabelsCount")\nplot(array.size(bodyRanges),"RangesCount")\nplot(array.size(positionBoxes),"PositionBoxesCount")\nplot(array.size(colorSealedHistory),"SealedColorChunks")\nplot(array.size(colorArchiveRedPoints),"RedArchivePoints")\nplot(array.size(colorArchiveGreenPoints),"GreenArchivePoints")';
 const start=Date.parse('2026-06-01T13:00:00+07:00'),days=120,data=[];
 for(let day=0;day<days;day++){
  const raw=Array.from({length:288},(_,i)=>({open:100,close:100,high:i<12?103:101,low:99}));
@@ -17,7 +17,9 @@ const full=await new PineTS(data,'SOLUSDT','5').run(source);
 const cut=90*288,shorter=await new PineTS(data.slice(cut),'SOLUSDT','5').run(source);
 const value=(ctx,n,i)=>ctx.plots[n].data[i].value;
 for(let i=0;i<data.length;i++){
- assert.ok(value(full,'TrendLinesCount',i)<=450);
+ assert.ok(value(full,'SealedColorChunks',i)<=90);
+ assert.ok(value(full,'RedArchivePoints',i)<=9000);
+ assert.ok(value(full,'GreenArchivePoints',i)<=9000);
  assert.ok(value(full,'LabelsCount',i)<=360);
  assert.ok(value(full,'PositionLabelsCount',i)<=120);
  assert.ok(value(full,'LabelsCount',i)+value(full,'PositionLabelsCount',i)<=480);
@@ -31,3 +33,8 @@ for(let i=cut+7*288;i<data.length;i++)for(const n of ['Цена точки 0','�
  assert.ok((!Number.isFinite(a)&&!Number.isFinite(b))||Object.is(a,b),`older history changed ${n} at ${i}`);
 }
 console.log('PASS history reload',data.length,'M5 bars, 120 days; bounded drawings; stable output after older bars are added');
+
+const polylines=full.plots.__polylines__.data[0].value;
+assert.ok(polylines.length<=94,'bounded archive plus active-day polylines');
+assert.ok(polylines.some(p=>p.points.some(pt=>pt.time===start+20*300000&&pt.price===100.5)),'oldest day color retained beyond former 150-candle cap');
+console.log('PASS full historical color archive including oldest day');
