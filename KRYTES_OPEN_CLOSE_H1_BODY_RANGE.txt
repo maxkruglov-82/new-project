@@ -3,9 +3,9 @@ indicator("BingX — Open–Close без теней + точки 0–5", overlay
 
 int minimumRetreatBars = 5
 
-// Свеча экстремума — первая; встречные свечи не добавляют и не сбрасывают счёт.
+// Свеча экстремума — первая; считаем все закрытые M5 независимо от цвета.
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
-    contiguous ? previousCount + ((upward ? candleClose > candleOpen : candleClose < candleOpen) ? 1 : 0) : 1
+    contiguous ? previousCount + 1 : 1
 
 // 0 — крайняя цена тела от 13:00 строго до 1, включая цены вне H1.
 // При равной цене сохраняем первое достижение экстремума.
@@ -472,7 +472,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart
 // сохраняются направление отката, непрерывность и сброс при новом экстремуме.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureSide != 0 and not firstSwingDisplayLocked
     float candidateFirst = structureSide == -1 ? bodyLow : bodyHigh
-    bool extendsFirst = structureSide == -1 ? candidateFirst < structureFirstPrice : candidateFirst > structureFirstPrice
+    bool extendsFirst = structureSide == -1 ? close < structureFirstPrice : close > structureFirstPrice
     if extendsFirst
         structureFirstPrice := candidateFirst
         firstSwingDisplayPrice := candidateFirst
@@ -486,7 +486,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         candidateExtremeBar := na
         middleLastEqualTime := na
     else if bar_index > firstExtremeBar
-        bool firstRetreatClose = structureSide == -1 ? close > structureFirstPrice : close < structureFirstPrice
+        bool firstRetreatClose = structureSide == -1 ? close >= structureFirstPrice : close <= structureFirstPrice
         firstRetreatCloses := nextRetreatCount(firstRetreatCloses, time - time[1] == 300000, open, close, structureSide == -1)
         float reboundPrice = structureSide == -1 ? bodyHigh : bodyLow
         if na(middlePrice) or (structureSide == -1 ? reboundPrice > middlePrice : reboundPrice < middlePrice)
@@ -653,7 +653,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
 
 
 // 4 движется до отката: минимум пять M5, включая свечу экстремума,
-// считаются только свечи в сторону отката, выход за open не требуется.
+// считаются все закрытые свечи независимо от цвета, выход за open не требуется.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and not na(movingFourthLabel) and not fourthLocked
     float fourthCandidate = structureSide == -1 ? bodyHigh : bodyLow
     bool extendsFourth = structureSide == -1 ? fourthCandidate > confirmedFourthPrice : fourthCandidate < confirmedFourthPrice
