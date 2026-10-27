@@ -92,6 +92,8 @@ var array<float> priorHighPrices = array.new_float()
 var array<int> priorHighTimes = array.new_int()
 var array<float> priorLowPrices = array.new_float()
 var array<int> priorLowTimes = array.new_int()
+var int zeroTrackingDay = na
+var int zeroLegDirection = 0
 var float zeroHighCandidate = na
 var float zeroHighOpen = na
 var int zeroHighTime = na
@@ -210,55 +212,119 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
 
 
 bool showFirstPoints = input.bool(true, "Показывать точки 1 за H1 (график M5)")
-float firstPointOffset = input.float(0.01, "Отступ первой M5 закрепа", minval=0.01, step=0.01)
+float firstPointOffset = input.float(0.01, "Минимальный отступ закрепа за часом и точками", minval=0.01, step=0.01)
 // Только самый первый подтверждённый выход за день, в любую сторону.
 bool pointsUseWicks = false
 var array<label> firstPointLabels = array.new_label()
 int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 1, 0, 0)
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
-// Предшествующие локальные экстремумы для 0; считаем и до 15:00.
-// Свеча экстремума входит в четыре M5; последний close за её open.
-if barstate.isconfirmed and m5Chart
-    if time - time[1] != 300000
+int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)
+// 0 определяется по целому движению. Новый локальный high/low внутри
+// движения не становится опорой без полноценного четырёхсвечного отката.
+if barstate.isconfirmed and m5Chart and time >= zeroSearchStart
+    if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
+        zeroTrackingDay := rangeDayKey
+        zeroLegDirection := 0
         zeroHighCandidate := na
         zeroLowCandidate := na
-    bool localBodyHigh = not na(bodyHigh[2]) and bodyHigh[1] >= bodyHigh[2] and bodyHigh[1] > bodyHigh
-    bool localBodyLow = not na(bodyLow[2]) and bodyLow[1] <= bodyLow[2] and bodyLow[1] < bodyLow
-    if localBodyHigh
-        zeroHighCandidate := bodyHigh[1]
-        zeroHighOpen := open[1]
-        zeroHighTime := time[1]
-        zeroHighBar := bar_index - 1
-    if localBodyLow
-        zeroLowCandidate := bodyLow[1]
-        zeroLowOpen := open[1]
-        zeroLowTime := time[1]
-        zeroLowBar := bar_index - 1
-    if not na(zeroHighCandidate)
+        array.clear(priorHighPrices)
+        array.clear(priorHighTimes)
+        array.clear(priorLowPrices)
+        array.clear(priorLowTimes)
+    if time - time[1] != 300000
+        zeroLegDirection := 0
+        zeroHighCandidate := na
+        zeroLowCandidate := na
+    if zeroLegDirection == 0
+        bool seedHigh = time[1] >= zeroSearchStart and not na(bodyHigh[2]) and bodyHigh[1] >= bodyHigh[2] and bodyHigh[1] > bodyHigh
+        bool seedLow = time[1] >= zeroSearchStart and not na(bodyLow[2]) and bodyLow[1] <= bodyLow[2] and bodyLow[1] < bodyLow
+        if seedHigh
+            zeroLegDirection := 1
+            zeroHighCandidate := bodyHigh[1]
+            zeroHighOpen := open[1]
+            zeroHighTime := time[1]
+            zeroHighBar := bar_index - 1
+            zeroLowCandidate := bodyLow
+            zeroLowOpen := open
+            zeroLowTime := time
+            zeroLowBar := bar_index
+        else if seedLow
+            zeroLegDirection := -1
+            zeroLowCandidate := bodyLow[1]
+            zeroLowOpen := open[1]
+            zeroLowTime := time[1]
+            zeroLowBar := bar_index - 1
+            zeroHighCandidate := bodyHigh
+            zeroHighOpen := open
+            zeroHighTime := time
+            zeroHighBar := bar_index
+    if zeroLegDirection == 1
         if bodyHigh > zeroHighCandidate
-            zeroHighCandidate := na
-        else if bar_index - zeroHighBar + 1 >= 4 and time - zeroHighTime == (bar_index - zeroHighBar) * 300000 and close < zeroHighOpen
+            zeroHighCandidate := bodyHigh
+            zeroHighOpen := open
+            zeroHighTime := time
+            zeroHighBar := bar_index
+            zeroLowCandidate := bodyLow
+            zeroLowOpen := open
+            zeroLowTime := time
+            zeroLowBar := bar_index
+        else if na(zeroLowCandidate) or bodyLow < zeroLowCandidate
+            zeroLowCandidate := bodyLow
+            zeroLowOpen := open
+            zeroLowTime := time
+            zeroLowBar := bar_index
+        if bar_index - zeroHighBar + 1 >= 4 and time - zeroHighTime == (bar_index - zeroHighBar) * 300000 and close < zeroHighOpen
             array.push(priorHighPrices, zeroHighCandidate)
             array.push(priorHighTimes, zeroHighTime)
             if array.size(priorHighTimes) > 500
                 array.shift(priorHighPrices)
                 array.shift(priorHighTimes)
+            // Начинаем сопровождать нижний экстремум; промежуточный high
+            // отсчитываем заново от его low, а не от завершённой верхней опоры.
             zeroHighCandidate := na
-    if not na(zeroLowCandidate)
+            int scanHighBars = math.min(bar_index - zeroLowBar, 499)
+            for zeroOffset = 0 to scanHighBars
+                if na(zeroHighCandidate) or bodyHigh[zeroOffset] > zeroHighCandidate
+                    zeroHighCandidate := bodyHigh[zeroOffset]
+                    zeroHighOpen := open[zeroOffset]
+                    zeroHighTime := time[zeroOffset]
+                    zeroHighBar := bar_index - zeroOffset
+            zeroLegDirection := -1
+    else if zeroLegDirection == -1
         if bodyLow < zeroLowCandidate
-            zeroLowCandidate := na
-        else if bar_index - zeroLowBar + 1 >= 4 and time - zeroLowTime == (bar_index - zeroLowBar) * 300000 and close > zeroLowOpen
+            zeroLowCandidate := bodyLow
+            zeroLowOpen := open
+            zeroLowTime := time
+            zeroLowBar := bar_index
+            zeroHighCandidate := bodyHigh
+            zeroHighOpen := open
+            zeroHighTime := time
+            zeroHighBar := bar_index
+        else if na(zeroHighCandidate) or bodyHigh > zeroHighCandidate
+            zeroHighCandidate := bodyHigh
+            zeroHighOpen := open
+            zeroHighTime := time
+            zeroHighBar := bar_index
+        if bar_index - zeroLowBar + 1 >= 4 and time - zeroLowTime == (bar_index - zeroLowBar) * 300000 and close > zeroLowOpen
             array.push(priorLowPrices, zeroLowCandidate)
             array.push(priorLowTimes, zeroLowTime)
             if array.size(priorLowTimes) > 500
                 array.shift(priorLowPrices)
                 array.shift(priorLowTimes)
             zeroLowCandidate := na
+            int scanLowBars = math.min(bar_index - zeroHighBar, 499)
+            for zeroOffset = 0 to scanLowBars
+                if na(zeroLowCandidate) or bodyLow[zeroOffset] < zeroLowCandidate
+                    zeroLowCandidate := bodyLow[zeroOffset]
+                    zeroLowOpen := open[zeroOffset]
+                    zeroLowTime := time[zeroOffset]
+                    zeroLowBar := bar_index - zeroOffset
+            zeroLegDirection := 1
 
 if barstate.isconfirmed and firstPointWindow and m5Chart
     bool contiguousPair = time[1] >= bodyHourEnd and time - time[1] == 300000
-    // Начальный выход за H1: одна закрытая M5 с отступом не менее 0,01.
+    // Первый выход за час: один close минимум на 0,01 за границей.
     bool confirmedAbove = close - activeRangeHigh >= firstPointOffset - 0.000000001
     bool confirmedBelow = activeRangeLow - close >= firstPointOffset - 0.000000001
     if close < activeRangeHigh
@@ -344,8 +410,10 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             int zeroIndex = structureSide == -1 ? array.size(priorHighTimes) - 1 : array.size(priorLowTimes) - 1
             while zeroIndex >= 0
                 int precedingTime = structureSide == -1 ? array.get(priorHighTimes, zeroIndex) : array.get(priorLowTimes, zeroIndex)
-                if precedingTime < firstExtremeTime
-                    confirmedZeroPrice := structureSide == -1 ? array.get(priorHighPrices, zeroIndex) : array.get(priorLowPrices, zeroIndex)
+                float precedingPrice = structureSide == -1 ? array.get(priorHighPrices, zeroIndex) : array.get(priorLowPrices, zeroIndex)
+                bool zeroWithinHourPrice = structureSide == -1 ? precedingPrice <= activeRangeHigh : precedingPrice >= activeRangeLow
+                if precedingTime >= zeroSearchStart and precedingTime < firstExtremeTime and zeroWithinHourPrice
+                    confirmedZeroPrice := precedingPrice
                     confirmedZeroTime := precedingTime
                     break
                 zeroIndex := zeroIndex - 1
