@@ -1,36 +1,39 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
-const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8')+'\nplot(structureFirstPrice,"P1")\nplot(secondPointReady?1:0,"SecondReady")\nplot(positionSetupBar,"SetupBar")\nplot(firstStopBar,"FirstStopBar")\nplot(zeroConditionUsed?1:0,"ZeroUsed")';
+const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8')+'\nplot(array.size(positionBoxes),"BoxCount")\nplot(array.size(positionLabels),"LabelCount")\nfloat tpMark = 0\nfloat slMark = 0\nif array.size(positionLabels) > 0\n    for li = 0 to array.size(positionLabels) - 1\n        string lt = label.get_text(array.get(positionLabels,li))\n        tpMark := str.contains(lt,"Цель +") ? tpMark + 1 : tpMark\n        slMark := str.contains(lt,"Стоп +") ? slMark + 1 : slMark\nplot(tpMark,"TPMarks")\nplot(slMark,"SLMarks")\nplot(firstSwingDisplayLocked?1:0,"Ready1")\nplot(confirmedZeroTime,"T0")\nplot(box.get_left(positionRiskBox),"Left")';
 const start=Date.parse('2026-10-21T14:00:00+07:00');
-const prefix=[[100.4,101.2],[101.2,101.4],[101.4,101.3],[101.3,101.1],[101.1,100.9],[100.9,100.3],[100.3,99.995],[99.995,99.98],[99.98,99.5],[99.5,100.5]];
-async function run(mirror,tail,touchOnly=false){
- const hour=Array.from({length:12},()=>({open:100.4,close:100.4,high:101,low:99}));
- [[100.5,100],[100,100.2],[100.2,100.3],[100.3,100.4]].forEach(([open,close],i)=>hour[8+i]={open,close,high:101,low:99});
- const raw=[...hour,...(touchOnly ? [...prefix.slice(0,-1),[100.6,100]] : prefix).map(([open,close])=>({open,close,high:150,low:50})),...tail.map(([open,close])=>({open,close,high:150,low:50}))];
- const data=raw.map((b,i)=>{if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
- const ctx=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>ctx.plots[n].data[i].value;
- const entries=[];
- for(let i=0;i<data.length;i++)if(v('Вход LONG/SHORT',i))entries.push({i,side:v('Вход LONG/SHORT',i),entry:v('Цена входа по close',i),stop:v('Стоп позиции',i),target:v('Цель позиции',i),rr:v('RR входа',i)});
- assert.equal(v('ZeroUsed',18),0,'0.005 beyond zero is insufficient');
- assert.equal(v('ZeroUsed',19),1,'one closed M5 0.02 beyond zero launches plan');
- assert.equal(v('Состояние позиции',20),1,'new target extreme is not entry');
- assert.equal(entries[0].i,21,'wait for close in RR zone');
- assert.equal(entries[0].side,mirror?1:-1);
- assert.equal(entries[0].stop,v('P1',21),'stop exactly at point 1');
- assert.equal(v('SecondReady',21),0,'no need to wait for point 2');
- assert.ok(Math.abs(entries[0].target-(mirror?100.5:99.5))<1e-8,'target follows next closed body extreme');
- for(const e of entries){assert.equal(e.entry,data[e.i].close);assert.ok(touchOnly ? e.rr<1 : e.rr>=1);assert.equal(v('Состояние позиции',e.i),2);}
- return {v,entries};
+export async function scenario(mirror,tail){
+ const hour=Array.from({length:12},()=>({open:100,close:100,high:101,low:99}));
+ [[100,100.5],[100.5,100.8],[100.8,100.4],[100.4,100.3],[100.3,100.2]].forEach(([open,close],i)=>hour[7+i]={open,close,high:101,low:99});
+ const seq=[[100.2,98.8],[98.8,98.6],[98.6,98.7],[98.7,98.8],[98.8,99],...tail];
+ const data=[...hour,...seq.map(([open,close])=>({open,close,high:150,low:50}))].map((b,i)=>{if(mirror)b={open:200-b.open,close:200-b.close,high:200-b.low,low:200-b.high};return {...b,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}});
+ const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>c.plots[n].data[i].value;
+ return {c,v,data};
 }
-for(const mirror of [false,true]){
- const tp=await run(mirror,[[100.5,99.4],[99.4,101.6],[101.6,100.4],[100.4,100.4]]);
- assert.equal(tp.entries.length,1,'no retry after zero-condition TP');assert.equal(tp.v('Состояние позиции',22),3);
- const sl=await run(mirror,[[100.5,101.5],[101.5,100.4],[100.4,99.4],[99.4,101.7],[101.7,100.4],[100.4,100.4]]);
- assert.equal(sl.entries.length,2,'retry after first SL, no third entry');
- assert.equal(sl.entries[1].side,-sl.entries[0].side);
- assert.ok(sl.entries[1].i>sl.v('FirstStopBar',sl.entries[1].i),'no simultaneous positions');
- console.log('PASS zero-condition reversal, stop at 1, moving target, RR>=1, SL-only retry',mirror?'LONG':'SHORT');
+if(process.argv[1]===new URL(import.meta.url).pathname)for(const mirror of [false,true]){
+ for(const [outcome,tail] of [['tp',[[99,99.8],[99.8,98.5]]],['sl',[[99,99.8],[99.8,100.9]]],['touch',[[99.9,99.5]]]]){
+  const {v,data}=await scenario(mirror,tail),side=mirror?1:-1;
+  assert.equal(v('Ready1',15),0);assert.equal(v('Ready1',16),1);
+  assert.equal(v('Состояние позиции',16),1,'plan immediately after confirmed 1');
+  assert.equal(v('Стоп позиции',16),mirror?99.2:100.8,'stop exactly at 0');
+  assert.equal(v('Цель позиции',16),mirror?101.4:98.6,'target exactly at 1');
+  assert.equal(v('Left',16),v('T0',16)-600000);
+  assert.equal(v('Вход LONG/SHORT',17),side,'follow direction of 0–1');
+  assert.equal(v('Цена входа по close',17),data[17].close);
+  if(outcome==='touch')assert.ok(v('RR входа',17)<1,'touch qualifies even if close RR below 1');
+  else {assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',18),outcome==='tp'?1:-1);assert.equal(v(outcome==='tp'?'TPMarks':'SLMarks',18),1,'completed trade keeps result mark');}
+  console.log('PASS trend-following zero setup, stop 0, target 1',mirror?'LONG':'SHORT',outcome);
+ }
 }
 
-for(const mirror of [false,true]){const r=await run(mirror,[],true);assert.equal(r.entries.length,1);console.log("PASS RR touch qualifies close fill below RR1",mirror?"LONG":"SHORT");}
+if(process.argv[1]===new URL(import.meta.url).pathname)for(const mirror of [false,true]){
+ const sl=await scenario(mirror,[[99,99.8],[99.8,100.9],[100.9,99.6],[99.6,101],[101,99.6],[99.6,98.5]]);
+ assert.equal(sl.v('Входов за день',17),1);
+ assert.equal(sl.v('Вход LONG/SHORT',19),mirror?-1:1);
+ assert.equal(sl.v('Входов за день',22),2);
+ assert.equal(sl.v('SLMarks',20),1);assert.equal(sl.v('TPMarks',20),1);
+ const tp=await scenario(mirror,[[99,99.8],[99.8,98.5],[98.5,101],[101,99.6],[99.6,98.5]]);
+ assert.equal(tp.v('Входов за день',21),1,'TP stops trading for day');
+ console.log('PASS zero SL-only retry, two-trade cap, retained TP/SL labels',mirror?'mirror':'original');
+}

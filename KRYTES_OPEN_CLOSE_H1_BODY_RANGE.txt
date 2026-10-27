@@ -31,7 +31,7 @@ findBoundedOrigin(array<float> savedOpens, array<float> savedCloses, array<int> 
                     oppositePrice := na
                     legSide := wantedSide
             float legPrice = legSide == 1 ? scanHigh : scanLow
-            bool legAllowed = legSide != wantedSide or (wantedSide == 1 ? legPrice <= upperBound : legPrice >= lowerBound)
+            bool legAllowed = legSide != wantedSide or (legPrice >= lowerBound and legPrice <= upperBound)
             bool localSeed = false
             if scanIndex > 0 and scanIndex < count - 1
                 float leftOpen = array.get(savedOpens, scanIndex - 1)
@@ -47,7 +47,7 @@ findBoundedOrigin(array<float> savedOpens, array<float> savedCloses, array<int> 
                 primaryIndex := scanIndex
                 oppositePrice := na
             float otherPrice = legSide == 1 ? scanLow : scanHigh
-            bool otherAllowed = -legSide != wantedSide or (wantedSide == 1 ? otherPrice <= upperBound : otherPrice >= lowerBound)
+            bool otherAllowed = -legSide != wantedSide or (otherPrice >= lowerBound and otherPrice <= upperBound)
             if not na(primaryPrice) and otherAllowed and (na(oppositePrice) or (legSide == 1 ? otherPrice < oppositePrice : otherPrice > oppositePrice))
                 oppositePrice := otherPrice
                 oppositeOpen := scanOpen
@@ -68,7 +68,7 @@ findBoundedOrigin(array<float> savedOpens, array<float> savedCloses, array<int> 
                     float innerOpen = array.get(savedOpens, innerIndex)
                     float innerClose = array.get(savedCloses, innerIndex)
                     float innerPrice = legSide == 1 ? math.min(innerOpen, innerClose) : math.max(innerOpen, innerClose)
-                    bool innerAllowed = -legSide != wantedSide or (wantedSide == 1 ? innerPrice <= upperBound : innerPrice >= lowerBound)
+                    bool innerAllowed = -legSide != wantedSide or (innerPrice >= lowerBound and innerPrice <= upperBound)
                     if innerAllowed and (na(oppositePrice) or (legSide == 1 ? innerPrice < oppositePrice : innerPrice > oppositePrice))
                         oppositePrice := innerPrice
                         oppositeOpen := innerOpen
@@ -623,7 +623,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             while zeroIndex >= 0
                 int precedingTime = structureSide == -1 ? array.get(priorHighTimes, zeroIndex) : array.get(priorLowTimes, zeroIndex)
                 float precedingPrice = structureSide == -1 ? array.get(priorHighPrices, zeroIndex) : array.get(priorLowPrices, zeroIndex)
-                bool zeroWithinHourPrice = structureSide == -1 ? precedingPrice <= activeRangeHigh : precedingPrice >= activeRangeLow
+                bool zeroWithinHourPrice = precedingPrice >= activeRangeLow and precedingPrice <= activeRangeHigh
                 if precedingTime >= zeroSearchStart and precedingTime < firstExtremeTime and zeroWithinHourPrice
                     confirmedZeroPrice := precedingPrice
                     confirmedZeroTime := precedingTime
@@ -640,18 +640,6 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             array.push(firstPointLabels, firstSwingLabel)
             if array.size(firstPointLabels) > 400
                 label.delete(array.shift(firstPointLabels))
-
-// Отмена нулевого ожидания: только после сформированного отката от 2
-// и нового закрытия за 2. Отменённое ожидание не расходует лимит сделок.
-if barstate.isconfirmed and firstPointWindow and m5Chart and positionIsZero and positionState == 1 and dailyPositionEntries == 0 and secondPointReady and not zeroScenarioCancelled
-    bool renewsSecond = positionSide == 1 ? close - confirmedSecondPrice >= firstPointOffset - 0.000000001 : confirmedSecondPrice - close >= firstPointOffset - 0.000000001
-    if renewsSecond
-        zeroScenarioCancelled := true
-        positionState := 5
-        removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
-        positionRiskBox := na
-        positionRewardBox := na
-        positionInfo := na
 
 // Поиск 2 и 3 начинается только после подтверждения полноценной 1.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureSide != 0 and firstSwingDisplayLocked and not structureCompleted and bar_index > firstConfirmedBar
@@ -694,6 +682,14 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         // Пробой 1: один закрытый close минимум на 0,01 за уровнем.
         bool crossedFirst = structureSide == -1 ? structureFirstPrice - close >= firstPointOffset - 0.000000001 : close - structureFirstPrice >= firstPointOffset - 0.000000001
         if crossedSecond or crossedFirst
+            // Новая подтверждённая структура заменяет только ожидание без входа.
+            if positionIsZero and positionState == 1 and dailyPositionEntries == 0
+                zeroScenarioCancelled := true
+                removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
+                positionRiskBox := na
+                positionRewardBox := na
+                positionInfo := na
+                positionState := 5
             confirmedThirdPrice := crossedSecond ? pullbackExtreme : (structureSide == -1 ? bodyLow : bodyHigh)
             int thirdPointTime = crossedSecond ? pullbackExtremeTime : time
             thirdColorTime := thirdPointTime
@@ -808,13 +804,12 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and positionIsSecond an
         if fifthRetreatBars >= 4 and (positionSide == 1 ? close < confirmedFifthPrice : close > confirmedFifthPrice)
             fifthLocked := true
 
-// Нулевое условие: пробой начала движения 0 отменяет направление 0–1.
-// Сигнал доступен после фиксации 1, без ожидания 2/3.
+// Нулевая сделка следует движению 0–1 после подтверждения 1.
+// Стоп на 0, цель на 1; не ждём пробоя 0.
 if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice) and not zeroConditionUsed and dailyPositionEntries == 0 and positionState != 2
     bool zeroInitialUp = structureFirstPrice > confirmedZeroPrice
     bool zeroInitialDown = structureFirstPrice < confirmedZeroPrice
-    bool zeroBreak = zeroInitialUp ? confirmedZeroPrice - close >= firstPointOffset - 0.000000001 : zeroInitialDown and close - confirmedZeroPrice >= firstPointOffset - 0.000000001
-    if zeroBreak
+    if zeroInitialUp or zeroInitialDown
         removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
         positionRiskBox := na
         positionRewardBox := na
@@ -823,12 +818,12 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
         positionIsZero := true
         firstPositionIsZero := true
         positionIsSecond := false
-        positionSide := zeroInitialUp ? -1 : 1
-        positionAnchorTime := firstExtremeTime
-        positionStop := structureFirstPrice
-        positionTarget := positionSide == 1 ? bodyHigh : bodyLow
+        positionSide := zeroInitialUp ? 1 : -1
+        positionAnchorTime := confirmedZeroTime
+        positionStop := confirmedZeroPrice
+        positionTarget := structureFirstPrice
         zeroReversalStop := positionTarget
-        zeroReversalTime := time
+        zeroReversalTime := firstExtremeTime
         firstPositionStop := positionStop
         firstPositionSide := positionSide
         firstPositionUsesFourth := false
@@ -859,7 +854,7 @@ if barstate.isconfirmed and m5Chart
         if positionPlanDay != rangeDayKey or not firstPointWindow
             positionState := 5
         else
-            float currentTarget = positionIsZero or (positionIsSecond and firstPositionIsZero) ? (positionSide == 1 ? bodyHigh : bodyLow) : positionIsSecond ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
+            float currentTarget = positionIsZero ? structureFirstPrice : (positionIsSecond and firstPositionIsZero) ? (positionSide == 1 ? bodyHigh : bodyLow) : positionIsSecond ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
             positionThreshold := (positionStop + positionTarget) / 2.0
             bool stopBeforeEntry = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
@@ -893,7 +888,7 @@ if barstate.isconfirmed and m5Chart
     if firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and reverseBreak
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
-            label.set_text(positionInfo, (firstPositionSide == 1 ? "LONG" : "SHORT") + " · Стоп\nВход: " + str.tostring(positionEntry, "#.#####") + " · Стоп: " + str.tostring(positionStop, "#.#####"))
+            label.set_text(positionInfo, (firstPositionSide == 1 ? "LONG" : "SHORT") + " · Стоп +\nВход: " + str.tostring(positionEntry, "#.#####") + " · Стоп: " + str.tostring(positionStop, "#.#####"))
             box.set_right(positionRiskBox, time + 600000)
             box.set_right(positionRewardBox, time + 600000)
         positionSide := -firstPositionSide
@@ -923,6 +918,8 @@ if barstate.isconfirmed and m5Chart
             array.push(firstPointLabels, fifthLabel)
             if array.size(firstPointLabels) > 400
                 label.delete(array.shift(firstPointLabels))
+    if positionState == 5 and positionIsZero and dailyPositionEntries == 0
+        zeroScenarioCancelled := true
     if positionState == 5 and not na(positionInfo)
         removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
         positionRiskBox := na
@@ -950,7 +947,7 @@ if barstate.isconfirmed and m5Chart
         label.set_xy(positionInfo, time, drawnEntry)
         string sideText = positionSide == 1 ? "LONG" : "SHORT"
         string conditionText = firstPositionIsZero and not positionIsSecond ? " · Нулевое условие" : ""
-        string statusText = positionState == 1 ? "Ожидание RR ≥ 1:1" : positionState == 2 ? "Вход по close" : positionState == 3 ? "Тейк" : positionState == 4 ? "Стоп" : positionState == 6 ? "TP/SL: порядок неизвестен" : "Без входа · отменено"
+        string statusText = positionState == 1 ? "Ожидание RR ≥ 1:1" : positionState == 2 ? "Вход по close" : positionState == 3 ? "Цель +" : positionState == 4 ? "Стоп +" : positionState == 6 ? "TP/SL: порядок неизвестен" : "Без входа · отменено"
         label.set_text(positionInfo, sideText + conditionText + " · " + statusText + "\n" + (na(positionEntry) ? "Граница RR1: " : "Вход: ") + str.tostring(drawnEntry, "#.#####") + "\nСтоп: " + str.tostring(positionStop, "#.#####") + " · Цель: " + str.tostring(positionTarget, "#.#####") + (na(positionRR) ? "" : "\nRR 1:" + str.tostring(positionRR, "#.##")))
 plot(positionEntryEvent ? positionSide : 0, "Вход LONG/SHORT", display=display.none)
 plot(positionState, "Состояние позиции", display=display.data_window)

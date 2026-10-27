@@ -2,7 +2,7 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
-const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8').replace('// Нулевое условие: пробой начала движения 0 отменяет направление 0–1.', 'confirmedZeroPrice := na\n// Нулевое условие: пробой начала движения 0 отменяет направление 0–1.')+'\nplot(confirmedThirdPrice,"P3")\nplot(positionSetupBar,"SetupBar")';
+const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8').replace('// Нулевая сделка следует движению 0–1 после подтверждения 1.', 'confirmedZeroPrice := na\n// Нулевая сделка следует движению 0–1 после подтверждения 1.')+'\nplot(confirmedThirdPrice,"P3")\nplot(positionSetupBar,"SetupBar")';
 const start=Date.parse('2026-10-21T14:00:00+07:00');
 const prefix=[[98.8,98.5],[98.5,98.4],[98.4,98.6],[98.6,98.7],[98.7,98.8],[98.8,98.9],[98.9,98.7],[98.7,98.6],[98.6,98.7],[98.7,98.6],[98.6,98.91],[98.91,98.9],[98.9,99.2],[99.2,98.8]];
 async function scenario(tail,mirror){
