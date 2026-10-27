@@ -1,7 +1,40 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
-const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8')+'\nplot(array.size(positionOutcomeLabels),"OutcomeMarks")\nfloat markY = na\nfloat markX = na\nfloat isTake = 0\nif array.size(positionOutcomeLabels) > 0\n    label lastMark = array.get(positionOutcomeLabels,array.size(positionOutcomeLabels)-1)\n    markY := label.get_y(lastMark)\n    markX := label.get_x(lastMark)\n    isTake := label.get_text(lastMark) == "take+" ? 1 : -1\nplot(markY,"MarkY")\nplot(markX,"MarkX")\nplot(isTake,"IsTake")\nplot(array.size(positionBoxes),"BoxCount")\nplot(array.size(positionLabels),"LabelCount")\nfloat tpMark = 0\nfloat slMark = 0\nif array.size(positionLabels) > 0\n    for li = 0 to array.size(positionLabels) - 1\n        string lt = label.get_text(array.get(positionLabels,li))\n        tpMark := str.contains(lt,"Цель +") ? tpMark + 1 : tpMark\n        slMark := str.contains(lt,"Стоп +") ? slMark + 1 : slMark\nplot(tpMark,"TPMarks")\nplot(slMark,"SLMarks")\nplot(firstSwingDisplayLocked?1:0,"Ready1")\nplot(confirmedZeroTime,"T0")\nplot(box.get_left(positionRiskBox),"Left")';
+const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8')+`
+plot(array.size(positionBoxes),"BoxCount")
+plot(array.size(positionLabels),"LabelCount")
+float tpMark = 0
+float slMark = 0
+float markY = na
+float markX = na
+float isTake = 0
+if array.size(positionLabels) > 0
+    for li = 0 to array.size(positionLabels) - 1
+        label item = array.get(positionLabels,li)
+        string lt = label.get_text(item)
+        bool isResult = str.endswith(lt," +")
+        bool tp = isResult and str.contains(lt,"Цель:")
+        bool sl = isResult and str.contains(lt,"Стоп:")
+        tpMark := tp ? tpMark + 1 : tpMark
+        slMark := sl ? slMark + 1 : slMark
+        if tp or sl
+            markY := label.get_y(item)
+            markX := label.get_x(item)
+            isTake := tp ? 1 : -1
+plot(tpMark + slMark,"OutcomeMarks")
+plot(markY,"MarkY")
+plot(markX,"MarkX")
+plot(isTake,"IsTake")
+plot(tpMark,"TPMarks")
+plot(slMark,"SLMarks")
+plot(firstSwingDisplayLocked?1:0,"Ready1")
+plot(confirmedZeroTime,"T0")
+plot(box.get_left(positionRiskBox),"Left")
+plot(label.get_y(positionStopInfo),"StopLabelY")
+plot(label.get_y(positionTargetInfo),"TargetLabelY")
+plot(label.get_y(positionInfo),"EntryLabelY")
+`;
 const start=Date.parse('2026-10-21T14:00:00+07:00');
 export async function scenario(mirror,tail){
  const hour=Array.from({length:12},()=>({open:100,close:100,high:101,low:99}));

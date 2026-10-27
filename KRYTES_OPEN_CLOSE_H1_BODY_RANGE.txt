@@ -59,20 +59,35 @@ paintTrendSegment(array<line> segmentLines, array<line> historyLines, array<floa
                     paintedBars := paintedBars + 1
     paintedBars
 
+// Подписи уровней как в v72: прозрачный фон, цвет уровня, плюс по результату.
+updatePositionPrice(label id, int atTime, float price, string caption, color ink) =>
+    label result = id
+    if na(result)
+        result := label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 100), textcolor=ink, size=size.small)
+    else
+        label.set_xy(result, atTime, price)
+        label.set_text(result, caption)
+    result
+
+deletePositionPrice(array<label> labels, label info) =>
+    int infoIndex = array.indexof(labels, info)
+    if infoIndex >= 0
+        array.remove(labels, infoIndex)
+    label.delete(info)
+
 // Отменённое ожидание удаляется целиком, исполненные сделки сохраняются.
-removePendingPlan(array<box> boxes, array<label> labels, box riskBox, box rewardBox, label info) =>
+removePendingPlan(array<box> boxes, array<label> labels, box riskBox, box rewardBox, label info, label stopInfo, label targetInfo) =>
     int riskIndex = array.indexof(boxes, riskBox)
     if riskIndex >= 0
         array.remove(boxes, riskIndex)
     int rewardIndex = array.indexof(boxes, rewardBox)
     if rewardIndex >= 0
         array.remove(boxes, rewardIndex)
-    int infoIndex = array.indexof(labels, info)
-    if infoIndex >= 0
-        array.remove(labels, infoIndex)
     box.delete(riskBox)
     box.delete(rewardBox)
-    label.delete(info)
+    deletePositionPrice(labels, info)
+    deletePositionPrice(labels, stopInfo)
+    deletePositionPrice(labels, targetInfo)
 
 // Подберите цвет точно под фон графика KRYTES.
 color backgroundColor = input.color(color.rgb(245, 246, 248), "Цвет фона графика (маска теней)")
@@ -164,9 +179,10 @@ var float positionRR = na
 var box positionRiskBox = na
 var box positionRewardBox = na
 var label positionInfo = na
+var label positionStopInfo = na
+var label positionTargetInfo = na
 var array<box> positionBoxes = array.new_box()
 var array<label> positionLabels = array.new_label()
-var array<label> positionOutcomeLabels = array.new_label()
 color risingTrendColor = input.color(color.lime, "Восходящее движение между точками")
 color fallingTrendColor = input.color(color.red, "Нисходящее движение между точками")
 var array<line> trendHistoryLines = array.new_line()
@@ -468,7 +484,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 array.push(firstPointLabels, zeroLabel)
             firstSwingLabel := label.new(x=firstExtremeTime, y=structureFirstPrice, text="1", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
             array.push(firstPointLabels, firstSwingLabel)
-            if array.size(firstPointLabels) > 400
+            if array.size(firstPointLabels) > 360
                 label.delete(array.shift(firstPointLabels))
 
 // Поиск 2 и 3 начинается только после подтверждения полноценной 1.
@@ -515,10 +531,12 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             // Новая подтверждённая структура заменяет только ожидание без входа.
             if positionIsZero and positionState == 1 and dailyPositionEntries == 0
                 zeroScenarioCancelled := true
-                removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
+                removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
                 positionRiskBox := na
                 positionRewardBox := na
                 positionInfo := na
+                positionStopInfo := na
+                positionTargetInfo := na
                 positionState := 5
             confirmedThirdPrice := crossedSecond ? pullbackExtreme : (structureSide == -1 ? bodyLow : bodyHigh)
             int thirdPointTime = crossedSecond ? pullbackExtremeTime : time
@@ -546,7 +564,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             structureCompleted := true
             if positionState != 2 and dailyPositionEntries == 0 and (not zeroConditionUsed or zeroScenarioCancelled)
                 if positionState == 1
-                    removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
+                    removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
                 newPositionPlan := true
                 positionIsZero := false
                 firstPositionIsZero := false
@@ -569,6 +587,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 positionRiskBox := na
                 positionRewardBox := na
                 positionInfo := na
+                positionStopInfo := na
+                positionTargetInfo := na
         else
             float retreatPrice = structureSide == -1 ? bodyLow : bodyHigh
             if na(pullbackExtreme) or (structureSide == -1 ? retreatPrice < pullbackExtreme : retreatPrice > pullbackExtreme)
@@ -577,7 +597,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackOpen := open
                 pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
                 pullbackExtremeBar := bar_index
-    while array.size(firstPointLabels) > 400
+    while array.size(firstPointLabels) > 360
         label.delete(array.shift(firstPointLabels))
 
 
@@ -643,10 +663,12 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
     if zeroBreak
         // Исполненные сделки предыдущих дней сохраняем; заменяем только ожидание.
         if positionState == 1
-            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
+            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
         positionRiskBox := na
         positionRewardBox := na
         positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
         zeroConditionUsed := true
         positionIsZero := true
         firstPositionIsZero := true
@@ -671,6 +693,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
         positionRiskBox := na
         positionRewardBox := na
         positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
         newPositionPlan := true
 // Только закреп за 0 разрешает сделку против исходного движения 0–1.
 if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice)
@@ -726,13 +750,9 @@ if barstate.isconfirmed and m5Chart
         if hitStop or hitTarget
             positionExitEvent := hitStop and hitTarget ? 2 : hitStop ? -1 : 1
             positionState := hitStop and hitTarget ? 6 : hitStop ? 4 : 3
-            // Одна отметка справа от достигнутого уровня, только после реального входа.
-            if positionExitEvent == 1 or positionExitEvent == -1
-                label outcomeMark = label.new(x=time + 900000, y=positionExitEvent == 1 ? positionTarget : positionStop, text=positionExitEvent == 1 ? "take+" : "stop+", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 100), textcolor=positionExitEvent == 1 ? color.green : color.red, size=size.normal)
-                array.push(positionOutcomeLabels, outcomeMark)
-                // 400 структурных + 50 подписей + 40 результатов: запас до 500.
-                while array.size(positionOutcomeLabels) > 40
-                    label.delete(array.shift(positionOutcomeLabels))
+            // Фиксируем подписи предыдущей сделки до возможного создания второй.
+            positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
+            positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
             if positionState == 4 and dailyPositionEntries == 1 and positionPlanDay == rangeDayKey
                 firstStopped := true
                 firstStopBar := bar_index
@@ -741,7 +761,8 @@ if barstate.isconfirmed and m5Chart
     if firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and reverseBreak
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
-            label.set_text(positionInfo, (firstPositionSide == 1 ? "LONG" : "SHORT") + " · Стоп +\nВход: " + str.tostring(positionEntry, "#.#####") + " · Стоп: " + str.tostring(positionStop, "#.#####"))
+            label.set_xy(positionInfo, time + 600000, positionEntry)
+            label.set_text(positionInfo, "Вход: " + str.tostring(positionEntry, "#.#####"))
             box.set_right(positionRiskBox, time + 600000)
             box.set_right(positionRewardBox, time + 600000)
         positionSide := -firstPositionSide
@@ -760,6 +781,8 @@ if barstate.isconfirmed and m5Chart
         positionRiskBox := na
         positionRewardBox := na
         positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
         newPositionPlan := true
         fifthAnchorOpen := open
         fifthExtremeBar := bar_index
@@ -769,28 +792,35 @@ if barstate.isconfirmed and m5Chart
         if not firstPositionIsZero
             fifthLabel := label.new(x=time, y=confirmedFifthPrice, text=firstPositionUsesFourth ? "5" : "4", xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
             array.push(firstPointLabels, fifthLabel)
-            if array.size(firstPointLabels) > 400
+            if array.size(firstPointLabels) > 360
                 label.delete(array.shift(firstPointLabels))
     if positionState == 5 and positionIsZero and dailyPositionEntries == 0
         zeroScenarioCancelled := true
     if positionState == 5 and not na(positionInfo)
-        removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo)
+        removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
         positionRiskBox := na
         positionRewardBox := na
         positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
     // После SL сторона нового сценария могла измениться на этой же M5.
     pendingAgainstTrend := not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     pendingDirectionAllowed := not pendingAgainstTrend or zeroTrendReversed
     if newPositionPlan and pendingDirectionAllowed
         positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.red, bgcolor=color.new(color.red, 85))
         positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.teal, bgcolor=color.new(color.teal, 85))
-        positionInfo := label.new(x=time, y=positionThreshold, text="Ожидание RR ≥ 1:1", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 15), textcolor=color.black, size=size.small)
+        positionInfo := updatePositionPrice(na, time + 600000, positionThreshold, "Граница RR1: " + str.tostring(positionThreshold, "#.#####"), color.blue)
+        positionStopInfo := updatePositionPrice(na, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####"), color.red)
+        positionTargetInfo := updatePositionPrice(na, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####"), color.teal)
         array.push(positionBoxes, positionRiskBox)
         array.push(positionBoxes, positionRewardBox)
         array.push(positionLabels, positionInfo)
-        while array.size(positionBoxes) > 100
+        array.push(positionLabels, positionStopInfo)
+        array.push(positionLabels, positionTargetInfo)
+        // 40 инструментов по 3 подписи + 360 структурных меток: максимум 480.
+        while array.size(positionBoxes) > 80
             box.delete(array.shift(positionBoxes))
-        while array.size(positionLabels) > 50
+        while array.size(positionLabels) > 120
             label.delete(array.shift(positionLabels))
     if not na(positionInfo) and (positionState == 1 or positionState == 2 or positionEntryEvent or positionState != positionState[1])
         float drawnEntry = na(positionEntry) ? positionThreshold : positionEntry
@@ -800,11 +830,15 @@ if barstate.isconfirmed and m5Chart
         box.set_bottom(positionRewardBox, math.min(positionTarget, drawnEntry))
         box.set_right(positionRiskBox, time + 600000)
         box.set_right(positionRewardBox, time + 600000)
-        label.set_xy(positionInfo, time, drawnEntry)
-        string sideText = positionSide == 1 ? "LONG" : "SHORT"
-        string conditionText = firstPositionIsZero and not positionIsSecond ? " · Нулевое условие" : ""
-        string statusText = positionState == 1 ? "Ожидание RR ≥ 1:1" : positionState == 2 ? "Вход по close" : positionState == 3 ? "Цель +" : positionState == 4 ? "Стоп +" : positionState == 6 ? "TP/SL: порядок неизвестен" : "Без входа · отменено"
-        label.set_text(positionInfo, sideText + conditionText + " · " + statusText + "\n" + (na(positionEntry) ? "Граница RR1: " : "Вход: ") + str.tostring(drawnEntry, "#.#####") + "\nСтоп: " + str.tostring(positionStop, "#.#####") + " · Цель: " + str.tostring(positionTarget, "#.#####") + (na(positionRR) ? "" : "\nRR 1:" + str.tostring(positionRR, "#.##")))
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (na(positionEntry) ? "Граница RR1: " : "Вход: ") + str.tostring(drawnEntry, "#.#####") + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
+        positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
+        float displayedRisk = math.abs(drawnEntry - positionStop)
+        string rrCaption = displayedRisk > 0 ? "R:R 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / displayedRisk, "#.###") : ""
+        box.set_text(positionRewardBox, rrCaption)
+        box.set_text_color(positionRewardBox, color.white)
+        box.set_text_size(positionRewardBox, size.small)
+
 plot(positionEntryEvent ? positionSide : 0, "Вход LONG/SHORT", display=display.none)
 plot(positionState, "Состояние позиции", display=display.data_window)
 plot(positionExitEvent, "Выход TP 1 / SL -1 / неизвестно 2", display=display.data_window)

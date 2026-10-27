@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 import {scenario} from './open-close-zero-condition.mjs';
 const original=readFileSync(process.argv[2]??new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8');
-const source=original+'\nplot(array.size(positionBoxes),"Boxes")\nplot(array.size(positionLabels),"Labels")\nfloat retainedTP = 0\nif array.size(positionLabels) > 0\n    for li = 0 to array.size(positionLabels) - 1\n        retainedTP := (str.contains(label.get_text(array.get(positionLabels,li)),"Цель +") or str.contains(label.get_text(array.get(positionLabels,li)),"Стоп +")) ? retainedTP + 1 : retainedTP\nplot(retainedTP,"RetainedTP")';
+const source=original+'\nplot(array.size(positionBoxes),"Boxes")\nplot(array.size(positionLabels),"Labels")\nfloat retainedTP = 0\nif array.size(positionLabels) > 0\n    for li = 0 to array.size(positionLabels) - 1\n        retainedTP := ((str.contains(label.get_text(array.get(positionLabels,li)),"Цель:") and str.endswith(label.get_text(array.get(positionLabels,li))," +")) or (str.contains(label.get_text(array.get(positionLabels,li)),"Стоп:") and str.endswith(label.get_text(array.get(positionLabels,li))," +"))) ? retainedTP + 1 : retainedTP\nplot(retainedTP,"RetainedTP")';
 for(const mirror of [false,true])for(const outcome of ['tp','sl']){
  const {data:day}=await scenario(mirror,[[99.05,100.805],[100.805,100.81],[100.81,101.2],[101.2,99.8],[99.8,outcome==='tp'?101.3:98.6]]);
  const data=[...day];
@@ -14,7 +14,7 @@ for(const mirror of [false,true])for(const outcome of ['tp','sl']){
  assert.equal(v('RetainedTP',22),1,'completed trade exists during replay');
  assert.equal(v('RetainedTP',288+19),1,'new day setup must not delete prior executed trade');
  assert.equal(v('Boxes',288+19),4,'completed and new pending tools coexist');
- assert.equal(v('Labels',288+19),2,'completed label retained beside new scenario');
+ assert.equal(v('Labels',288+19),6,'completed label retained beside new scenario');
  assert.equal(v('RetainedTP',288+22),2,'both days retain completed outcomes');
  console.log('PASS replay outcome survives later day and new setup',mirror?'SHORT':'LONG',outcome);
 }

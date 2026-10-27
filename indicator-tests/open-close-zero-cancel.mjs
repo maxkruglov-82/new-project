@@ -6,7 +6,7 @@ for(const mirror of [false,true]){
  assert.equal(v('Нулевой сценарий отменён',25),1,'renewed 2 after five-bar retreat replaces unfilled reversal');
  assert.equal(v('Входов за день',25),0,'cancellation is not trade');
  assert.equal(v('BoxCount',25),2,'only replacement plan rectangles');
- assert.equal(v('LabelCount',25),1,'cancelled plan label removed');
+ assert.equal(v('LabelCount',25),3,'cancelled plan label removed');
  assert.equal(v('Первая позиция по нулевому условию',25),0,'next regular plan available');
  assert.equal(v('Вход LONG/SHORT',26),mirror?-1:1,'new structure permits first actual trade');
  assert.equal(v('Входов за день',26),1);
