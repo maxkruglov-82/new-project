@@ -582,6 +582,21 @@ bool showFirstPoints = input.bool(true, "Показывать точки 1 за 
 float firstPointOffset = input.float(0.01, "Минимальный отступ закрепа за часом и точками", minval=0.01, step=0.01)
 // Только самый первый подтверждённый выход за день, в любую сторону.
 bool pointsUseWicks = false
+// Метки только структурных экстремумов стратегии; торговые расчёты не меняются.
+var array<label> swingNumberIds = array.new_label()
+var array<bool> swingHighFlags = array.new_bool()
+var array<label> swingMarkerIds = array.new_label()
+
+newSwingLabel(int atTime, float price, string caption, string pointStyle) =>
+    label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+    array.push(swingNumberIds, number)
+    array.push(swingHighFlags, pointStyle == label.style_label_down)
+    // 180 чисел + 180 символов + 120 ценовых подписей = 480 меток.
+    while array.size(swingNumberIds) > 180
+        array.shift(swingNumberIds)
+        array.shift(swingHighFlags)
+    number
+
 var array<label> firstPointLabels = array.new_label()
 int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 1, 0, 0)
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
@@ -695,11 +710,11 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             confirmedZeroTime := rangeOriginTime
             zeroColorStartTime := rangeOriginTime
             if not na(confirmedZeroPrice)
-                zeroLabel := label.new(x=confirmedZeroTime, y=confirmedZeroPrice, text="0", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                zeroLabel := newSwingLabel(confirmedZeroTime, confirmedZeroPrice, "0", structureSide == -1 ? label.style_label_down : label.style_label_up)
                 array.push(firstPointLabels, zeroLabel)
-            firstSwingLabel := label.new(x=firstExtremeTime, y=structureFirstPrice, text="1", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+            firstSwingLabel := newSwingLabel(firstExtremeTime, structureFirstPrice, "1", structureSide == -1 ? label.style_label_up : label.style_label_down)
             array.push(firstPointLabels, firstSwingLabel)
-            if array.size(firstPointLabels) > 360
+            if array.size(firstPointLabels) > 180
                 label.delete(array.shift(firstPointLabels))
 
 // Сопровождаем встречный экстремум 3 и его последний откат 5.
@@ -980,7 +995,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 secondPointReady := true
                 confirmedSecondPrice := middlePrice
                 if not originRelocated or middlePrice != confirmedZeroPrice
-                    secondPointLabel := label.new(x=middleTime, y=middlePrice, text="2", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                    secondPointLabel := newSwingLabel(middleTime, middlePrice, "2", structureSide == -1 ? label.style_label_down : label.style_label_up)
                     array.push(firstPointLabels, secondPointLabel)
     if secondPointReady
         // Пробой 2: два последовательных закрытия M5 минимум на 0,01 за уровнем.
@@ -996,7 +1011,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 thirdStopQualified := retreatStopHasMinimum(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, time[bar_index - candidateExtremeBar], confirmedThirdPrice, structureSide == -1, minimumRetreatBars)
             int thirdPointTime = crossedSecond ? pullbackExtremeTime : time
             thirdColorTime := thirdPointTime
-            label thirdLabel = label.new(x=thirdPointTime, y=confirmedThirdPrice, text=thirdStopQualified ? (originRelocated ? "2" : "3") : "", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+            label thirdLabel = newSwingLabel(thirdPointTime, confirmedThirdPrice, thirdStopQualified ? (originRelocated ? "2" : "3") : "", structureSide == -1 ? label.style_label_up : label.style_label_down)
             if crossedSecond
                 if not thirdStopQualified and not na(secondPointLabel)
                     label.set_text(secondPointLabel, "")
@@ -1005,7 +1020,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 confirmedFourthPrice := structureSide == -1 ? bodyHigh : bodyLow
                 int fourthPointTime = time
                 fourthColorTime := fourthPointTime
-                label fourthLabel = label.new(x=fourthPointTime, y=confirmedFourthPrice, text=thirdStopQualified ? (originRelocated ? "3" : "4") : "2", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                label fourthLabel = newSwingLabel(fourthPointTime, confirmedFourthPrice, thirdStopQualified ? (originRelocated ? "3" : "4") : "2", structureSide == -1 ? label.style_label_down : label.style_label_up)
                 movingFourthLabel := fourthLabel
                 bool fourthOnCurrent = true
                 fourthAnchorOpen := fourthOnCurrent ? open : open[1]
@@ -1057,7 +1072,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackOpen := open
                 pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
                 pullbackExtremeBar := bar_index
-    while array.size(firstPointLabels) > 360
+    while array.size(firstPointLabels) > 180
         label.delete(array.shift(firstPointLabels))
 
 
@@ -1147,9 +1162,9 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureCompleted 
         fifthExtremeBar := bar_index
         fifthRetreatBars := 1
         fifthLocked := false
-        fifthLabel := label.new(x=time, y=confirmedFifthPrice, text="5", xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red,100), textcolor=color.red, size=size.large)
+        fifthLabel := newSwingLabel(time, confirmedFifthPrice, "5", positionSide == 1 ? label.style_label_down : label.style_label_up)
         array.push(firstPointLabels, fifthLabel)
-        while array.size(firstPointLabels) > 360
+        while array.size(firstPointLabels) > 180
             label.delete(array.shift(firstPointLabels))
         positionThreshold := (positionStop + positionTarget) / 2.0
         positionState := 1
@@ -1309,7 +1324,7 @@ if barstate.isconfirmed and m5Chart
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
             label.set_xy(positionInfo, time + 600000, positionEntry)
-            label.set_text(positionInfo, "Вход: " + str.tostring(positionEntry, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
+            label.set_text(positionInfo, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(positionEntry, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
             box.set_right(positionRiskBox, time + 600000)
             box.set_right(positionRewardBox, time + 600000)
         positionSide := -firstPositionSide
@@ -1340,9 +1355,9 @@ if barstate.isconfirmed and m5Chart
         fifthLocked := false
         fifthColorTime := time
         if not firstPositionIsZero and not firstPositionUsesFifth
-            fifthLabel := label.new(x=time, y=confirmedFifthPrice, text=firstPositionUsesFourth ? (originRelocated ? "4" : "5") : (originRelocated ? "3" : "4"), xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+            fifthLabel := newSwingLabel(time, confirmedFifthPrice, firstPositionUsesFourth ? (originRelocated ? "4" : "5") : (originRelocated ? "3" : "4"), positionSide == 1 ? label.style_label_down : label.style_label_up)
             array.push(firstPointLabels, fifthLabel)
-            if array.size(firstPointLabels) > 360
+            if array.size(firstPointLabels) > 180
                 label.delete(array.shift(firstPointLabels))
     if positionState == 5 and positionIsZero and dailyPositionEntries == 0 and positionPlanDay == rangeDayKey
         zeroScenarioCancelled := true
@@ -1358,9 +1373,9 @@ if barstate.isconfirmed and m5Chart
     waitingForCounterBreak := counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
     pendingDirectionAllowed := (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not waitingForCounterBreak
     if newPositionPlan and pendingDirectionAllowed
-        positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.red, bgcolor=color.new(color.red, 85))
-        positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.teal, bgcolor=color.new(color.teal, 85))
-        positionInfo := updatePositionPrice(na, time + 600000, positionThreshold, "Граница RR1: " + str.tostring(positionThreshold, "#.#####"), color.blue)
+        positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.red, 100), bgcolor=color.new(color.red, 85))
+        positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.teal, 100), bgcolor=color.new(color.teal, 85))
+        positionInfo := updatePositionPrice(na, time + 600000, positionThreshold, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(positionThreshold, "#.#####"), color.blue)
         positionStopInfo := updatePositionPrice(na, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####"), color.red)
         positionTargetInfo := updatePositionPrice(na, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####"), color.teal)
         array.push(positionBoxes, positionRiskBox)
@@ -1368,7 +1383,7 @@ if barstate.isconfirmed and m5Chart
         array.push(positionLabels, positionInfo)
         array.push(positionLabels, positionStopInfo)
         array.push(positionLabels, positionTargetInfo)
-        // 40 инструментов по 3 подписи + 360 структурных меток: максимум 480.
+        // 40 инструментов по 3 подписи + 180 чисел + 180 символов: максимум 480.
         while array.size(positionBoxes) > 80
             box.delete(array.shift(positionBoxes))
         while array.size(positionLabels) > 120
@@ -1383,7 +1398,7 @@ if barstate.isconfirmed and m5Chart
         box.set_right(positionRewardBox, time + 600000)
         float entryCaptionRisk = math.abs(drawnEntry - positionStop)
         string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
-        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (na(positionEntry) ? "Граница RR1: " : "Вход: ") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
         positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
         positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
@@ -1430,7 +1445,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             label.set_text(fifthLabel, "")
         if not na(counterExtreme)
             if na(counterThirdLabel)
-                counterThirdLabel := label.new(x=counterExtremeTime, y=counterExtreme, text="3", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                counterThirdLabel := newSwingLabel(counterExtremeTime, counterExtreme, "3", structureSide == 1 ? label.style_label_up : label.style_label_down)
                 array.push(firstPointLabels, counterThirdLabel)
             else
                 label.set_xy(counterThirdLabel, counterExtremeTime, counterExtreme)
@@ -1440,13 +1455,13 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             bool validFive = counterReversalReady ? counterStopQualified : retreatStopHasMinimum(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, counterExtremeTime, fivePrice, structureSide == -1, minimumRetreatBars)
             if not na(fivePrice) and validFive and (counterSettled or counterReversalReady)
                 if na(counterFifthLabel)
-                    counterFifthLabel := label.new(x=fiveTime, y=fivePrice, text="5", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                    counterFifthLabel := newSwingLabel(fiveTime, fivePrice, "5", structureSide == 1 ? label.style_label_down : label.style_label_up)
                     array.push(firstPointLabels, counterFifthLabel)
                 else
                     label.set_xy(counterFifthLabel, fiveTime, fivePrice)
         if counterReversalReady and positionIsZero and not na(positionTarget)
             if na(counterSixthLabel)
-                counterSixthLabel := label.new(x=zeroReversalTime, y=positionTarget, text="6", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                counterSixthLabel := newSwingLabel(zeroReversalTime, positionTarget, "6", structureSide == 1 ? label.style_label_up : label.style_label_down)
                 array.push(firstPointLabels, counterSixthLabel)
             else if dailyPositionEntries == 0
                 label.set_xy(counterSixthLabel, zeroReversalTime, positionTarget)
@@ -1481,3 +1496,33 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
         else
             polyline.delete(array.shift(colorDayDrawings))
 plot(activeStructuralTrend, "Действующий цвет тренда", display=display.data_window)
+
+// Перерисовка на последнем баре синхронизирует переносы, скрытие и удаление точек.
+if barstate.islast
+    while array.size(swingMarkerIds) > 0
+        label.delete(array.pop(swingMarkerIds))
+    if array.size(swingNumberIds) > 0
+        for swingIndex = 0 to array.size(swingNumberIds) - 1
+            label number = array.get(swingNumberIds, swingIndex)
+            if array.indexof(firstPointLabels, number) >= 0 and not na(label.get_text(number)) and label.get_text(number) != ""
+                bool isHigh = array.get(swingHighFlags, swingIndex)
+                label marker = label.new(x=label.get_x(number), y=label.get_y(number), text="", xloc=xloc.bar_time, yloc=isHigh ? yloc.abovebar : yloc.belowbar, style=isHigh ? label.style_triangledown : label.style_cross, color=isHigh ? color.red : color.green, size=size.tiny)
+                array.push(swingMarkerIds, marker)
+
+// Линии следуют за сохранёнными инструментами, включая ожидающий вход.
+// После исполнения цены инструмента фиксированы; отменённый план удаляется.
+var array<line> positionLevelLines = array.new_line()
+if barstate.islast
+    while array.size(positionLevelLines) > 0
+        line.delete(array.pop(positionLevelLines))
+    int drawnPlans = math.min(int(array.size(positionBoxes) / 2), int(array.size(positionLabels) / 3))
+    if drawnPlans > 0
+        for planIndex = 0 to drawnPlans - 1
+            box risk = array.get(positionBoxes, planIndex * 2)
+            int leftTime = box.get_left(risk)
+            int rightTime = box.get_right(risk)
+            for levelIndex = 0 to 2
+                label priceLabel = array.get(positionLabels, planIndex * 3 + levelIndex)
+                float levelPrice = label.get_y(priceLabel)
+                line levelLine = line.new(x1=leftTime, y1=levelPrice, x2=rightTime, y2=levelPrice, xloc=xloc.bar_time, color=levelIndex == 0 ? color.blue : levelIndex == 1 ? color.red : color.green, style=levelIndex == 0 ? line.style_dashed : line.style_solid, width=1)
+                array.push(positionLevelLines, levelLine)
