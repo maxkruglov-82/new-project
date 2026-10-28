@@ -1181,6 +1181,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
         positionStopInfo := na
         positionTargetInfo := na
         zeroConditionUsed := true
+        // Новый основной сценарий не наследует отмену прежнего дня/ожидания.
+        zeroScenarioCancelled := false
         positionIsZero := true
         firstPositionUsesFifth := false
         positionUsesFifth := false
@@ -1339,7 +1341,7 @@ if barstate.isconfirmed and m5Chart
             array.push(firstPointLabels, fifthLabel)
             if array.size(firstPointLabels) > 360
                 label.delete(array.shift(firstPointLabels))
-    if positionState == 5 and positionIsZero and dailyPositionEntries == 0
+    if positionState == 5 and positionIsZero and dailyPositionEntries == 0 and positionPlanDay == rangeDayKey
         zeroScenarioCancelled := true
     if positionState == 5 and not na(positionInfo)
         removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
