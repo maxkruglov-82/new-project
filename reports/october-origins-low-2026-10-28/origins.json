@@ -1,0 +1,853 @@
+{
+  "exchange": "MEXC",
+  "symbol": "SOL_USDT",
+  "interval": "M5",
+  "timezone": "Asia/Krasnoyarsk",
+  "indicatorCommit": "1571d64c72aa1bf1a3e153a65f1b4418cf590d28",
+  "baselineCommit": "09180e2",
+  "sourcePath": "/workspace/backtests/v72-2026-current/mexc-sol-usdt-m5-2026-ytd.json",
+  "sourceSha256": "93a1e4d2d32ff92f80bac14ee70be0ed13b750c3a495a6d760130cc6a641d74f",
+  "indicatorSha256": "480a62577f2bd80fb8a94ad45b5668f20fa6a83a67d9cf291611f94689be9f9a",
+  "summary": {
+    "verified": 17,
+    "weekend": 8,
+    "missing_data": 2,
+    "no_confirmed_first": 0,
+    "no_eligible_origin": 0,
+    "low": 8,
+    "high": 9,
+    "changedLow": 8
+  },
+  "rows": [
+    {
+      "date": "2026-10-01",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "17:00",
+      "firstPrice": 117.01,
+      "originTime": "16:35",
+      "originPrice": 118.02,
+      "previousTime": "16:35",
+      "previousPrice": 118.02,
+      "changed": false
+    },
+    {
+      "date": "2026-10-02",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "15:15",
+      "firstPrice": 122.72,
+      "candidates": [
+        {
+          "anchorTime": "13:00",
+          "anchorPrice": 122,
+          "span": 27,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:15"
+        },
+        {
+          "anchorTime": "13:05",
+          "anchorPrice": 122,
+          "span": 26,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:15"
+        },
+        {
+          "anchorTime": "13:25",
+          "anchorPrice": 121.98,
+          "span": 21,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:10"
+        },
+        {
+          "anchorTime": "13:30",
+          "anchorPrice": 121.98,
+          "span": 20,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:10"
+        },
+        {
+          "anchorTime": "13:35",
+          "anchorPrice": 121.97,
+          "span": 19,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:10"
+        },
+        {
+          "anchorTime": "13:45",
+          "anchorPrice": 121.93,
+          "span": 17,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:10"
+        },
+        {
+          "anchorTime": "13:50",
+          "anchorPrice": 121.93,
+          "span": 16,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:10"
+        },
+        {
+          "anchorTime": "13:55",
+          "anchorPrice": 121.91,
+          "span": 13,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "14:00",
+          "anchorPrice": 121.73,
+          "span": 12,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "14:05",
+          "anchorPrice": 121.6,
+          "span": 10,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "14:55"
+        },
+        {
+          "anchorTime": "14:10",
+          "anchorPrice": 121.6,
+          "span": 9,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "14:55"
+        },
+        {
+          "anchorTime": "14:15",
+          "anchorPrice": 121.51,
+          "span": 8,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "14:55"
+        },
+        {
+          "anchorTime": "14:20",
+          "anchorPrice": 121.26,
+          "span": 6,
+          "price": 121.06,
+          "at": 1790926800000,
+          "originTime": "14:40",
+          "endTime": "14:50"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "14:40",
+          "price": 121.06
+        }
+      ],
+      "originTime": "14:40",
+      "originPrice": 121.06,
+      "previousTime": "13:05",
+      "previousPrice": 121.54,
+      "changed": true
+    },
+    {
+      "date": "2026-10-03",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-04",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-05",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "15:10",
+      "firstPrice": 121.94,
+      "candidates": [
+        {
+          "anchorTime": "13:15",
+          "anchorPrice": 120.99,
+          "span": 6,
+          "price": 120.75,
+          "at": 1791182400000,
+          "originTime": "13:40",
+          "endTime": "13:45"
+        },
+        {
+          "anchorTime": "13:20",
+          "anchorPrice": 120.99,
+          "span": 5,
+          "price": 120.75,
+          "at": 1791182400000,
+          "originTime": "13:40",
+          "endTime": "13:45"
+        },
+        {
+          "anchorTime": "14:05",
+          "anchorPrice": 121.76,
+          "span": 12,
+          "price": 121.35,
+          "at": 1791184800000,
+          "originTime": "14:20",
+          "endTime": "15:05"
+        },
+        {
+          "anchorTime": "14:10",
+          "anchorPrice": 121.76,
+          "span": 11,
+          "price": 121.35,
+          "at": 1791184800000,
+          "originTime": "14:20",
+          "endTime": "15:05"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "13:40",
+          "price": 120.75
+        },
+        {
+          "time": "14:20",
+          "price": 121.35
+        }
+      ],
+      "originTime": "13:40",
+      "originPrice": 120.75,
+      "previousTime": "13:00",
+      "previousPrice": 120.37,
+      "changed": true
+    },
+    {
+      "date": "2026-10-06",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "15:40",
+      "firstPrice": 120.56,
+      "candidates": [
+        {
+          "anchorTime": "13:00",
+          "anchorPrice": 119.74,
+          "span": 9,
+          "price": 119.18,
+          "at": 1791267300000,
+          "originTime": "13:15",
+          "endTime": "13:45"
+        },
+        {
+          "anchorTime": "13:45",
+          "anchorPrice": 119.82,
+          "span": 9,
+          "price": 119.71,
+          "at": 1791271200000,
+          "originTime": "14:20",
+          "endTime": "14:30"
+        },
+        {
+          "anchorTime": "13:50",
+          "anchorPrice": 119.82,
+          "span": 8,
+          "price": 119.71,
+          "at": 1791271200000,
+          "originTime": "14:20",
+          "endTime": "14:30"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "13:15",
+          "price": 119.18
+        },
+        {
+          "time": "14:20",
+          "price": 119.71
+        }
+      ],
+      "originTime": "13:15",
+      "originPrice": 119.18,
+      "previousTime": "13:10",
+      "previousPrice": 119.18,
+      "changed": true
+    },
+    {
+      "date": "2026-10-07",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "17:05",
+      "firstPrice": 117.48,
+      "originTime": "13:45",
+      "originPrice": 118.98,
+      "previousTime": "13:45",
+      "previousPrice": 118.98,
+      "changed": false
+    },
+    {
+      "date": "2026-10-08",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "15:00",
+      "firstPrice": 114.86,
+      "originTime": "14:25",
+      "originPrice": 115.65,
+      "previousTime": "14:25",
+      "previousPrice": 115.65,
+      "changed": false
+    },
+    {
+      "date": "2026-10-09",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "17:45",
+      "firstPrice": 109.4,
+      "originTime": "15:00",
+      "originPrice": 110.64,
+      "previousTime": "15:00",
+      "previousPrice": 110.64,
+      "changed": false
+    },
+    {
+      "date": "2026-10-10",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-11",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-12",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "15:20",
+      "firstPrice": 111.77,
+      "originTime": "14:15",
+      "originPrice": 112.97,
+      "previousTime": "14:15",
+      "previousPrice": 112.97,
+      "changed": false
+    },
+    {
+      "date": "2026-10-13",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "16:00",
+      "firstPrice": 107.3,
+      "originTime": "13:55",
+      "originPrice": 108.65,
+      "previousTime": "13:55",
+      "previousPrice": 108.65,
+      "changed": false
+    },
+    {
+      "date": "2026-10-14",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "15:05",
+      "firstPrice": 108.45,
+      "candidates": [
+        {
+          "anchorTime": "13:10",
+          "anchorPrice": 107.38,
+          "span": 12,
+          "price": 107.1,
+          "at": 1791960600000,
+          "originTime": "13:50",
+          "endTime": "14:10"
+        },
+        {
+          "anchorTime": "13:15",
+          "anchorPrice": 107.38,
+          "span": 11,
+          "price": 107.1,
+          "at": 1791960600000,
+          "originTime": "13:50",
+          "endTime": "14:10"
+        },
+        {
+          "anchorTime": "13:40",
+          "anchorPrice": 107.34,
+          "span": 6,
+          "price": 107.1,
+          "at": 1791960600000,
+          "originTime": "13:50",
+          "endTime": "14:10"
+        },
+        {
+          "anchorTime": "13:45",
+          "anchorPrice": 107.34,
+          "span": 5,
+          "price": 107.1,
+          "at": 1791960600000,
+          "originTime": "13:50",
+          "endTime": "14:10"
+        },
+        {
+          "anchorTime": "14:25",
+          "anchorPrice": 107.51,
+          "span": 7,
+          "price": 107.3,
+          "at": 1791964500000,
+          "originTime": "14:55",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "14:30",
+          "anchorPrice": 107.51,
+          "span": 6,
+          "price": 107.3,
+          "at": 1791964500000,
+          "originTime": "14:55",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "14:35",
+          "anchorPrice": 107.46,
+          "span": 5,
+          "price": 107.3,
+          "at": 1791964500000,
+          "originTime": "14:55",
+          "endTime": "15:00"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "13:50",
+          "price": 107.1
+        },
+        {
+          "time": "14:55",
+          "price": 107.3
+        }
+      ],
+      "originTime": "13:50",
+      "originPrice": 107.1,
+      "previousTime": "13:00",
+      "previousPrice": 107.04,
+      "changed": true
+    },
+    {
+      "date": "2026-10-15",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "16:10",
+      "firstPrice": 103.31,
+      "candidates": [
+        {
+          "anchorTime": "13:30",
+          "anchorPrice": 102.38,
+          "span": 13,
+          "price": 101.82,
+          "at": 1792047000000,
+          "originTime": "13:50",
+          "endTime": "14:35"
+        },
+        {
+          "anchorTime": "13:35",
+          "anchorPrice": 102.38,
+          "span": 12,
+          "price": 101.82,
+          "at": 1792047000000,
+          "originTime": "13:50",
+          "endTime": "14:35"
+        },
+        {
+          "anchorTime": "13:40",
+          "anchorPrice": 102.25,
+          "span": 8,
+          "price": 101.82,
+          "at": 1792047000000,
+          "originTime": "13:50",
+          "endTime": "14:20"
+        },
+        {
+          "anchorTime": "13:45",
+          "anchorPrice": 102.24,
+          "span": 7,
+          "price": 101.82,
+          "at": 1792047000000,
+          "originTime": "13:50",
+          "endTime": "14:20"
+        },
+        {
+          "anchorTime": "14:55",
+          "anchorPrice": 103.23,
+          "span": 10,
+          "price": 102.81,
+          "at": 1792051800000,
+          "originTime": "15:10",
+          "endTime": "15:45"
+        },
+        {
+          "anchorTime": "15:00",
+          "anchorPrice": 103.23,
+          "span": 9,
+          "price": 102.81,
+          "at": 1792051800000,
+          "originTime": "15:10",
+          "endTime": "15:45"
+        },
+        {
+          "anchorTime": "15:05",
+          "anchorPrice": 103.03,
+          "span": 5,
+          "price": 102.81,
+          "at": 1792051800000,
+          "originTime": "15:10",
+          "endTime": "15:30"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "13:50",
+          "price": 101.82
+        },
+        {
+          "time": "15:10",
+          "price": 102.81
+        }
+      ],
+      "originTime": "13:50",
+      "originPrice": 101.82,
+      "previousTime": "13:00",
+      "previousPrice": 101.41,
+      "changed": true
+    },
+    {
+      "date": "2026-10-16",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "15:45",
+      "firstPrice": 106.82,
+      "candidates": [
+        {
+          "anchorTime": "13:00",
+          "anchorPrice": 105.91,
+          "span": 6,
+          "price": 105.62,
+          "at": 1792131300000,
+          "originTime": "13:15",
+          "endTime": "13:30"
+        },
+        {
+          "anchorTime": "13:45",
+          "anchorPrice": 106.49,
+          "span": 15,
+          "price": 106.08,
+          "at": 1792136100000,
+          "originTime": "14:35",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "13:50",
+          "anchorPrice": 106.49,
+          "span": 14,
+          "price": 106.08,
+          "at": 1792136100000,
+          "originTime": "14:35",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "14:15",
+          "anchorPrice": 106.49,
+          "span": 9,
+          "price": 106.08,
+          "at": 1792136100000,
+          "originTime": "14:35",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "14:20",
+          "anchorPrice": 106.49,
+          "span": 8,
+          "price": 106.08,
+          "at": 1792136100000,
+          "originTime": "14:35",
+          "endTime": "15:00"
+        },
+        {
+          "anchorTime": "15:00",
+          "anchorPrice": 106.53,
+          "span": 5,
+          "price": 106.12,
+          "at": 1792138800000,
+          "originTime": "15:20",
+          "endTime": "15:25"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "13:15",
+          "price": 105.62
+        },
+        {
+          "time": "14:35",
+          "price": 106.08
+        },
+        {
+          "time": "15:20",
+          "price": 106.12
+        }
+      ],
+      "originTime": "13:15",
+      "originPrice": 105.62,
+      "previousTime": "13:10",
+      "previousPrice": 105.62,
+      "changed": true
+    },
+    {
+      "date": "2026-10-17",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-18",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-19",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "15:05",
+      "firstPrice": 105.47,
+      "originTime": "14:35",
+      "originPrice": 106.1,
+      "previousTime": "14:35",
+      "previousPrice": 106.1,
+      "changed": false
+    },
+    {
+      "date": "2026-10-20",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "15:00",
+      "firstPrice": 104.02,
+      "originTime": "13:45",
+      "originPrice": 104.78,
+      "previousTime": "13:45",
+      "previousPrice": 104.78,
+      "changed": false
+    },
+    {
+      "date": "2026-10-21",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "15:45",
+      "firstPrice": 107,
+      "candidates": [
+        {
+          "anchorTime": "13:30",
+          "anchorPrice": 106.21,
+          "span": 11,
+          "price": 105.95,
+          "at": 1792566000000,
+          "originTime": "14:00",
+          "endTime": "14:25"
+        },
+        {
+          "anchorTime": "13:35",
+          "anchorPrice": 106.21,
+          "span": 10,
+          "price": 105.95,
+          "at": 1792566000000,
+          "originTime": "14:00",
+          "endTime": "14:25"
+        },
+        {
+          "anchorTime": "13:40",
+          "anchorPrice": 106.04,
+          "span": 5,
+          "price": 105.95,
+          "at": 1792566000000,
+          "originTime": "14:00",
+          "endTime": "14:05"
+        },
+        {
+          "anchorTime": "14:50",
+          "anchorPrice": 106.89,
+          "span": 11,
+          "price": 106.45,
+          "at": 1792571700000,
+          "originTime": "15:35",
+          "endTime": "15:45"
+        },
+        {
+          "anchorTime": "14:55",
+          "anchorPrice": 106.89,
+          "span": 10,
+          "price": 106.45,
+          "at": 1792571700000,
+          "originTime": "15:35",
+          "endTime": "15:45"
+        },
+        {
+          "anchorTime": "15:00",
+          "anchorPrice": 106.78,
+          "span": 9,
+          "price": 106.45,
+          "at": 1792571700000,
+          "originTime": "15:35",
+          "endTime": "15:45"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "14:00",
+          "price": 105.95
+        },
+        {
+          "time": "15:35",
+          "price": 106.45
+        }
+      ],
+      "originTime": "14:00",
+      "originPrice": 105.95,
+      "previousTime": "13:00",
+      "previousPrice": 105.63,
+      "changed": true
+    },
+    {
+      "date": "2026-10-22",
+      "status": "verified",
+      "kind": "HIGH",
+      "firstTime": "15:35",
+      "firstPrice": 103.7,
+      "originTime": "14:00",
+      "originPrice": 104.57,
+      "previousTime": "14:00",
+      "previousPrice": 104.57,
+      "changed": false
+    },
+    {
+      "date": "2026-10-23",
+      "status": "verified",
+      "kind": "LOW",
+      "firstTime": "15:45",
+      "firstPrice": 104.8,
+      "candidates": [
+        {
+          "anchorTime": "13:15",
+          "anchorPrice": 104.59,
+          "span": 6,
+          "price": 104.42,
+          "at": 1792737600000,
+          "originTime": "13:40",
+          "endTime": "13:45"
+        },
+        {
+          "anchorTime": "13:20",
+          "anchorPrice": 104.59,
+          "span": 5,
+          "price": 104.42,
+          "at": 1792737600000,
+          "originTime": "13:40",
+          "endTime": "13:45"
+        },
+        {
+          "anchorTime": "13:55",
+          "anchorPrice": 104.68,
+          "span": 20,
+          "price": 104.26,
+          "at": 1792742400000,
+          "originTime": "15:00",
+          "endTime": "15:35"
+        },
+        {
+          "anchorTime": "14:00",
+          "anchorPrice": 104.68,
+          "span": 19,
+          "price": 104.26,
+          "at": 1792742400000,
+          "originTime": "15:00",
+          "endTime": "15:35"
+        },
+        {
+          "anchorTime": "14:05",
+          "anchorPrice": 104.6,
+          "span": 5,
+          "price": 104.46,
+          "at": 1792740000000,
+          "originTime": "14:20",
+          "endTime": "14:30"
+        },
+        {
+          "anchorTime": "14:30",
+          "anchorPrice": 104.64,
+          "span": 9,
+          "price": 104.26,
+          "at": 1792742400000,
+          "originTime": "15:00",
+          "endTime": "15:15"
+        },
+        {
+          "anchorTime": "14:35",
+          "anchorPrice": 104.64,
+          "span": 8,
+          "price": 104.26,
+          "at": 1792742400000,
+          "originTime": "15:00",
+          "endTime": "15:15"
+        },
+        {
+          "anchorTime": "14:40",
+          "anchorPrice": 104.63,
+          "span": 7,
+          "price": 104.26,
+          "at": 1792742400000,
+          "originTime": "15:00",
+          "endTime": "15:15"
+        }
+      ],
+      "distinctCandidates": [
+        {
+          "time": "13:40",
+          "price": 104.42
+        },
+        {
+          "time": "15:00",
+          "price": 104.26
+        },
+        {
+          "time": "14:20",
+          "price": 104.46
+        }
+      ],
+      "originTime": "15:00",
+      "originPrice": 104.26,
+      "previousTime": "13:00",
+      "previousPrice": 104.31,
+      "changed": true
+    },
+    {
+      "date": "2026-10-24",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-25",
+      "status": "weekend"
+    },
+    {
+      "date": "2026-10-26",
+      "status": "missing_data"
+    },
+    {
+      "date": "2026-10-27",
+      "status": "missing_data"
+    }
+  ]
+}
