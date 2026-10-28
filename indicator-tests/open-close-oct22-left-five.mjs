@@ -11,7 +11,14 @@ for(let i=0;i<data.length;i++){
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side||exit)events.push([new Date(data[i].openTime+7*3600000).toISOString().slice(11,16),side,exit]);
 }
-assert.deepEqual(events,[['16:05',-1,0],['16:10',0,2]]);
+assert.deepEqual(events,[['16:05',-1,0],['16:10',0,-1],['16:20',1,0],['16:45',0,1]]);
+const retry=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T16:20:00+07:00'));
+assert.equal(v('Цена входа по close',retry),103.77);
+assert.equal(v('Стоп позиции',retry),103.64);
+assert.equal(v('Цель позиции',retry),103.99);
+assert.ok(Math.abs(v('RR входа',retry)-1.6923076923)<1e-8);
+assert.equal(v('Разворот закреплён за 0',retry),0,'retry exception must not require or invent origin breakout');
+assert.equal(v('Входов за день',data.length-1),2);
 const bodyLow=b=>Math.min(b.open,b.close),bodyHigh=b=>Math.max(b.open,b.close);
 const clock=b=>new Date(b.openTime+7*3600000).toISOString().slice(11,16);
 const day=data.filter(b=>new Date(b.openTime+7*3600000).toISOString().startsWith('2026-10-22'));
@@ -24,4 +31,4 @@ for(const at of ['13:30','14:05','14:45']){
  measured.push([at,clock(day[last]),peak,last-i+1]);
 }
 assert.deepEqual(measured,[['13:30','14:00',104.57,7],['14:05','14:20',104.46,4],['14:45','15:00',104.38,4]]);
-console.log('PASS MEXC Oct 22: own-retreat HIGH origin 14:00 / 104.57, SHORT then ambiguous dual-level candle; no forced outcome');
+console.log('PASS MEXC Oct 22: own-retreat HIGH origin 14:00 / 104.57, SHORT SL 16:10, second LONG 16:20, TP 16:45');
