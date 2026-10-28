@@ -89,6 +89,7 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                                 candidateTime := nextTime
                 // Более поздний и одновременно более низкий low заменяет ранний.
                 // При равном low выбираем последнее повторение, как в примере 21.10.
+                // 16.10: LOW 105,62 / 13:15 сохраняется; 15 свечей у более высокого LOW не дают приоритета.
                 bool betterLow = na(foundPrice) or candidate < foundPrice or (candidate == foundPrice and candidateTime > foundTime)
                 if span >= 5 and not na(candidate) and betterLow
                     foundPrice := candidate
