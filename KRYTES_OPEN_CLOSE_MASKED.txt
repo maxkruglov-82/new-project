@@ -16,7 +16,7 @@ twoM5Break(float level, bool upward, float offset, bool adjacentSameDay) =>
     adjacentSameDay and currentBeyond and previousBeyond
 
 // Точка 0 — экстремум собственного отката от противоположного экстремума.
-// От 12:00 строго до 1; минимум пять свечей от начала отката включительно.
+// От 13:00 строго до 1; минимум пять свечей от начала отката включительно.
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
     int foundTime = na
@@ -62,7 +62,7 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                     foundPrice := retreatExtreme
                     foundTime := retreatTime
                     bestSpan := retreatSpan
-    // LOW 0: проверяем КАЖДУЮ свечу от 12:00, а не только локальные хаи.
+    // LOW 0: проверяем КАЖДУЮ свечу от 13:00, а не только локальные хаи.
     // Участок заканчивается перед первым обновлением максимума тела.
     // Начальная свеча входит в длину (минимум 5), но её low не кандидат.
     if wantedSide == -1 and count > 1
@@ -89,7 +89,7 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                                 candidateTime := nextTime
                 // Сначала число свечей; при равной длине — более низкий low.
                 // При равном low выбираем последнее повторение.
-                // 16.10: с 12:00 окно в 36 свечей выбирает LOW 105,62 / 13:15.
+                // 16.10: от 13:00 максимум 15 свечей выбирает LOW 106,08 / 14:35.
                 bool betterLow = na(foundPrice) or candidate < foundPrice or (candidate == foundPrice and candidateTime > foundTime)
                 if span >= 5 and not na(candidate) and (span > bestSpan or (span == bestSpan and betterLow))
                     foundPrice := candidate
@@ -547,8 +547,8 @@ int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
 bool pointPairM5 = m5Chart and rangeDayKey == rangeDayKey[1]
-int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 12, 0)
-// История дня нужна для окраски; поиск обоих типов 0 начинается с 12:00.
+int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)
+// История дня нужна для окраски; поиск обоих типов 0 начинается с 13:00.
 if barstate.isconfirmed and m5Chart and time >= timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 0, 0)
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
         if array.size(colorDayDrawings) > 0
@@ -1054,7 +1054,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
 
 
 // Следующий экстремум 5 после противоположного пробоя за стопом первой позиции.
-if barstate.isconfirmed and firstPointWindow and m5Chart and (positionIsSecond or positionUsesFifth) and not na(fifthLabel) and not fifthLocked
+// До входа второй сделки сопровождаем все новые экстремумы, даже после пяти свечей.
+if barstate.isconfirmed and firstPointWindow and m5Chart and (positionIsSecond or positionUsesFifth) and not na(fifthLabel) and (not fifthLocked or (positionIsSecond and positionState == 1))
     float fifthCandidate = positionSide == 1 ? bodyHigh : bodyLow
     bool extendsFifth = positionSide == 1 ? fifthCandidate > confirmedFifthPrice : fifthCandidate < confirmedFifthPrice
     if extendsFifth
