@@ -54,38 +54,37 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                     foundPrice := retreatExtreme
                     foundTime := retreatTime
                     bestSpan := retreatSpan
-    if wantedSide == -1 and count > 0
-        for scanIndex = 0 to count - 1
+    // LOW 0: проверяем КАЖДУЮ свечу от 13:00, а не только локальные хаи.
+    // Участок заканчивается перед первым обновлением максимума тела.
+    // Начальная свеча входит в длину (минимум 5), но её low не кандидат.
+    if wantedSide == -1 and count > 1
+        for scanIndex = 0 to count - 2
             int scanTime = array.get(savedTimes, scanIndex)
             if scanTime >= fromTime and scanTime < beforeFirst
-                float scanOpen = array.get(savedOpens, scanIndex)
-                float scanClose = array.get(savedCloses, scanIndex)
-                float candidate = wantedSide == 1 ? math.max(scanOpen, scanClose) : math.min(scanOpen, scanClose)
-                int span = 0
+                float ceiling = math.max(array.get(savedOpens, scanIndex), array.get(savedCloses, scanIndex))
+                float candidate = na
+                int candidateTime = na
+                int span = 1
                 bool scanning = true
-                if wantedSide == 1 and scanIndex > 0
-                    for step = 1 to scanIndex
-                        int previousIndex = scanIndex - step
-                        if scanning
-                            int previousTime = array.get(savedTimes, previousIndex)
-                            if scanTime - previousTime != step * 300000 or array.get(savedCloses, previousIndex) > candidate
-                                scanning := false
-                            else
-                                span := span + 1
-                else if wantedSide == -1 and scanIndex < count - 1
-                    for nextIndex = scanIndex + 1 to count - 1
-                        if scanning
-                            int nextTime = array.get(savedTimes, nextIndex)
-                            if nextTime > beforeFirst or nextTime - scanTime != (nextIndex - scanIndex) * 300000 or array.get(savedCloses, nextIndex) < candidate
-                                scanning := false
-                            else
-                                span := span + 1
-                bool eligible = wantedSide == -1 or span >= 5
-                bool betterPrice = na(foundPrice) or (wantedSide == 1 ? candidate > foundPrice : candidate < foundPrice)
-                if eligible and (span > bestSpan or (span == bestSpan and betterPrice))
+                for nextIndex = scanIndex + 1 to count - 1
+                    if scanning
+                        int nextTime = array.get(savedTimes, nextIndex)
+                        float nextOpen = array.get(savedOpens, nextIndex)
+                        float nextClose = array.get(savedCloses, nextIndex)
+                        if nextTime >= beforeFirst or nextTime - scanTime != (nextIndex - scanIndex) * 300000 or math.max(nextOpen, nextClose) > ceiling
+                            scanning := false
+                        else
+                            span := span + 1
+                            float nextLow = math.min(nextOpen, nextClose)
+                            if na(candidate) or nextLow <= candidate
+                                candidate := nextLow
+                                candidateTime := nextTime
+                // Более поздний и одновременно более низкий low заменяет ранний.
+                // При равном low выбираем последнее повторение, как в примере 21.10.
+                bool betterLow = na(foundPrice) or candidate < foundPrice or (candidate == foundPrice and candidateTime > foundTime)
+                if span >= 5 and not na(candidate) and betterLow
                     foundPrice := candidate
-                    foundTime := scanTime
-                    bestSpan := span
+                    foundTime := candidateTime
     [foundPrice, foundTime]
 
 // Внутренний формат: четыре точки тела и служебный разделитель.

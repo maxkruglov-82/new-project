@@ -11,11 +11,11 @@ for(let i=0;i<data.length;i++){
  const t=new Date(data[i].openTime+7*3600000).toISOString().slice(0,16);
  if(!t.startsWith('2026-10-16'))continue;
  if(Number.isFinite(v('T0',i)) && v('T0',i)>=Date.parse('2026-10-16T13:00:00+07:00')){
-  assert.equal(v('T0',i),Date.parse('2026-10-16T13:10:00+07:00'));
+  assert.equal(v('T0',i),Date.parse('2026-10-16T13:15:00+07:00'));
   assert.equal(v('Цена точки 0',i),105.62);
  }
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side||exit)events.push([t.slice(11),side,exit]);
 }
 assert.deepEqual(events,[['21:10',-1,0],['22:05',0,1]]);
-console.log('PASS MEXC Oct 16: origin 13:10 / 105.62, pullback-stop continuation: SHORT 21:10, TP 22:05');
+console.log('PASS MEXC Oct 16: origin 13:15 / 105.62, pullback-stop continuation: SHORT 21:10, TP 22:05');
