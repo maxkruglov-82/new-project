@@ -7,9 +7,9 @@ int minimumRetreatBars = 5
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + 1 : 1
 
-// Закрепы за 0, 2, 3 и последующими точками: два close M5 подряд.
+// Закрепы за всеми сформированными точками: два close M5 подряд.
 // Каждое закрытие минимум на offset за одним и тем же уровнем.
-// Точка 1 и первый выход за час сохраняют одно закрытие.
+// За сформированной 1 тоже два; только первый выход за час — одно закрытие.
 twoM5Break(float level, bool upward, float offset, bool adjacentSameDay) =>
     bool currentBeyond = upward ? close - level >= offset - 0.000000001 : level - close >= offset - 0.000000001
     bool previousBeyond = upward ? close[1] - level >= offset - 0.000000001 : level - close[1] >= offset - 0.000000001
@@ -142,8 +142,6 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
     int trend = initialSide
     float floorPrice = math.min(zeroPrice, firstPrice)
     float ceilingPrice = math.max(zeroPrice, firstPrice)
-    bool floorIsFirst = false
-    bool ceilingIsFirst = false
     bool originApplied = false
     bool fourthApplied = false
     int result = 0
@@ -159,21 +157,15 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                     trend := -initialSide
                     floorPrice := trend == 1 ? firstPrice : math.min(candleOpen, candleClose)
                     ceilingPrice := trend == 1 ? math.max(candleOpen, candleClose) : firstPrice
-                    floorIsFirst := trend == 1
-                    ceilingIsFirst := trend == -1
                 if originApplied
                     if not na(fourthBreakTime) and candleTime >= fourthBreakTime and not fourthApplied
                         fourthApplied := true
                         if fourthPrice > thirdPrice
                             floorPrice := thirdPrice
-                            floorIsFirst := false
                             ceilingPrice := math.max(ceilingPrice, math.max(candleOpen, candleClose))
-                            ceilingIsFirst := false
                         else
                             ceilingPrice := thirdPrice
-                            ceilingIsFirst := false
                             floorPrice := math.min(floorPrice, math.min(candleOpen, candleClose))
-                            floorIsFirst := false
                     bool previousAtFloor = false
                     bool previousAtCeiling = false
                     if candleIndex > 0
@@ -182,23 +174,19 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                         bool pairInRun = candleTime - previousTime == 300000 and previousTime >= zeroTime
                         previousAtFloor := pairInRun and floorPrice - previousClose >= offset - 0.000000001
                         previousAtCeiling := pairInRun and previousClose - ceilingPrice >= offset - 0.000000001
-                    if trend == 1 and floorPrice - candleClose >= offset - 0.000000001 and (floorIsFirst or previousAtFloor)
+                    if trend == 1 and floorPrice - candleClose >= offset - 0.000000001 and previousAtFloor
                         trend := -1
-                    else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001 and (ceilingIsFirst or previousAtCeiling)
+                    else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001 and previousAtCeiling
                         trend := 1
                     if trend == 1
                         ceilingPrice := math.max(ceilingPrice, math.max(candleOpen, candleClose))
-                        ceilingIsFirst := false
                     else
                         floorPrice := math.min(floorPrice, math.min(candleOpen, candleClose))
-                        floorIsFirst := false
                     if fifthReady and candleTime >= fifthTime
                         if fifthSide == 1
                             ceilingPrice := fifthPrice
-                            ceilingIsFirst := false
                         else
                             floorPrice := fifthPrice
-                            floorIsFirst := false
                 if trend == 1
                     appendColoredCandle(greenPoints, candleTime, candleOpen, candleClose)
                 else
@@ -361,6 +349,21 @@ var polyline colorArchiveRed = na
 var polyline colorArchiveGreen = na
 var float confirmedZeroPrice = na
 var int confirmedZeroTime = na
+// Незавершённая пара закрепа: старый уровень сохраняется до исхода второй M5.
+var bool zeroBreakPending = false
+var float zeroAttemptExtreme = na
+var int zeroAttemptTime = na
+var int zeroAttemptBar = na
+var float zeroAttemptOpen = na
+var bool firstLevelConfirmed = false
+var bool firstBreakPending = false
+var float firstAttemptExtreme = na
+var int firstAttemptTime = na
+var int firstAttemptBar = na
+var float firstAttemptOpen = na
+var bool originRelocated = false
+var int zeroColorStartTime = na
+var bool firstRollAwaitingRetreat = false
 var label zeroLabel = na
 var array<float> zeroSavedOpens = array.new_float()
 var array<float> zeroSavedCloses = array.new_float()
@@ -471,6 +474,12 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         colorStopTime := na
         confirmedZeroPrice := na
         confirmedZeroTime := na
+        zeroBreakPending := false
+        firstBreakPending := false
+        firstLevelConfirmed := false
+        originRelocated := false
+        zeroColorStartTime := na
+        firstRollAwaitingRetreat := false
         zeroLabel := na
         structureSide := 0
         structureFirstPrice := na
@@ -612,6 +621,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             [rangeOriginPrice, rangeOriginTime] = findRangeOrigin(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, -structureSide, zeroSearchStart, firstExtremeTime)
             confirmedZeroPrice := rangeOriginPrice
             confirmedZeroTime := rangeOriginTime
+            zeroColorStartTime := rangeOriginTime
             if not na(confirmedZeroPrice)
                 zeroLabel := label.new(x=confirmedZeroTime, y=confirmedZeroPrice, text="0", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
                 array.push(firstPointLabels, zeroLabel)
@@ -620,8 +630,152 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             if array.size(firstPointLabels) > 360
                 label.delete(array.shift(firstPointLabels))
 
+// Перенос неподтверждённого экстремума до первого фактического входа.
+// Два close сравниваются со СТАРЫМ уровнем; первый close не двигает его.
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice) and dailyPositionEntries == 0 and positionState != 2 and not zeroTrendReversed
+    bool moveZero = false
+    bool moveFirst = false
+    bool upZero = structureSide == -1
+    float zeroCandidate = upZero ? bodyHigh : bodyLow
+    bool beyondZero = upZero ? close - confirmedZeroPrice >= firstPointOffset - 0.000000001 : confirmedZeroPrice - close >= firstPointOffset - 0.000000001
+    if zeroBreakPending
+        if upZero ? zeroCandidate >= zeroAttemptExtreme : zeroCandidate <= zeroAttemptExtreme
+            zeroAttemptExtreme := zeroCandidate
+            zeroAttemptTime := time
+            zeroAttemptBar := bar_index
+            zeroAttemptOpen := open
+        if twoM5Break(confirmedZeroPrice, upZero, firstPointOffset, pointPairM5)
+            zeroBreakPending := false
+        else
+            moveZero := true
+            zeroBreakPending := false
+    else if beyondZero
+        zeroBreakPending := true
+        zeroAttemptExtreme := zeroCandidate
+        zeroAttemptTime := time
+        zeroAttemptBar := bar_index
+        zeroAttemptOpen := open
+    bool upFirst = structureSide == 1
+    float firstCandidate = upFirst ? bodyHigh : bodyLow
+    bool beyondFirst = upFirst ? close - structureFirstPrice >= firstPointOffset - 0.000000001 : structureFirstPrice - close >= firstPointOffset - 0.000000001
+    if firstBreakPending
+        if upFirst ? firstCandidate >= firstAttemptExtreme : firstCandidate <= firstAttemptExtreme
+            firstAttemptExtreme := firstCandidate
+            firstAttemptTime := time
+            firstAttemptBar := bar_index
+            firstAttemptOpen := open
+        if twoM5Break(structureFirstPrice, upFirst, firstPointOffset, pointPairM5)
+            firstBreakPending := false
+            firstLevelConfirmed := true
+        else
+            moveFirst := true
+            firstBreakPending := false
+    else if not firstLevelConfirmed and beyondFirst
+        firstBreakPending := true
+        firstAttemptExtreme := firstCandidate
+        firstAttemptTime := time
+        firstAttemptBar := bar_index
+        firstAttemptOpen := open
+    if moveZero or moveFirst
+        // Удаляем только неисполненный сценарий: исполненные сделки не переписываем.
+        if positionState == 1
+            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
+        positionState := 0
+        positionIsZero := false
+        firstPositionIsZero := false
+        positionIsSecond := false
+        positionUsesFourth := false
+        positionUsesFifth := false
+        firstPositionUsesFourth := false
+        firstPositionUsesFifth := false
+        firstPositionStop := na
+        positionEntry := na
+        positionStop := na
+        positionTarget := na
+        positionThreshold := na
+        positionRR := na
+        positionRiskBox := na
+        positionRewardBox := na
+        positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
+        zeroConditionUsed := false
+        zeroScenarioCancelled := false
+        zeroReversalStop := na
+        zeroReversalTime := na
+        continuationAfterFourthUsed := false
+        if not na(secondPointLabel)
+            label.delete(secondPointLabel)
+        if not na(movingThirdLabel)
+            label.delete(movingThirdLabel)
+        if not na(movingFourthLabel)
+            label.delete(movingFourthLabel)
+        if not na(fifthLabel)
+            label.delete(fifthLabel)
+        secondPointLabel := na
+        movingThirdLabel := na
+        movingFourthLabel := na
+        fifthLabel := na
+        structureCompleted := false
+        secondPointReady := false
+        confirmedSecondPrice := na
+        confirmedThirdPrice := na
+        confirmedFourthPrice := na
+        confirmedFifthPrice := na
+        thirdLocked := false
+        fourthLocked := false
+        fifthLocked := false
+        colorFourthBreakTime := na
+        thirdColorTime := na
+        fourthColorTime := na
+        fifthColorTime := na
+        middleLastEqualTime := na
+        candidateOppositeBody := na
+        candidateExtremeBar := na
+        pullbackCloseCount := 1
+        pullbackExtreme := na
+        pullbackExtremeTime := na
+        firstConfirmedBar := bar_index
+        firstLevelConfirmed := false
+        if moveZero
+            confirmedZeroPrice := zeroAttemptExtreme
+            confirmedZeroTime := zeroAttemptTime
+            originRelocated := true
+            label.set_xy(zeroLabel, confirmedZeroTime, confirmedZeroPrice)
+            // Внутренняя опора 2 совпадает с новой 0 и отдельной метки не имеет.
+            middlePrice := confirmedZeroPrice
+            middleTime := confirmedZeroTime
+            middleLastEqualTime := confirmedZeroTime
+            candidateOpen := zeroAttemptOpen
+            candidateExtremeBar := zeroAttemptBar
+            firstRollAwaitingRetreat := false
+        if moveFirst
+            structureFirstPrice := firstAttemptExtreme
+            firstSwingDisplayPrice := firstAttemptExtreme
+            firstExtremeTime := firstAttemptTime
+            firstExtremeBar := firstAttemptBar
+            structureFirstBar := firstAttemptBar
+            firstExtremeOpen := firstAttemptOpen
+            label.set_xy(firstSwingLabel, firstExtremeTime, structureFirstPrice)
+            // Сохраняем самый глубокий противоположный откат как кандидата:
+            // новый откат может обновить его, более мелкий не подменяет опору.
+            firstRetreatCloses := 1
+            firstRollAwaitingRetreat := true
+    else if firstRollAwaitingRetreat and bar_index > firstExtremeBar
+        firstRetreatCloses := nextRetreatCount(firstRetreatCloses, time - time[1] == 300000, open, close, structureSide == -1)
+        float newRetreatPrice = structureSide == -1 ? bodyHigh : bodyLow
+        if na(middlePrice) or (structureSide == -1 ? newRetreatPrice > middlePrice : newRetreatPrice < middlePrice)
+            middlePrice := newRetreatPrice
+            middleTime := time
+            middleLastEqualTime := time
+            candidateOpen := open
+            candidateExtremeBar := bar_index
+        if firstRetreatCloses >= minimumRetreatBars
+            firstRollAwaitingRetreat := false
+            firstConfirmedBar := bar_index
+
 // Поиск 2 и 3 начинается только после подтверждения полноценной 1.
-if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureSide != 0 and firstSwingDisplayLocked and not structureCompleted and bar_index > firstConfirmedBar
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureSide != 0 and firstSwingDisplayLocked and not firstRollAwaitingRetreat and not structureCompleted and bar_index > firstConfirmedBar
     // Пока 2 не подтверждена, запоминаем крайний бар и обе границы его тела.
     if not secondPointReady
         float candidatePrice = structureSide == -1 ? bodyHigh : bodyLow
@@ -652,17 +806,18 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackExtremeBar := bar_index
             // Пять свечей отката от 1 уже подтверждены. Закреп за 1
             // фиксирует максимум/минимум 2 без ожидания ещё пяти свечей от 2.
-            bool continuationConfirmsSecond = structureSide == -1 ? structureFirstPrice - close >= firstPointOffset - 0.000000001 : close - structureFirstPrice >= firstPointOffset - 0.000000001
+            bool continuationConfirmsSecond = twoM5Break(structureFirstPrice, structureSide == 1, firstPointOffset, pointPairM5)
             if (pullbackCloseCount >= minimumRetreatBars and beyondCandidateBody) or continuationConfirmsSecond
                 secondPointReady := true
                 confirmedSecondPrice := middlePrice
-                secondPointLabel := label.new(x=middleTime, y=middlePrice, text="2", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
-                array.push(firstPointLabels, secondPointLabel)
+                if not originRelocated or middlePrice != confirmedZeroPrice
+                    secondPointLabel := label.new(x=middleTime, y=middlePrice, text="2", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                    array.push(firstPointLabels, secondPointLabel)
     if secondPointReady
         // Пробой 2: два последовательных закрытия M5 минимум на 0,01 за уровнем.
         bool crossedSecond = twoM5Break(middlePrice, structureSide == -1, firstPointOffset, pointPairM5)
-        // Пробой 1: один закрытый close минимум на 0,01 за уровнем.
-        bool crossedFirst = structureSide == -1 ? structureFirstPrice - close >= firstPointOffset - 0.000000001 : close - structureFirstPrice >= firstPointOffset - 0.000000001
+        // За сформированной 1 нужны два close; первый выход за час остаётся одним.
+        bool crossedFirst = twoM5Break(structureFirstPrice, structureSide == 1, firstPointOffset, pointPairM5)
         if crossedSecond or crossedFirst
             // Новая подтверждённая структура заменяет только ожидание без входа.
             if positionIsZero and positionState == 1 and dailyPositionEntries == 0
@@ -677,14 +832,14 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             confirmedThirdPrice := crossedSecond ? pullbackExtreme : (structureSide == -1 ? bodyLow : bodyHigh)
             int thirdPointTime = crossedSecond ? pullbackExtremeTime : time
             thirdColorTime := thirdPointTime
-            label thirdLabel = label.new(x=thirdPointTime, y=confirmedThirdPrice, text="3", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+            label thirdLabel = label.new(x=thirdPointTime, y=confirmedThirdPrice, text=originRelocated ? "2" : "3", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
             if crossedSecond
                 // 4 — новый экстремум свечи, закрепившейся за 2; 3 — край отката перед ней.
                 colorFourthBreakTime := time
                 confirmedFourthPrice := structureSide == -1 ? bodyHigh : bodyLow
                 int fourthPointTime = time
                 fourthColorTime := fourthPointTime
-                label fourthLabel = label.new(x=fourthPointTime, y=confirmedFourthPrice, text="4", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                label fourthLabel = label.new(x=fourthPointTime, y=confirmedFourthPrice, text=originRelocated ? "3" : "4", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == -1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
                 movingFourthLabel := fourthLabel
                 bool fourthOnCurrent = true
                 fourthAnchorOpen := fourthOnCurrent ? open : open[1]
@@ -984,11 +1139,10 @@ if barstate.isconfirmed and m5Chart
                 if fridayRetreatCount >= minimumRetreatBars
                     fridayFirstReady := true
             else
-                fridayBreak := firstPositionSide == -1 ? fridayFirstPrice - close >= firstPointOffset - 0.000000001 : close - fridayFirstPrice >= firstPointOffset - 0.000000001
+                fridayBreak := twoM5Break(fridayFirstPrice, firstPositionSide == 1, firstPointOffset, pointPairM5)
     // Остальные дни: прежняя противоположная сделка после закрепа за стопом.
-    bool reverseBreakSingle = firstPositionSide == -1 ? close - firstPositionStop >= firstPointOffset - 0.000000001 : firstPositionStop - close >= firstPointOffset - 0.000000001
-    // Стоп нулевого сценария стоит за 1: только для этого уровня один close.
-    bool reverseBreak = firstPositionIsZero ? reverseBreakSingle : twoM5Break(firstPositionStop, firstPositionSide == -1, firstPointOffset, pointPairM5)
+    // Стоп за любым сформированным уровнем подтверждается двумя close.
+    bool reverseBreak = twoM5Break(firstPositionStop, firstPositionSide == -1, firstPointOffset, pointPairM5)
     if firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and ((not rangeFriday and reverseBreak) or fridayBreak)
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
@@ -1024,7 +1178,7 @@ if barstate.isconfirmed and m5Chart
         fifthLocked := false
         fifthColorTime := time
         if not firstPositionIsZero and not firstPositionUsesFifth
-            fifthLabel := label.new(x=time, y=confirmedFifthPrice, text=firstPositionUsesFourth ? "5" : "4", xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+            fifthLabel := label.new(x=time, y=confirmedFifthPrice, text=firstPositionUsesFourth ? (originRelocated ? "4" : "5") : (originRelocated ? "3" : "4"), xloc=xloc.bar_time, yloc=yloc.price, style=positionSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
             array.push(firstPointLabels, fifthLabel)
             if array.size(firstPointLabels) > 360
                 label.delete(array.shift(firstPointLabels))
@@ -1094,7 +1248,7 @@ plot(continuationAfterFourthUsed ? 1 : 0, "Продолжение после п�
 
 // Окраска истории пересчитывается только по телам. Финансовые сигналы не меняются.
 if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice)
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, confirmedZeroTime, confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, colorFourthBreakTime, confirmedThirdPrice, confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorStopTime)
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, colorFourthBreakTime, confirmedThirdPrice, confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorStopTime)
     while array.size(colorDayDrawings) > 0
         polyline.delete(array.pop(colorDayDrawings))
     // Освобождаем бюджет перед созданием новых участков.

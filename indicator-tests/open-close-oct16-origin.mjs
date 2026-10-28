@@ -17,5 +17,6 @@ for(let i=0;i<data.length;i++){
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side||exit)events.push([t.slice(11),side,exit]);
 }
-assert.deepEqual(events,[['21:10',-1,0],['22:05',0,1]]);
-console.log('PASS MEXC Oct 16: origin 13:15 / 105.62, pullback-stop continuation: SHORT 21:10, TP 22:05');
+assert.deepEqual(events,[['19:00',1,0],['19:45',0,-1],['21:50',1,0],['22:05',0,-1]]);
+assert.equal(v('Входов за день',data.length-1),2);
+console.log('PASS MEXC Oct 16 Friday: origin 13:15 / 105.62; LONG 19:00 SL, same-side LONG 21:50 SL, no third trade');

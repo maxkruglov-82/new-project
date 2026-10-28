@@ -11,8 +11,10 @@ for(let i=0;i<data.length;i++){
  if(Number.isFinite(at)&&at>=Date.parse('2026-10-21T13:00:00+07:00')){
   assert.equal(at,Date.parse('2026-10-21T14:00:00+07:00'));
   assert.equal(v('Цена точки 0',i),105.95);
-  assert.equal(v('T1',i),Date.parse('2026-10-21T15:45:00+07:00'));
-  assert.equal(v('P1',i),107);assert.equal(v('Side',i),1,'HIGH 1 selects LOW 0');checked++;
+  const local=new Date(data[i].openTime+7*3600000).toISOString().slice(11,16);
+  const clock=local<'16:30'?'15:45':local<'19:20'?'16:30':'19:20';
+  assert.equal(v('T1',i),Date.parse('2026-10-21T'+clock+':00+07:00'));
+  assert.equal(v('P1',i),local<'16:30'?107:local<'19:20'?107.04:107.05);assert.equal(v('Side',i),1,'HIGH 1 selects LOW 0');checked++;
  }
 }
 assert.ok(checked>0,'origin confirmed and kept immutable');

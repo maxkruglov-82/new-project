@@ -13,8 +13,9 @@ for(const mirror of [false,true]){
  assert.equal(v('Ready1',17),1);
  assert.equal(v('Retreat1',17),5);
  assert.equal(v('P1',18),ref(111.72),'retain early first extreme');
- assert.equal(v('P2',18),ref(112.24),'break confirms pullback extremum without another five bars');
- assert.equal(v('Состояние позиции',18),1);
+ assert.equal(v('P2',19),ref(112.24),'break confirms pullback extremum without another five bars');
+ assert.equal(v('Состояние позиции',18),0);
+ assert.equal(v('Состояние позиции',19),1);
  assert.equal(v('Вход LONG/SHORT',18),0,'break is not entry');
  assert.equal(v('P3',19),ref(111.31));
  assert.equal(v('Вход LONG/SHORT',20),mirror?1:-1);

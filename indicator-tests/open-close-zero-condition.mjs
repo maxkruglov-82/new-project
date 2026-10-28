@@ -65,9 +65,10 @@ if(process.argv[1]===new URL(import.meta.url).pathname)for(const mirror of [fals
   else {assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',22),outcome==='tp'?1:-1);assert.equal(v(outcome==='tp'?'TPMarks':'SLMarks',22),1);}
   console.log('PASS origin breakout, third extreme and retest entry',mirror?'SHORT':'LONG',outcome);
  }
- const sl=await scenario(mirror,[...base,[101.2,99.8],[99.8,98.5],[98.5,100],[100,98.4],[98.4,100]]);
- assert.equal(sl.v('Вход LONG/SHORT',23),mirror?1:-1);
+ const sl=await scenario(mirror,[...base,[101.2,99.8],[99.8,98.5],[98.5,98.4],[98.4,100],[100,98.3],[98.3,100]]);
+ assert.equal(sl.v('Вход LONG/SHORT',23),0,'first close behind 1 is insufficient');
+ assert.equal(sl.v('Вход LONG/SHORT',24),mirror?1:-1);
  assert.equal(sl.v('Входов за день',25),2);
- assert.equal(sl.v('SLMarks',24),1);assert.equal(sl.v('TPMarks',24),1);
+ assert.equal(sl.v('SLMarks',25),1);assert.equal(sl.v('TPMarks',25),1);
  console.log('PASS SL-only retry and retained outcomes',mirror?'mirror':'original');
 }

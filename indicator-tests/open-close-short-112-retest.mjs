@@ -12,7 +12,8 @@ for(const mirror of [false,true]){
  assert.equal(v('Ready1',16),0,'four eligible candles are insufficient');
  assert.equal(v('Ready1',17),1);assert.equal(v('Retreat1',17),5);assert.equal(v('P1',17),ref(111.72));
  for(let i=17;i<=20;i++){assert.equal(v('Входов за день',i),0);assert.equal(v('Boxes',i),0,'0 and 1 are not entry confirmation');}
- assert.equal(v('P2',21),ref(112.24));assert.equal(v('Состояние позиции',21),1,'break of 1 after five-bar retreat from 2 launches plan');
+ assert.equal(v('P2',21),ref(112.24));assert.equal(v('Состояние позиции',21),0,'one close behind formed 1 is insufficient');
+ assert.equal(v('Состояние позиции',22),1,'second close behind formed 1 launches plan');
  assert.equal(v('Вход LONG/SHORT',21),0,'break candle is not retest entry');
  assert.equal(v('P3',22),ref(111.31));assert.equal(v('Вход LONG/SHORT',23),0,'pullback has not reached RR1 yet');
  assert.equal(v('Вход LONG/SHORT',24),mirror?1:-1);

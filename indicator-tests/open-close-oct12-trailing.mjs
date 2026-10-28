@@ -14,7 +14,7 @@ for(let i=0;i<data.length;i++){
   assert.equal(v('T0',i),Date.parse('2026-10-12T14:15:00+07:00'));
   assert.equal(v('Цена точки 0',i),112.97);
  }
- const expectedTarget={'16:15':111.66,'16:20':111.58,'16:45':111.31,'17:40':111.31}[t.slice(11)];
+ const expectedTarget={'16:25':111.55,'16:30':111.49,'16:45':111.31,'17:40':111.31}[t.slice(11)];
  if(expectedTarget!==undefined){
   assert.equal(v('Цель позиции',i),expectedTarget,'pending target follows new low even after five-bar pause');
   assert.equal(v('Стоп позиции',i),112.25,'stop remains on point 2');

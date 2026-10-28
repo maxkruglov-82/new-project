@@ -15,7 +15,8 @@ for(const mirror of [false,true])for(const extend of [false,true]){
  assert.equal(v('Count',17),extend?2:5);
  assert.equal(v('Ready',17),extend?0:1);
  if(!extend){
-  assert.equal(v('Состояние позиции',18),1,'new close below confirmed first launches continuation plan');
+  assert.equal(v('Состояние позиции',18),0,'first close below formed 1 is insufficient');
+  assert.equal(v('Состояние позиции',19),1,'second close below formed 1 launches plan');
   assert.equal(v('Вход LONG/SHORT',18),0,'break candle cannot retrospectively enter');
   assert.equal(v('Вход LONG/SHORT',20),mirror?1:-1,'subsequent RR retest fills after mixed-color five-bar confirmation');
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',21),1);

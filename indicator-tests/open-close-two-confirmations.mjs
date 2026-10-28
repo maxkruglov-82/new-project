@@ -22,9 +22,10 @@ for(const f of cases)for(const upward of [true,false]){
  assert.deepEqual(c.plots.Confirmed.data.map(x=>x.value===1),f.expected,f.name);
  console.log('PASS two-close confirmation:',f.name,upward?'UP':'DOWN');
 }
-// The level-1 and hourly exceptions must remain in the actual strategy paths.
-assert.match(source,/bool crossedFirst = structureSide == -1 \? structureFirstPrice - close/);
-assert.match(source,/bool continuationConfirmsSecond = structureSide == -1 \? structureFirstPrice - close/);
-assert.match(source,/bool confirmedAbove = close - activeRangeHigh/);
-assert.match(source,/bool reverseBreak = firstPositionIsZero \? reverseBreakSingle : twoM5Break/);
-console.log('PASS point 1 remains a one-close exception, including retry through stop at 1');
+// All formed levels use the same two-close rule. Only the initial hourly exit is single.
+assert.ok(source.includes('bool crossedFirst = twoM5Break(structureFirstPrice'));
+assert.ok(source.includes('bool continuationConfirmsSecond = twoM5Break(structureFirstPrice'));
+assert.ok(source.includes('bool confirmedAbove = close - activeRangeHigh'));
+assert.ok(source.includes('bool reverseBreak = twoM5Break(firstPositionStop'));
+assert.ok(source.includes('fridayBreak := twoM5Break(fridayFirstPrice'));
+console.log('PASS every formed level uses two closes; initial hourly exit remains single');
