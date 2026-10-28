@@ -1,0 +1,24 @@
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
+const f=JSON.parse(readFileSync(new URL('./fixtures/mexc-sol-usdt-m5-2026-09-28.json',import.meta.url)));
+const data=f.candles.map(b=>({...b,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));
+const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8');
+const c=await new PineTS(data,'SOLUSDT','5').run(source+'\nplot(thirdStopQualified?1:0,"Valid3")\nplot(counterStopQualified?1:0,"ValidCounterStop")\nplot(label.get_y(movingFourthLabel),"TargetLabelPrice")\nplot(str.length(label.get_text(movingThirdLabel)),"Text3Length")\nplot(label.get_text(movingFourthLabel)=="2"?1:0,"TargetIs2")');
+const v=(n,i)=>c.plots[n].data[i].value,at=t=>data.findIndex(b=>b.openTime===Date.parse('2026-09-28T'+t+':00+07:00'));
+assert.equal(v('Valid3',at('19:05')),0,'four candles to first low cannot qualify as stop');
+assert.equal(v('Text3Length',at('19:05')),0,'unqualified low is not labelled 3');
+assert.equal(v('Стоп позиции',at('19:05')),117.55,'first local plan falls back to low 1');
+assert.equal(v('ValidCounterStop',at('19:10')),0,'zero-reversal cannot restore the same unqualified stop');
+assert.equal(v('Стоп позиции',at('19:10')),117.55);
+assert.equal(v('Цель позиции',at('20:35')),120.14);
+assert.equal(v('TargetIs2',at('20:35')),1,'new impulse high is marked 2');
+assert.equal(v('TargetLabelPrice',at('20:35')),120.14);
+assert.ok(Math.abs(v('Граница RR 1:1',at('20:35'))-118.845)<1e-8);
+assert.equal(v('Вход LONG/SHORT',at('21:35')),0);
+assert.equal(v('Вход LONG/SHORT',at('21:40')),1);
+assert.ok(Math.abs(v('Цена входа по close',at('21:40'))-118.845)<1e-8);
+assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',at('23:25')),1);
+assert.equal(v('Входов за день',at('23:55')),1);
+for(let i=at('21:40');i<=at('23:55');i++){assert.equal(v('Стоп позиции',i),117.55);assert.equal(v('Цель позиции',i),120.14);}
+console.log('PASS MEXC Sep 28: short retreat rejected; stop 1=117.55, high 2=120.14, LONG 21:40 at 118.845, TP 23:25');
