@@ -364,6 +364,28 @@ var float firstAttemptOpen = na
 var bool originRelocated = false
 var int zeroColorStartTime = na
 var bool firstRollAwaitingRetreat = false
+// Встречная структура 3–5 до смены исходного тренда за 0.
+var bool firstPointRelocated = false
+var float counterExtreme = na
+var int counterExtremeTime = na
+var int counterExtremeBar = na
+var int counterRetreatBars = 1
+var bool counterSettled = false
+var float counterPullback = na
+var int counterPullbackTime = na
+var bool counterBreakPending = false
+var float counterAttemptExtreme = na
+var int counterAttemptTime = na
+var bool counterModeActive = false
+var bool counterHasFive = false
+var bool counterBreakEligible = false
+var bool counterReversalReady = false
+var int counterSignalTime = na
+var float counterStopPrice = na
+var int counterStopTime = na
+var label counterThirdLabel = na
+var label counterFifthLabel = na
+var label counterSixthLabel = na
 var label zeroLabel = na
 var array<float> zeroSavedOpens = array.new_float()
 var array<float> zeroSavedCloses = array.new_float()
@@ -480,6 +502,25 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         originRelocated := false
         zeroColorStartTime := na
         firstRollAwaitingRetreat := false
+        firstPointRelocated := false
+        counterExtreme := na
+        counterExtremeTime := na
+        counterExtremeBar := na
+        counterRetreatBars := 1
+        counterSettled := false
+        counterPullback := na
+        counterPullbackTime := na
+        counterBreakPending := false
+        counterModeActive := false
+        counterHasFive := false
+        counterBreakEligible := false
+        counterReversalReady := false
+        counterSignalTime := na
+        counterStopPrice := na
+        counterStopTime := na
+        counterThirdLabel := na
+        counterFifthLabel := na
+        counterSixthLabel := na
         zeroLabel := na
         structureSide := 0
         structureFirstPrice := na
@@ -630,6 +671,99 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             if array.size(firstPointLabels) > 360
                 label.delete(array.shift(firstPointLabels))
 
+// Сопровождаем встречный экстремум 3 и его последний откат 5.
+// До закрепа за 0 это ещё не разрешение сделки против исходного тренда.
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice) and dailyPositionEntries == 0 and not counterReversalReady
+    bool counterDown = structureSide == 1
+    if structureCompleted and positionUsesFourth and not firstLevelConfirmed
+        counterModeActive := true
+    bool seedCounter = na(counterExtreme)
+    if seedCounter
+        // Начальный откат мог начаться до подтверждения пяти свечей у 1.
+        int savedCount = array.size(zeroSavedTimes)
+        if savedCount > 0
+            for ci = 0 to savedCount - 1
+                int ct = array.get(zeroSavedTimes, ci)
+                if ct > firstExtremeTime and ct <= time
+                    float co = array.get(zeroSavedOpens, ci)
+                    float cc = array.get(zeroSavedCloses, ci)
+                    float cp = counterDown ? math.min(co, cc) : math.max(co, cc)
+                    if na(counterExtreme) or (counterDown ? cp < counterExtreme : cp > counterExtreme)
+                        counterExtreme := cp
+                        counterExtremeTime := ct
+                        counterExtremeBar := bar_index - int((time - ct) / 300000)
+                        counterRetreatBars := 1
+                        counterPullback := na
+                        counterPullbackTime := na
+                    else
+                        counterRetreatBars := counterRetreatBars + 1
+                        float opposite = counterDown ? math.max(co, cc) : math.min(co, cc)
+                        if na(counterPullback) or (counterDown ? opposite >= counterPullback : opposite <= counterPullback)
+                            counterPullback := opposite
+                            counterPullbackTime := ct
+        counterSettled := counterRetreatBars >= minimumRetreatBars
+    else
+        float nextExtreme = counterDown ? bodyLow : bodyHigh
+        float nextPullback = counterDown ? bodyHigh : bodyLow
+        bool counterOriginBreak = zeroTrendReversed or twoM5Break(confirmedZeroPrice, not counterDown, firstPointOffset, pointPairM5)
+        if counterSettled
+            if na(counterPullback) or (counterDown ? nextPullback >= counterPullback : nextPullback <= counterPullback)
+                counterPullback := nextPullback
+                counterPullbackTime := time
+            bool beyondCounter = counterDown ? counterExtreme - close >= firstPointOffset - 0.000000001 : close - counterExtreme >= firstPointOffset - 0.000000001
+            if counterBreakPending
+                if counterDown ? nextExtreme <= counterAttemptExtreme : nextExtreme >= counterAttemptExtreme
+                    counterAttemptExtreme := nextExtreme
+                    counterAttemptTime := time
+                if twoM5Break(counterExtreme, not counterDown, firstPointOffset, pointPairM5)
+                    counterStopPrice := counterPullback
+                    counterStopTime := counterPullbackTime
+                    counterBreakEligible := true
+                    counterBreakPending := false
+                    if counterModeActive and counterOriginBreak and counterHasFive
+                        // 3 остаётся пробитой опорой; новая цель получит номер 6.
+                        counterReversalReady := true
+                        counterSignalTime := time
+                    else
+                        // Продолжение встречного движения до 0: 3 сопровождает новый экстремум.
+                        counterExtreme := counterAttemptExtreme
+                        counterExtremeTime := counterAttemptTime
+                        counterExtremeBar := bar_index
+                        counterRetreatBars := 1
+                        counterSettled := false
+                        counterPullback := na
+                        counterPullbackTime := na
+                else
+                    // Неудачная пара переносит 3; последний подтверждённый 5 сохраняется.
+                    counterExtreme := counterAttemptExtreme
+                    counterExtremeTime := counterAttemptTime
+                    counterExtremeBar := bar_index
+                    counterBreakPending := false
+            else if beyondCounter
+                counterBreakPending := true
+                counterAttemptExtreme := nextExtreme
+                counterAttemptTime := time
+        else if counterDown ? nextExtreme < counterExtreme : nextExtreme > counterExtreme
+            counterExtreme := nextExtreme
+            counterExtremeTime := time
+            counterExtremeBar := bar_index
+            counterRetreatBars := 1
+            counterPullback := na
+            counterPullbackTime := na
+        else if bar_index > counterExtremeBar
+            counterRetreatBars := nextRetreatCount(counterRetreatBars, time - time[1] == 300000, open, close, counterDown)
+            if na(counterPullback) or (counterDown ? nextPullback >= counterPullback : nextPullback <= counterPullback)
+                counterPullback := nextPullback
+                counterPullbackTime := time
+            if counterRetreatBars >= minimumRetreatBars
+                counterSettled := true
+                counterBreakEligible := false
+        if counterModeActive and counterBreakEligible and counterOriginBreak and counterHasFive
+            counterReversalReady := true
+            counterSignalTime := time
+    if counterSettled and not na(counterPullback) and (counterDown ? counterPullback > counterExtreme : counterPullback < counterExtreme)
+        counterHasFive := true
+
 // Перенос неподтверждённого экстремума до первого фактического входа.
 // Два close сравниваются со СТАРЫМ уровнем; первый close не двигает его.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice) and dailyPositionEntries == 0 and positionState != 2 and not zeroTrendReversed
@@ -647,7 +781,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         if twoM5Break(confirmedZeroPrice, upZero, firstPointOffset, pointPairM5)
             zeroBreakPending := false
         else
-            moveZero := true
+            // Когда уже есть самостоятельная 3–5, сохраняем исходную 0.
+            moveZero := not (counterModeActive and counterHasFive)
             zeroBreakPending := false
     else if beyondZero
         zeroBreakPending := true
@@ -750,6 +885,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             candidateExtremeBar := zeroAttemptBar
             firstRollAwaitingRetreat := false
         if moveFirst
+            firstPointRelocated := true
             structureFirstPrice := firstAttemptExtreme
             firstSwingDisplayPrice := firstAttemptExtreme
             firstExtremeTime := firstAttemptTime
@@ -999,11 +1135,13 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureCompleted 
 
 // 0–1 задаёт только направление. Сценарий смены тренда требует пробоя 0.
 // Третья опора — новый экстремум за 0, затем ждём ретест зоны RR1.
-if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice) and not zeroConditionUsed and dailyPositionEntries == 0 and positionState != 2
+if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice) and (not zeroConditionUsed or (positionIsZero and positionState == 1 and counterReversalReady and not na(counterStopPrice) and positionStop != counterStopPrice)) and dailyPositionEntries == 0 and positionState != 2
     bool zeroInitialUp = structureFirstPrice > confirmedZeroPrice
     bool zeroInitialDown = structureFirstPrice < confirmedZeroPrice
     bool zeroBreak = (zeroInitialUp or zeroInitialDown) and twoM5Break(confirmedZeroPrice, zeroInitialDown, firstPointOffset, pointPairM5)
-    if zeroBreak
+    bool useCounterStop = counterModeActive and counterHasFive and not na(counterStopPrice)
+    bool counterGate = not (counterModeActive and counterHasFive) or counterReversalReady
+    if zeroBreak and counterGate
         // Исполненные сделки предыдущих дней сохраняем; заменяем только ожидание.
         if positionState == 1
             removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
@@ -1019,8 +1157,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
         firstPositionIsZero := true
         positionIsSecond := false
         positionSide := zeroInitialUp ? -1 : 1
-        positionAnchorTime := firstExtremeTime
-        positionStop := structureFirstPrice
+        positionAnchorTime := useCounterStop ? counterStopTime : firstExtremeTime
+        positionStop := useCounterStop ? counterStopPrice : structureFirstPrice
         positionTarget := positionSide == 1 ? bodyHigh : bodyLow
         zeroReversalStop := positionTarget
         zeroReversalTime := time
@@ -1065,9 +1203,21 @@ int positionExitEvent = 0
 bool positionEntryEvent = false
 if barstate.isconfirmed and m5Chart
     bool pendingAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
-    bool pendingDirectionAllowed = not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped and not rangeFriday)
+    bool waitingForCounterBreak = counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
+    bool pendingDirectionAllowed = (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped and not rangeFriday)) and not waitingForCounterBreak
+    // Новая самостоятельная 3–5 заменяет старое неисполненное ожидание за 1.
+    if positionState == 1 and waitingForCounterBreak
+        if positionIsZero
+            zeroConditionUsed := false
+        if not na(positionInfo)
+            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
+            positionRiskBox := na
+            positionRewardBox := na
+            positionInfo := na
+            positionStopInfo := na
+            positionTargetInfo := na
     // До разрешающего закрепа инструмент разворота не показываем и не исполняем.
-    if positionState == 1 and pendingAgainstTrend and zeroTrendReversed and na(positionInfo)
+    if positionState == 1 and pendingAgainstTrend and zeroTrendReversed and not waitingForCounterBreak and na(positionInfo)
         positionSetupBar := bar_index
         newPositionPlan := true
     if positionState == 1
@@ -1086,7 +1236,7 @@ if barstate.isconfirmed and m5Chart
                 bool originContinuation = not positionIsZero and not positionIsSecond and not positionUsesFourth and not positionUsesFifth and not na(confirmedZeroPrice)
                 bool touchedRRZone = positionSide == 1 ? (originContinuation ? low : bodyLow) <= positionThreshold : (originContinuation ? high : bodyHigh) >= positionThreshold
                 bool againstInitialTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
-                bool originConfirmed = not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped and not rangeFriday)
+                bool originConfirmed = (not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped and not rangeFriday)) and not (counterModeActive and counterHasFive and not counterReversalReady and againstInitialTrend and not positionIsSecond)
                 if dailyPositionEntries < 2 and (not positionIsSecond or firstStopped) and originConfirmed and riskAtClose > 0 and rewardAtClose > 0 and touchedRRZone
                     dailyPositionEntries := dailyPositionEntries + 1
                     positionEntry := close
@@ -1193,7 +1343,8 @@ if barstate.isconfirmed and m5Chart
         positionTargetInfo := na
     // После SL сторона нового сценария могла измениться на этой же M5.
     pendingAgainstTrend := not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
-    pendingDirectionAllowed := not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped and not rangeFriday)
+    waitingForCounterBreak := counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
+    pendingDirectionAllowed := (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped and not rangeFriday)) and not waitingForCounterBreak
     if newPositionPlan and pendingDirectionAllowed
         positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.red, bgcolor=color.new(color.red, 85))
         positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.teal, bgcolor=color.new(color.teal, 85))
@@ -1246,9 +1397,58 @@ plot(confirmedZeroPrice, "Цена точки 0", display=display.data_window)
 plot(continuationAfterFourthUsed ? 1 : 0, "Продолжение после пробоя 3", display=display.data_window)
 
 
+// В самостоятельной встречной структуре показываем 3, 5 и цель 6,
+// сохраняя внутренние опоры обычного движка для остальных сценариев.
+bool showCounterStructure = counterModeActive and not originRelocated and not firstPointRelocated and not firstLevelConfirmed
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey
+    if showCounterStructure
+        if not na(secondPointLabel)
+            label.set_text(secondPointLabel, "")
+        if not na(movingThirdLabel)
+            label.set_text(movingThirdLabel, "")
+        if not na(movingFourthLabel)
+            label.set_text(movingFourthLabel, "")
+        if not na(fifthLabel)
+            label.set_text(fifthLabel, "")
+        if not na(counterExtreme)
+            if na(counterThirdLabel)
+                counterThirdLabel := label.new(x=counterExtremeTime, y=counterExtreme, text="3", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                array.push(firstPointLabels, counterThirdLabel)
+            else
+                label.set_xy(counterThirdLabel, counterExtremeTime, counterExtreme)
+        if not na(counterPullback) or not na(counterStopPrice)
+            float fivePrice = counterReversalReady ? counterStopPrice : counterPullback
+            int fiveTime = counterReversalReady ? counterStopTime : counterPullbackTime
+            if not na(fivePrice) and (counterSettled or counterReversalReady)
+                if na(counterFifthLabel)
+                    counterFifthLabel := label.new(x=fiveTime, y=fivePrice, text="5", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                    array.push(firstPointLabels, counterFifthLabel)
+                else
+                    label.set_xy(counterFifthLabel, fiveTime, fivePrice)
+        if counterReversalReady and positionIsZero and not na(positionTarget)
+            if na(counterSixthLabel)
+                counterSixthLabel := label.new(x=zeroReversalTime, y=positionTarget, text="6", xloc=xloc.bar_time, yloc=yloc.price, style=structureSide == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.red, 100), textcolor=color.red, size=size.large)
+                array.push(firstPointLabels, counterSixthLabel)
+            else if dailyPositionEntries == 0
+                label.set_xy(counterSixthLabel, zeroReversalTime, positionTarget)
+    else if not na(counterThirdLabel)
+        label.delete(counterThirdLabel)
+        label.delete(counterFifthLabel)
+        label.delete(counterSixthLabel)
+        counterThirdLabel := na
+        counterFifthLabel := na
+        counterSixthLabel := na
+        if not na(secondPointLabel)
+            label.set_text(secondPointLabel, "2")
+        if not na(movingThirdLabel)
+            label.set_text(movingThirdLabel, originRelocated ? "2" : "3")
+        if not na(movingFourthLabel)
+            label.set_text(movingFourthLabel, originRelocated ? "3" : "4")
+
 // Окраска истории пересчитывается только по телам. Финансовые сигналы не меняются.
 if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice)
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, colorFourthBreakTime, confirmedThirdPrice, confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorStopTime)
+    bool counterColorReady = counterReversalReady and not na(counterStopPrice)
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, counterColorReady ? counterSignalTime : colorFourthBreakTime, counterColorReady ? counterStopPrice : confirmedThirdPrice, counterColorReady ? counterExtreme : confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorStopTime)
     while array.size(colorDayDrawings) > 0
         polyline.delete(array.pop(colorDayDrawings))
     // Освобождаем бюджет перед созданием новых участков.
