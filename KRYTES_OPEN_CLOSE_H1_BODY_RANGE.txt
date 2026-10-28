@@ -3,6 +3,13 @@ indicator("BingX — Open–Close без теней + точки 0–5", overlay
 
 int minimumRetreatBars = 5
 
+// Уведомления на закрытии M5: касание зоны отдельно от исполнения входа.
+bool notifyZoneTouch = input.bool(true, "Уведомлять о касании зоны входа")
+bool notifyFilledEntry = input.bool(true, "Уведомлять об исполненном входе")
+
+entryAlertText(string eventName, int side, float entryPrice, float stopPrice, float targetPrice) =>
+    eventName + " | " + (side == 1 ? "LONG" : "SHORT") + " | " + syminfo.tickerid + " | M5" + " | Вход: $" + str.tostring(entryPrice, "#.#####") + " | Стоп: $" + str.tostring(stopPrice, "#.#####") + " | Тейк: $" + str.tostring(targetPrice, "#.#####") + " | RR 1:1"
+
 // Свеча экстремума — первая; считаем все закрытые M5 независимо от цвета.
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + 1 : 1
@@ -1294,12 +1301,17 @@ if barstate.isconfirmed and m5Chart
                 rrTouchTime := validTouch ? time : na
                 rrTouchSetupBar := validTouch ? positionSetupBar : na
                 rrTouchLevel := validTouch ? positionThreshold : na
+                bool eligibleAlertTouch = validTouch and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0
+                if eligibleAlertTouch and not secondRRTouch and notifyZoneTouch
+                    alert(entryAlertText("КАСАНИЕ ЗОНЫ — ждём вторую M5", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar_close)
                 if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and secondRRTouch
                     dailyPositionEntries := dailyPositionEntries + 1
                     positionEntry := positionThreshold
                     positionRR := rewardAtLevel / riskAtLevel
                     positionEntryBar := bar_index
                     positionEntryEvent := true
+                    if notifyFilledEntry
+                        alert(entryAlertText("ВХОД ИСПОЛНЕН — второе касание", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
                     colorStopTime := na
                     positionState := 2
     // На свече подтверждения касания выход не моделируем: порядок high/low неизвестен.
