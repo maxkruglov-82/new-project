@@ -11,12 +11,13 @@ for(let i=0;i<data.length;i++){
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side||exit)events.push([new Date(data[i].openTime+7*3600000).toISOString().slice(11,16),side,exit]);
 }
-assert.deepEqual(events,[['20:05',1,0],['20:25',0,1]]);
+assert.deepEqual(events,[['20:10',1,0],['20:25',0,1]]);
 const failed=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T16:05:00+07:00'));
 assert.equal(v('Вход LONG/SHORT',failed),0,'failed one-close break of 1 does not create early SHORT');
 assert.equal(v('P1',failed),103.64,'failed first-point break relocates 1');
-const retry=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T20:05:00+07:00'));
-assert.equal(v('Цена входа по close',retry),104.14);
+const retry=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T20:10:00+07:00'));
+assert.ok(Math.abs(v('Цена входа по close',retry)-104.155)<1e-8);
+assert.equal(v('RR входа',retry),1);
 assert.equal(v('Стоп позиции',retry),103.64);
 assert.equal(v('Цель позиции',retry),104.67);
 assert.equal(v('Разворот закреплён за 0',retry),1,'without a prior SL, first LONG needs actual two-close origin break');
@@ -33,4 +34,4 @@ for(const at of ['13:30','14:05','14:45']){
  measured.push([at,clock(day[last]),peak,last-i+1]);
 }
 assert.deepEqual(measured,[['13:30','14:00',104.57,7],['14:05','14:20',104.46,4],['14:45','15:00',104.38,4]]);
-console.log('PASS MEXC Oct 22: own-retreat HIGH origin 14:00 / 104.57, failed early 1 break relocates 1; later origin LONG 20:05, TP 20:25');
+console.log('PASS MEXC Oct 22: own-retreat HIGH origin 14:00 / 104.57, failed early 1 break relocates 1; later origin LONG 20:10, TP 20:25');

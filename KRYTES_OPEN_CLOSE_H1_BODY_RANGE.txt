@@ -310,6 +310,10 @@ var bool fifthLocked = false
 var int positionSide = 0
 var int positionState = 0
 var int positionSetupBar = na
+var int rrTouchBar = na
+var int rrTouchTime = na
+var int rrTouchSetupBar = na
+var float rrTouchLevel = na
 var int positionAnchorTime = na
 var int zeroReversalTime = na
 var int positionEntryBar = na
@@ -1186,8 +1190,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and (firstPositionIsZer
         zeroReversalTime := time
     zeroReversalStop := firstPositionSide == -1 ? math.min(zeroReversalStop, bodyLow) : math.max(zeroReversalStop, bodyHigh)
 
-// Продолжение 1–2–3: стоп за откатом 2, касание RR1 по high/low.
-// Остальные сценарии сохраняют прежние входы; вход по close, RR может быть меньше 1.
+// Все сценарии: две последовательные закрытые M5 касаются одного RR1 по high/low.
+// Вход по RR1 на второй свече; новая структура или изменение уровня сбрасывают пару.
 // State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired.
 // Если TP тенью и SL телом на одной M5 — приоритет SL.
 // После первого SL в обычный день второй разворот не требует пробоя 0.
@@ -1223,21 +1227,26 @@ if barstate.isconfirmed and m5Chart
             if bar_index > positionSetupBar and stopBeforeEntry
                 positionState := 5
             else if bar_index > positionSetupBar
-                float riskAtClose = positionSide == 1 ? close - positionStop : positionStop - close
-                float rewardAtClose = positionSide == 1 ? positionTarget - close : close - positionTarget
-                bool originContinuation = not positionIsZero and not positionIsSecond and not positionUsesFourth and not positionUsesFifth and not na(confirmedZeroPrice)
-                bool touchedRRZone = positionSide == 1 ? (originContinuation ? low : bodyLow) <= positionThreshold : (originContinuation ? high : bodyHigh) >= positionThreshold
+                float riskAtLevel = positionSide == 1 ? positionThreshold - positionStop : positionStop - positionThreshold
+                float rewardAtLevel = positionSide == 1 ? positionTarget - positionThreshold : positionThreshold - positionTarget
+                bool touchedRRZone = low <= positionThreshold and high >= positionThreshold
                 bool againstInitialTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
                 bool originConfirmed = (not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped and not rangeFriday)) and not (counterModeActive and counterHasFive and not counterReversalReady and againstInitialTrend and not positionIsSecond)
-                if dailyPositionEntries < 2 and (not positionIsSecond or firstStopped) and originConfirmed and riskAtClose > 0 and rewardAtClose > 0 and touchedRRZone
+                bool validTouch = touchedRRZone and originConfirmed and pendingDirectionAllowed
+                bool secondRRTouch = validTouch and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold
+                rrTouchBar := validTouch ? bar_index : na
+                rrTouchTime := validTouch ? time : na
+                rrTouchSetupBar := validTouch ? positionSetupBar : na
+                rrTouchLevel := validTouch ? positionThreshold : na
+                if dailyPositionEntries < 2 and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and secondRRTouch
                     dailyPositionEntries := dailyPositionEntries + 1
-                    positionEntry := close
-                    positionRR := rewardAtClose / riskAtClose
+                    positionEntry := positionThreshold
+                    positionRR := rewardAtLevel / riskAtLevel
                     positionEntryBar := bar_index
                     positionEntryEvent := true
                     colorStopTime := na
                     positionState := 2
-    // Внутрисвечное движение ДО входа по close не является результатом сделки.
+    // На свече подтверждения касания выход не моделируем: порядок high/low неизвестен.
     if positionState == 2 and bar_index > positionEntryBar
         bool hitStop = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
         bool hitTarget = positionSide == 1 ? high >= positionTarget : low <= positionTarget

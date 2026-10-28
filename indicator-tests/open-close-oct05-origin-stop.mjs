@@ -8,13 +8,16 @@ const c=await new PineTS(data,'SOLUSDT','5').run(source+'\nplot(label.get_y(posi
 const v=(n,i)=>c.plots[n].data[i].value;
 const at=t=>data.findIndex(b=>b.openTime===Date.parse('2026-10-05T'+t+':00+07:00'));
 assert.equal(v('Стоп позиции',at('16:30')),121.94);
-for(let i=at('16:30');i<data.length;i++){
- assert.equal(v('Стоп позиции',i),121.94,'local pullback cannot replace original stop');
- assert.equal(v('Вход LONG/SHORT',i),0,'price never retests original RR1');
- assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',i),0,'unfilled scenario is not a stopped trade');
-}
+for(let i=at('16:30');i<data.length;i++) assert.equal(v('Стоп позиции',i),121.94,'local pullback cannot replace original stop');
+assert.equal(v('Вход LONG/SHORT',at('21:05')),0,'first wick touch waits');
+assert.equal(v('Вход LONG/SHORT',at('21:10')),-1,'second consecutive wick fills short');
+assert.equal(v('Цена входа по close',at('21:10')),121.12,'entry is RR level, not close');
+assert.equal(v('RR входа',at('21:10')),1);
+const events=data.flatMap((b,i)=>v('Выход TP 1 / SL -1 / неизвестно 2',i)?[[new Date(b.openTime+25200000).toISOString().slice(11,16),v('Выход TP 1 / SL -1 / неизвестно 2',i)]]:[]);
+assert.deepEqual(events,[['21:25',1]],'target hit after actual entry');
+assert.equal(v('Входов за день',data.length-1),1);
 assert.equal(v('StopLabel',at('20:00')),121.94,'original tool remains visible');
 assert.equal(v('Состояние позиции',at('20:00')),1,'still waiting for its own retest');
 assert.equal(v('Цель позиции',at('20:00')),120.3);
 assert.equal(v('Граница RR 1:1',at('20:00')),121.12);
-console.log('PASS MEXC Oct 5: original stop 121.94 retained; RR1 121.12; no entry or stop-loss');
+console.log('PASS MEXC Oct 5: original stop 121.94 retained; RR1 121.12; two wick touches enter 21:10 at 121.12');
