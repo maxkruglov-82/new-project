@@ -9,8 +9,8 @@ let checked=0;
 for(let i=0;i<data.length;i++){
  const at=v('T0',i);
  if(Number.isFinite(at)&&at>=Date.parse('2026-10-21T13:00:00+07:00')){
-  assert.equal(at,Date.parse('2026-10-21T14:00:00+07:00'));
-  assert.equal(v('Цена точки 0',i),105.95);
+  assert.equal(at,Date.parse('2026-10-21T13:00:00+07:00'));
+  assert.equal(v('Цена точки 0',i),105.63);
   const local=new Date(data[i].openTime+7*3600000).toISOString().slice(11,16);
   const clock=local<'16:30'?'15:45':local<'19:20'?'16:30':'19:20';
   assert.equal(v('T1',i),Date.parse('2026-10-21T'+clock+':00+07:00'));
@@ -19,12 +19,12 @@ for(let i=0;i<data.length;i++){
 }
 assert.ok(checked>0,'origin confirmed and kept immutable');
 const local=b=>new Date(b.openTime+7*3600000).toISOString().slice(0,16);
-const anchors=[['13:30',105.95,'14:00'],['14:50',106.45,'15:35']];
+const anchors=[['12:05',105.63,'13:00'],['13:30',105.95,'14:00'],['14:50',106.45,'15:35']];
 for(const [clock,price,last] of anchors){
  const i=data.findIndex(b=>local(b)==='2026-10-21T'+clock),ceiling=Math.max(data[i].open,data[i].close);
  let end=i+1;while(end<data.length&&local(data[end])<'2026-10-21T15:45'&&Math.max(data[end].open,data[end].close)<=ceiling)end++;
- assert.equal(end-i,11,'each anchor has eleven candles until its high is exceeded');
+ assert.equal(end-i,clock==='12:05'?17:11,'candidate length until body high is exceeded');
  const segment=data.slice(i+1,end),low=Math.min(...segment.map(b=>Math.min(b.open,b.close)));
  assert.equal(low,price);assert.equal(local(segment.findLast(b=>Math.min(b.open,b.close)===low)),'2026-10-21T'+last);
 }
-console.log('PASS real MEXC Oct 21: LOW 0 14:00 / 105.95; later 106.45 rejected; anchor low 105.85 excluded');
+console.log('PASS real MEXC Oct 21: LOW 0 13:00 / 105.63: 17 candles from 12:05 beat the two 11-bar candidates');
