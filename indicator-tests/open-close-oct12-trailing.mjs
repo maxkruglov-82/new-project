@@ -11,7 +11,7 @@ for(let i=0;i<data.length;i++){
  const t=new Date(data[i].openTime+7*3600000).toISOString().slice(0,16);
  if(!t.startsWith('2026-10-12'))continue;
  if(Number.isFinite(v('T0',i)) && v('T0',i)>=Date.parse('2026-10-12T13:00:00+07:00')){
-  assert.equal(v('T0',i),Date.parse('2026-10-12T14:10:00+07:00'));
+  assert.equal(v('T0',i),Date.parse('2026-10-12T14:15:00+07:00'));
   assert.equal(v('Цена точки 0',i),112.97);
  }
  const expectedTarget={'16:15':111.66,'16:20':111.58,'16:45':111.31,'17:40':111.31}[t.slice(11)];

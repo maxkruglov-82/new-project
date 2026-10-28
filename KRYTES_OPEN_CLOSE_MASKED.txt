@@ -7,12 +7,12 @@ int minimumRetreatBars = 5
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + 1 : 1
 
-// High 0: край тела от 13:00 строго до 1, с пятью M5 слева,
-// не перебивающими его high. Low 0 сохраняет прежний выбор.
-// При равной цене сохраняем первое достижение экстремума.
+// Кандидаты 0 — от 13:00 строго до 1. Приоритет — число свечей до
+// перекрытия close: для high слева, для low справа (не позже свечи 1).
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
     int foundTime = na
+    int bestSpan = -1
     int count = array.size(savedTimes)
     if count > 0
         for scanIndex = 0 to count - 1
@@ -21,16 +21,31 @@ findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> sa
                 float scanOpen = array.get(savedOpens, scanIndex)
                 float scanClose = array.get(savedCloses, scanIndex)
                 float candidate = wantedSide == 1 ? math.max(scanOpen, scanClose) : math.min(scanOpen, scanClose)
-                bool validLeft = wantedSide == -1 or scanIndex >= 5
-                if wantedSide == 1 and validLeft
-                    for lookback = 1 to 5
-                        int leftIndex = scanIndex - lookback
-                        float leftPrice = wantedSide == 1 ? math.max(array.get(savedOpens, leftIndex), array.get(savedCloses, leftIndex)) : math.min(array.get(savedOpens, leftIndex), array.get(savedCloses, leftIndex))
-                        if scanTime - array.get(savedTimes, leftIndex) != lookback * 300000 or (wantedSide == 1 ? leftPrice > candidate : leftPrice < candidate)
-                            validLeft := false
-                if validLeft and (na(foundPrice) or (wantedSide == 1 ? candidate > foundPrice : candidate < foundPrice))
+                int span = 0
+                bool scanning = true
+                if wantedSide == 1 and scanIndex > 0
+                    for step = 1 to scanIndex
+                        int previousIndex = scanIndex - step
+                        if scanning
+                            int previousTime = array.get(savedTimes, previousIndex)
+                            if scanTime - previousTime != step * 300000 or array.get(savedCloses, previousIndex) > candidate
+                                scanning := false
+                            else
+                                span := span + 1
+                else if wantedSide == -1 and scanIndex < count - 1
+                    for nextIndex = scanIndex + 1 to count - 1
+                        if scanning
+                            int nextTime = array.get(savedTimes, nextIndex)
+                            if nextTime > beforeFirst or nextTime - scanTime != (nextIndex - scanIndex) * 300000 or array.get(savedCloses, nextIndex) < candidate
+                                scanning := false
+                            else
+                                span := span + 1
+                bool eligible = wantedSide == -1 or span >= 5
+                bool betterPrice = na(foundPrice) or (wantedSide == 1 ? candidate > foundPrice : candidate < foundPrice)
+                if eligible and (span > bestSpan or (span == bestSpan and betterPrice))
                     foundPrice := candidate
                     foundTime := scanTime
+                    bestSpan := span
     [foundPrice, foundTime]
 
 // Внутренний формат: четыре точки тела и служебный разделитель.
@@ -424,8 +439,8 @@ int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
 int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)
-// Предыдущие пять M5 нужны только для проверки 0; кандидат остаётся >=13:00.
-if barstate.isconfirmed and m5Chart and time >= zeroSearchStart - 1500000
+// История текущего дня нужна для левого отсчёта high 0; кандидат остаётся >=13:00.
+if barstate.isconfirmed and m5Chart and time >= timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 0, 0)
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
         if array.size(colorDayDrawings) > 0
             for drawingIndex = 0 to array.size(colorDayDrawings) - 1

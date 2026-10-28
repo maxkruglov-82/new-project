@@ -23,7 +23,7 @@ for(const mirror of [false,true])for(const item of cases){
  if(mirror){
   const eligible=prices.map((p,i)=>({p,i})).filter(x=>times[x.i]>=start+item.from*300000&&times[x.i]<start+item.before*300000);
   const chosen=eligible.reduce((best,x)=>!best||x.p<best.p?x:best,null);
-  assert.equal(v('P'),chosen.p,'low origin retains former rule without left-five filter');
+  assert.equal(v('P'),chosen.p,'low origin uses right count without left-five filter');
  }else if(item.index===null)assert.ok(!Number.isFinite(v('P')));
  else{assert.equal(v('P'),prices[item.index]);assert.equal(v('T'),times[item.index]);}
  console.log('PASS origin-only five-left filter',mirror?'LOW':'HIGH',item.name);

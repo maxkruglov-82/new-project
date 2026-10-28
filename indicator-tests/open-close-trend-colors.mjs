@@ -24,7 +24,7 @@ for(const mirror of [false,true])for(const result of ['sl','tp']){
  const tail=result==='sl'?[[100.7,100.5],[100.5,100.4],[100.4,100.395],[100.395,100.39],[100.39,100.8],[100.8,101.22]]:[[100.7,101.3],[101.3,100.6],[100.6,100.7]];
  const {c,v,data}=await scenario(mirror,[...start,...tail]),colors=candleColors(c,data),up='#00E676',down='#F23645';
  const rising=mirror?down:up,falling=mirror?up:down;
- for(let i=8;i<=13;i++)assert.equal(colors.get(data[i].openTime),falling,'entire 0–1 colored');
+ for(let i=8;i<=13;i++)if(data[i].openTime>=v('T0',17))assert.equal(colors.get(data[i].openTime),falling,'entire selected 0–1 colored');
  for(let i=14;i<=18;i++)assert.equal(colors.get(data[i].openTime),falling,'countertrend pullback stays initial color before origin confirmation');
  for(let i=19;i<=26;i++)assert.equal(colors.get(data[i].openTime),rising,'origin breakout changes color, then 2–3 and 3–4 retain it');
  if(result==='sl'){
