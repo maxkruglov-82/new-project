@@ -11,8 +11,8 @@ for(let i=0;i<data.length;i++){
  const t=new Date(data[i].openTime+7*3600000).toISOString().slice(0,16);
  if(!t.startsWith('2026-10-13'))continue;
  if(Number.isFinite(v('T0',i)) && v('T0',i)>=Date.parse('2026-10-13T13:00:00+07:00')){
-  assert.equal(v('T0',i),Date.parse('2026-10-13T14:40:00+07:00'));
-  assert.equal(v('Цена точки 0',i),108.87);
+  assert.equal(v('T0',i),Date.parse('2026-10-13T13:55:00+07:00'));
+  assert.equal(v('Цена точки 0',i),108.65);
  }
  const side=v('Вход LONG/SHORT',i),exit=v('Выход TP 1 / SL -1 / неизвестно 2',i);
  if(side){

@@ -12,6 +12,16 @@ for(let i=0;i<data.length;i++){
  if(side||exit)events.push([new Date(data[i].openTime+7*3600000).toISOString().slice(11,16),side,exit]);
 }
 assert.deepEqual(events,[['16:05',-1,0],['16:10',0,2]]);
-const originIndex=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T14:00:00+07:00'));
-for(let k=1;k<=5;k++)assert.ok(Math.max(data[originIndex-k].open,data[originIndex-k].close)<=104.57);
-console.log('PASS MEXC Oct 22: five-left origin 14:00 / 104.57, SHORT then ambiguous dual-level candle; no forced outcome');
+const bodyLow=b=>Math.min(b.open,b.close),bodyHigh=b=>Math.max(b.open,b.close);
+const clock=b=>new Date(b.openTime+7*3600000).toISOString().slice(11,16);
+const day=data.filter(b=>new Date(b.openTime+7*3600000).toISOString().startsWith('2026-10-22'));
+const measured=[];
+for(const at of ['13:30','14:05','14:45']){
+ const i=day.findIndex(b=>clock(b)===at),anchor=bodyLow(day[i]);
+ const end=day.findIndex((b,j)=>j>i&&b.close<anchor);
+ const peak=Math.max(...day.slice(i+1,end+1).map(bodyHigh));
+ const last=day.findLastIndex((b,j)=>j>i&&j<=end&&bodyHigh(b)===peak);
+ measured.push([at,clock(day[last]),peak,last-i+1]);
+}
+assert.deepEqual(measured,[['13:30','14:00',104.57,7],['14:05','14:20',104.46,4],['14:45','15:00',104.38,4]]);
+console.log('PASS MEXC Oct 22: own-retreat HIGH origin 14:00 / 104.57, SHORT then ambiguous dual-level candle; no forced outcome');

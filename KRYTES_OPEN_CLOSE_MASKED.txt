@@ -7,14 +7,54 @@ int minimumRetreatBars = 5
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + 1 : 1
 
-// Кандидаты 0 — от 13:00 строго до 1. Приоритет — число свечей до
-// перекрытия close: для high слева, для low справа (не позже свечи 1).
+// Точка 0 — экстремум собственного отката от противоположного экстремума.
+// От 13:00 строго до 1; минимум пять свечей от начала отката включительно.
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
     int foundTime = na
     int bestSpan = -1
     int count = array.size(savedTimes)
-    if count > 0
+    if wantedSide == 1 and count > 1
+        for anchorIndex = 0 to count - 2
+            int anchorTime = array.get(savedTimes, anchorIndex)
+            float anchorOpen = array.get(savedOpens, anchorIndex)
+            float anchorClose = array.get(savedCloses, anchorIndex)
+            float anchorPrice = wantedSide == 1 ? math.min(anchorOpen, anchorClose) : math.max(anchorOpen, anchorClose)
+            bool localAnchor = anchorIndex == 0
+            if anchorIndex > 0
+                float previousOpen = array.get(savedOpens, anchorIndex - 1)
+                float previousClose = array.get(savedCloses, anchorIndex - 1)
+                localAnchor := wantedSide == 1 ? anchorPrice < math.min(previousOpen, previousClose) : anchorPrice > math.max(previousOpen, previousClose)
+            float nextClose = array.get(savedCloses, anchorIndex + 1)
+            bool startsRetreat = array.get(savedTimes, anchorIndex + 1) - anchorTime == 300000 and (wantedSide == 1 ? nextClose >= anchorPrice : nextClose <= anchorPrice)
+            if anchorTime >= fromTime and anchorTime < beforeFirst and localAnchor and startsRetreat
+                float retreatExtreme = anchorPrice
+                int retreatTime = anchorTime
+                int retreatSpan = 1
+                bool following = true
+                for rightIndex = anchorIndex + 1 to count - 1
+                    if following
+                        int rightTime = array.get(savedTimes, rightIndex)
+                        if rightTime >= beforeFirst or rightTime - anchorTime != (rightIndex - anchorIndex) * 300000
+                            following := false
+                        else
+                            float rightOpen = array.get(savedOpens, rightIndex)
+                            float rightClose = array.get(savedCloses, rightIndex)
+                            float rightExtreme = wantedSide == 1 ? math.max(rightOpen, rightClose) : math.min(rightOpen, rightClose)
+                            bool reachesExtreme = wantedSide == 1 ? rightExtreme >= retreatExtreme : rightExtreme <= retreatExtreme
+                            if reachesExtreme
+                                retreatExtreme := rightExtreme
+                                retreatTime := rightTime
+                                retreatSpan := rightIndex - anchorIndex + 1
+                            // Открытие пробойной свечи ещё может повторить экстремум.
+                            if wantedSide == 1 ? rightClose < anchorPrice : rightClose > anchorPrice
+                                following := false
+                bool betterPrice = na(foundPrice) or (wantedSide == 1 ? retreatExtreme > foundPrice : retreatExtreme < foundPrice)
+                if retreatExtreme > anchorPrice and retreatSpan >= 5 and (retreatSpan > bestSpan or (retreatSpan == bestSpan and betterPrice))
+                    foundPrice := retreatExtreme
+                    foundTime := retreatTime
+                    bestSpan := retreatSpan
+    if wantedSide == -1 and count > 0
         for scanIndex = 0 to count - 1
             int scanTime = array.get(savedTimes, scanIndex)
             if scanTime >= fromTime and scanTime < beforeFirst
@@ -439,7 +479,7 @@ int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
 int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)
-// История текущего дня нужна для левого отсчёта high 0; кандидат остаётся >=13:00.
+// История дня нужна для окраски; начало отката HIGH 0 остаётся >=13:00.
 if barstate.isconfirmed and m5Chart and time >= timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 0, 0)
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
         if array.size(colorDayDrawings) > 0
