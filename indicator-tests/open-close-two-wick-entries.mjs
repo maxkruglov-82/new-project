@@ -13,7 +13,7 @@ for(const mirror of [false,true]){
  assert.equal(missed.v('Входов за день',23),0,'nonconsecutive touches cannot fill');
  const stopped=await scenario(mirror,[...base,first,[100.2,98.5]],{21:{low:99.85}});
  assert.equal(stopped.v('Входов за день',22),0,'body through stop cancels before entry');
- const changed=await scenario(mirror,[...base,first,[100.2,101.4]],{21:{low:99.85},22:{low:99.8}});
+ const changed=await scenario(mirror,[...base,first,[100.2,101.4]],{21:{low:99.85},22:{low:99.95}});
  assert.equal(changed.v('Входов за день',22),0,'changed target and RR level reset touch pair');
  console.log('PASS two wick touches, exact RR entry, TP, missed bar, changed level and invalid stop',mirror?'SHORT':'LONG');
 }
