@@ -455,6 +455,8 @@ int rangeDayKey = rangeYear * 10000 + rangeMonth * 100 + rangeDay
 int bodyHourStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 14, 0)
 int bodyHourEnd = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 15, 0)
 
+bool rangeFriday = dayofweek(time, rangeTimezone) == dayofweek.friday
+int dailyEntryLimit = rangeFriday ? 1 : 2
 bool rangeWeekday = dayofweek(time, rangeTimezone) != dayofweek.saturday and dayofweek(time, rangeTimezone) != dayofweek.sunday
 
 if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bodyHourEnd
@@ -1277,7 +1279,7 @@ if barstate.isconfirmed and m5Chart
                 rrTouchTime := validTouch ? time : na
                 rrTouchSetupBar := validTouch ? positionSetupBar : na
                 rrTouchLevel := validTouch ? positionThreshold : na
-                if dailyPositionEntries < 2 and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and secondRRTouch
+                if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and secondRRTouch
                     dailyPositionEntries := dailyPositionEntries + 1
                     positionEntry := positionThreshold
                     positionRR := rewardAtLevel / riskAtLevel
@@ -1299,10 +1301,11 @@ if barstate.isconfirmed and m5Chart
             if positionState == 4 and dailyPositionEntries == 1 and positionPlanDay == rangeDayKey
                 firstStopped := true
                 firstStopBar := bar_index
-    // Каждый день, включая пятницу: вторая сделка только противоположная после SL.
+    // Понедельник–четверг: после SL вторая сделка противоположная.
+    // В пятницу допускается только один исполненный вход.
     // Стоп за любым сформированным уровнем подтверждается двумя close.
     bool reverseBreak = twoM5Break(firstPositionStop, firstPositionSide == -1, firstPointOffset, pointPairM5)
-    if firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and reverseBreak
+    if not rangeFriday and firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and reverseBreak
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
             label.set_xy(positionInfo, time + 600000, positionEntry)

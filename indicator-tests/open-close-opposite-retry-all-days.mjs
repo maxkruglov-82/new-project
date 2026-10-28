@@ -44,6 +44,13 @@ for(const day of ['2026-10-19','2026-10-20','2026-10-21','2026-10-22','2026-10-2
   continue;
  }
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',21),-1);
+ if(day==='2026-10-23'){
+  assert.equal(v('Входов за день',26),1,'Friday has only one executed trade');
+  assert.equal(v('Состояние позиции',22),4,'Friday does not create a retry plan');
+  for(let i=22;i<data.length;i++)assert.equal(v('Вход LONG/SHORT',i),0,'Friday retry is forbidden');
+  console.log('PASS Friday one trade: no retry after SL',side);
+  continue;
+ }
  assert.equal(v('Состояние позиции',22),1,'two closes through original stop create opposite retry');
  assert.equal(v('Вход LONG/SHORT',23),0,'first RR touch waits');
  assert.equal(v('Вход LONG/SHORT',24),-side,'retry must oppose stopped side every weekday');

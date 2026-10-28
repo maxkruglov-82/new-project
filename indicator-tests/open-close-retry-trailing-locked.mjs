@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const original=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8');
 for(const mirror of [false,true]){
- const side=mirror?1:-1,price=x=>mirror?200-x:x,start=Date.parse('2026-10-23T14:00:00+07:00');
+ const side=mirror?1:-1,price=x=>mirror?200-x:x,start=Date.parse('2026-10-22T14:00:00+07:00');
  const raw=Array.from({length:27},()=>({open:100,close:100,high:100.1,low:99.9}));
  raw[21]={open:100,close:98,high:100,low:97.8};
  raw[22]={open:98,close:99,high:99.1,low:97.9};
