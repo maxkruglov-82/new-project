@@ -8,11 +8,13 @@ const cases=[
  {name:'five candles include anchor, breaking candle excluded',p:[110,109,108,107,108,111,112],end:6,expected:3},
  {name:'four candles rejected',p:[110,109,108,109,111,112],end:5,expected:null},
  {name:'low of initial candle excluded',p:[110,109,108,107,108,111,112],opens:{0:90},end:6,expected:3},
- {name:'later higher low cannot replace lower candidate',p:[110,109,108,107,108,111,110,109,108,109,112,113],end:11,expected:3},
+ {name:'equal spans prefer lower low',p:[110,109,108,107,108,111,110,109,108,109,112,113],end:11,expected:3},
  {name:'later lower low replaces earlier candidate',p:[110,109,108,107,108,111,110,109,106,109,112,113],end:11,expected:8},
  {name:'equal minimum uses last occurrence',p:[110,109,108,107,107,111,112],end:6,expected:4},
  {name:'body high update stops even if close stays below anchor',p:[110,109,108,107,108,109],opens:{4:111},end:5,expected:null},
  {name:'never scan point 1 or later future',p:[110,109,108,107,106,105,104],end:4,expected:null},
+ {name:'longer higher low wins over shorter lower low',p:[110,109,108,107,108,111,110,109,108,109,110,112,113],end:12,expected:8},
+ {name:'shorter lower low cannot replace longer higher low',p:[110,109,108,109,108,109,111,110,109,106,109,112,113],end:12,expected:4},
  {name:'M5 gap stops candidate',p:[110,109,108,107,108,109,111],end:6,gap:3,expected:null},
 ];
 for(const fixture of cases){
