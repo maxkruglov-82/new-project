@@ -20,16 +20,17 @@ function candleColors(ctx,data){
  return colors;
 }
 for(const mirror of [false,true])for(const result of ['sl','tp']){
- const start=[[99.05,100.805],[100.805,100.81],[100.81,101.2],[101.2,100.7],[100.7,100.6],[100.6,100.5],[100.5,100.4],[100.4,101.21],[101.21,101.22],[101.22,100.7]];
- const tail=result==='sl'?[[100.7,100.5],[100.5,100.4],[100.4,100.395],[100.395,100.39],[100.39,100.8],[100.8,101.22]]:[[100.7,101.3],[101.3,100.6],[100.6,100.7]];
+ const start=[[99.05,100.805],[100.805,100.81],[100.81,101.2],[101.2,100.7],[100.7,100.6],[100.6,100.5],[100.5,100.4],[100.4,101.21],[101.21,101.22],[101.22,99.8]];
+ const tail=result==='sl'?[[99.8,100],[100,98.5],[98.5,98.4],[98.4,98.3],[98.3,98.8],[98.8,98.5]]:[[99.8,101.3],[101.3,100.6],[100.6,100.7]];
  const {c,v,data}=await scenario(mirror,[...start,...tail]),colors=candleColors(c,data),up='#00E676',down='#F23645';
  const rising=mirror?down:up,falling=mirror?up:down;
  for(let i=8;i<=13;i++)if(data[i].openTime>=v('T0',17))assert.equal(colors.get(data[i].openTime),falling,'entire selected 0–1 colored');
  for(let i=14;i<=19;i++)assert.equal(colors.get(data[i].openTime),falling,'countertrend pullback stays initial color before origin confirmation');
  for(let i=20;i<=27;i++)assert.equal(colors.get(data[i].openTime),rising,'origin breakout changes color, then 2–3 and 3–4 retain it');
  if(result==='sl'){
+  assert.equal(v('Стоп позиции',29),mirror?101.4:98.6,'original origin stop survives local structure');
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',29),-1);
-  assert.equal(colors.get(data[29].openTime),rising,'stop candle remains colored');
+  assert.equal(colors.get(data[29].openTime),falling,'stop candle stays colored after confirmed support break');
   // A subsequent permitted second entry may resume coloring; the first
   // completed trade must not force rendering indefinitely on its own.
  }else{

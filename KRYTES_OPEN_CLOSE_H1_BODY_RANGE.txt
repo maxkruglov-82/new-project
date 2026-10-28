@@ -955,16 +955,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         // За сформированной 1 нужны два close; первый выход за час остаётся одним.
         bool crossedFirst = twoM5Break(structureFirstPrice, structureSide == 1, firstPointOffset, pointPairM5)
         if crossedSecond or crossedFirst
-            // Новая подтверждённая структура заменяет только ожидание без входа.
-            if positionIsZero and positionState == 1 and dailyPositionEntries == 0
-                zeroScenarioCancelled := true
-                removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
-                positionRiskBox := na
-                positionRewardBox := na
-                positionInfo := na
-                positionStopInfo := na
-                positionTargetInfo := na
-                positionState := 5
+            // Локальная структура не отменяет исходное ожидание после пробоя 0.
+            // Его стоп за 1 остаётся действующим до собственной отмены или входа.
             confirmedThirdPrice := crossedSecond ? pullbackExtreme : (structureSide == -1 ? bodyLow : bodyHigh)
             int thirdPointTime = crossedSecond ? pullbackExtremeTime : time
             thirdColorTime := thirdPointTime
