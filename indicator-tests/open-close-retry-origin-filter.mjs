@@ -6,15 +6,12 @@ for(const mirror of [false,true]){
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',24),-1,'first SL');
  assert.equal(v('Вход LONG/SHORT',24),0,'confirmation creates a plan, not a same-bar entry');
  assert.equal(v('Входов за день',24),1);
- assert.equal(v('BoxCount',24),4,'completed trade and second pending reversal are both visible');
- assert.equal(v('Вход LONG/SHORT',25),mirror?-1:1,'second retest can enter before origin breakout');
- assert.equal(v('Входов за день',25),2);
- for(let i=24;i<=26;i++)assert.equal(v('Разворот закреплён за 0',i),0,'exception must not fake a structural trend reversal');
- assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',26),1);
- assert.equal(v('Разворот закреплён за 0',27),1,'actual origin confirmation is tracked separately');
- for(let i=27;i<=29;i++){
-  assert.equal(v('Вход LONG/SHORT',i),0,'no third trade');
-  assert.equal(v('Входов за день',i),2);
- }
+ assert.equal(v('BoxCount',24),2,'first close through stop creates no second plan');
+ assert.equal(v('BoxCount',25),4,'second close creates visible reversal plan');
+ assert.equal(v('Вход LONG/SHORT',25),0,'confirmation candle cannot also enter');
+ assert.equal(v('Вход LONG/SHORT',28),mirror?-1:1,'second retest can enter before origin breakout');
+ assert.equal(v('Входов за день',28),2);
+ for(let i=24;i<=29;i++)assert.equal(v('Разворот закреплён за 0',i),0,'exception must not fake a two-close structural reversal');
+ assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',29),1);
  console.log('PASS second reversal after first stop bypasses origin gate only for retry',mirror?'SHORT after LONG stop':'LONG after SHORT stop');
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/mexc-sol-usdt-m5-2026-10-22-left5.json',import.meta.url)));
 const data=fixture.candles.map(b=>({...b,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));
-const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8')+'\nplot(confirmedZeroTime,"T0")';
+const source=readFileSync(new URL('../KRYTES_OPEN_CLOSE_MASKED.txt',import.meta.url),'utf8')+'\nplot(confirmedZeroTime,"T0")\nplot(array.size(positionBoxes),"Boxes")';
 const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>c.plots[n].data[i].value;
 const events=[];
 for(let i=0;i<data.length;i++){
@@ -12,6 +12,13 @@ for(let i=0;i<data.length;i++){
  if(side||exit)events.push([new Date(data[i].openTime+7*3600000).toISOString().slice(11,16),side,exit]);
 }
 assert.deepEqual(events,[['16:05',-1,0],['16:10',0,-1],['16:20',1,0],['16:45',0,1]]);
+const firstBreak=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T16:10:00+07:00'));
+const secondBreak=firstBreak+1;
+assert.equal(v('Состояние позиции',firstBreak),4,'first close through 2 only resolves first stop');
+assert.equal(v('Boxes',firstBreak),2,'no second plan after one close through 2');
+assert.equal(v('Состояние позиции',secondBreak),1,'second close through 2 creates second plan');
+assert.equal(v('Boxes',secondBreak),4);
+assert.equal(v('Вход LONG/SHORT',secondBreak),0,'confirmation itself is not a retest entry');
 const retry=data.findIndex(b=>b.openTime===Date.parse('2026-10-22T16:20:00+07:00'));
 assert.equal(v('Цена входа по close',retry),103.77);
 assert.equal(v('Стоп позиции',retry),103.64);

@@ -55,8 +55,9 @@ if(process.argv[1]===new URL(import.meta.url).pathname)for(const mirror of [fals
   assert.equal(v('Ready1',16),0,'four bars do not confirm');assert.equal(v('Ready1',17),1);
   assert.equal(v('BoxCount',17),0,'0 and 1 alone never create an entry tool');
   assert.equal(v('Входов за день',18),0,'0.005 past origin insufficient');
-  assert.equal(v('Состояние позиции',19),1,'one close 0.01 past origin creates reversal plan');
-  assert.equal(v('Стоп позиции',19),mirror?101.4:98.6,'stop exactly at 1');
+  assert.equal(v('Состояние позиции',19),0,'one close past origin is insufficient');
+  assert.equal(v('Состояние позиции',20),1,'second close past origin creates reversal plan');
+  assert.equal(v('Стоп позиции',20),mirror?101.4:98.6,'stop exactly at 1');
   assert.equal(v('Цель позиции',20),mirror?98.8:101.2,'third extreme follows price beyond origin');
   assert.equal(v('Вход LONG/SHORT',21),side,'entry only on subsequent retest');
   assert.equal(v('Цена входа по close',21),data[21].close);

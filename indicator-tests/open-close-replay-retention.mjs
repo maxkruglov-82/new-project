@@ -13,8 +13,8 @@ for(const mirror of [false,true])for(const outcome of ['tp','sl']){
  assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',22),outcome==='tp'?1:-1);
  assert.equal(v('RetainedTP',22),1,'completed trade exists during replay');
  assert.equal(v('RetainedTP',288+19),1,'new day setup must not delete prior executed trade');
- assert.equal(v('Boxes',288+19),4,'completed and new pending tools coexist');
- assert.equal(v('Labels',288+19),6,'completed label retained beside new scenario');
+ assert.equal(v('Boxes',288+20),4,'completed and new pending tools coexist');
+ assert.equal(v('Labels',288+20),6,'completed label retained beside new scenario');
  assert.equal(v('RetainedTP',288+22),2,'both days retain completed outcomes');
  const firstOrigin=day.find(b=>b.openTime===v('T0',22));
  assert.ok(c.plots.__polylines__.data[0].value.some(p=>p.line_color===(mirror?'#00E676':'#F23645')&&p.points.some(pt=>pt.time===firstOrigin.openTime&&pt.price===firstOrigin.open)),'earlier 0–1 color survives next day');
