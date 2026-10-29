@@ -1398,14 +1398,19 @@ if barstate.isconfirmed and m5Chart
                     bool stoppedAgainstEntry = positionSide == 1 ? close >= close[1] : close <= close[1]
                     float riskAtClose = positionSide == 1 ? close - positionStop : positionStop - close
                     float rewardAtClose = positionSide == 1 ? positionTarget - close : close - positionTarget
-                    if retestBars >= 3 and priceStillInZone and stoppedAgainstEntry and riskAtClose > 0 and rewardAtClose >= riskAtClose - 0.000000001
+                    float currentCandleBody = math.abs(close - open)
+                    float previousCandleBody = math.abs(close[1] - open[1])
+                    bool engulfingBody = previousCandleBody > 0 and currentCandleBody >= previousCandleBody * 1.10 - 0.000000001 and bodyLow <= bodyLow[1] and bodyHigh >= bodyHigh[1]
+                    bool engulfingDirection = positionSide == 1 ? close > open and close[1] < open[1] : close < open and close[1] > open[1]
+                    bool engulfingEntry = time - time[1] == 300000 and engulfingBody and engulfingDirection
+                    if (retestBars >= 3 and stoppedAgainstEntry or engulfingEntry) and priceStillInZone and riskAtClose > 0 and rewardAtClose >= riskAtClose - 0.000000001
                         dailyPositionEntries := dailyPositionEntries + 1
                         positionEntry := close
                         positionRR := rewardAtClose / riskAtClose
                         positionEntryBar := bar_index
                         positionEntryEvent := true
                         if notifyFilledEntry
-                            alert(entryAlertText("ВХОД ИСПОЛНЕН — остановка на трёх M5", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
+                            alert(entryAlertText(engulfingEntry ? "ВХОД ИСПОЛНЕН — поглощение M5" : "ВХОД ИСПОЛНЕН — остановка на трёх M5", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
                         colorStopTime := na
                         positionState := 2
                         tradeEventMark(tradeEventMarks, time, positionEntry, false)
