@@ -591,6 +591,20 @@ var array<bool> classifiedSwingHighs = array.new_bool()
 swingClass(float price, float previousPrice, bool isHigh) =>
     na(previousPrice) ? (isHigh ? "H" : "L") : math.abs(price - previousPrice) <= 0.000000001 ? (isHigh ? "EH" : "EL") : isHigh ? (price > previousPrice ? "HH" : "LH") : (price > previousPrice ? "HL" : "LL")
 
+swingOrdinal(int value) =>
+    string suffix = str.tostring(value)
+    suffix := str.replace_all(suffix, "0", "₀")
+    suffix := str.replace_all(suffix, "1", "₁")
+    suffix := str.replace_all(suffix, "2", "₂")
+    suffix := str.replace_all(suffix, "3", "₃")
+    suffix := str.replace_all(suffix, "4", "₄")
+    suffix := str.replace_all(suffix, "5", "₅")
+    suffix := str.replace_all(suffix, "6", "₆")
+    suffix := str.replace_all(suffix, "7", "₇")
+    suffix := str.replace_all(suffix, "8", "₈")
+    suffix := str.replace_all(suffix, "9", "₉")
+    suffix
+
 newSwingLabel(int atTime, float price, string caption, string pointStyle) =>
     label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
     array.push(classifiedSwingIds, number)
@@ -1499,6 +1513,7 @@ if barstate.islast and array.size(classifiedSwingIds) > 0
     float previousHigh = na
     float previousLow = na
     int previousSwingDay = na
+    int swingSequence = 0
     for orderIndex = 0 to array.size(swingOrder) - 1
         int classIndex = array.get(swingOrder, orderIndex)
         label number = array.get(classifiedSwingIds, classIndex)
@@ -1509,11 +1524,13 @@ if barstate.islast and array.size(classifiedSwingIds) > 0
                 previousHigh := na
                 previousLow := na
                 previousSwingDay := swingDay
+                swingSequence := 0
+            swingSequence := swingSequence + 1
             bool isHigh = array.get(classifiedSwingHighs, classIndex)
             float price = label.get_y(number)
             string classification = swingClass(price, isHigh ? previousHigh : previousLow, isHigh)
             string digit = array.get(str.split(label.get_text(number), " · "), 0)
-            label.set_text(number, digit + (showSwingClasses ? " · " + classification : ""))
+            label.set_text(number, digit + (showSwingClasses ? " · " + classification + swingOrdinal(swingSequence) : ""))
             if isHigh
                 previousHigh := price
             else
