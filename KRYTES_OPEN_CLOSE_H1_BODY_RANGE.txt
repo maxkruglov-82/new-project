@@ -603,10 +603,37 @@ bool showFirstPoints = input.bool(true, "Показывать точки 1 за 
 float firstPointOffset = input.float(0.01, "Минимальный отступ закрепа за часом и точками", minval=0.01, step=0.01)
 // Только самый первый подтверждённый выход за день, в любую сторону.
 bool pointsUseWicks = false
-// HH/HL/LH/LL — только подписи существующих точек системы.
-bool showSwingClasses = input.bool(true, "Показывать HH / HL / LH / LL рядом с номерами")
+// Полная чередующаяся структура по телам M5, независимо от исполнения сделок.
+bool showSwingClasses = input.bool(true, "Показывать структуру HH / HL / LH / LL")
 var array<label> classifiedSwingIds = array.new_label()
 var array<bool> classifiedSwingHighs = array.new_bool()
+
+var array<int> marketSwingTimes = array.new_int()
+var array<float> marketSwingPrices = array.new_float()
+var array<bool> marketSwingHighs = array.new_bool()
+var array<int> marketSwingDays = array.new_int()
+var array<label> marketStructureLabels = array.new_label()
+
+recordMarketSwing(array<int> times, array<float> prices, array<bool> highs, array<int> days, int atTime, float price, bool isHigh, int dayKey) =>
+    int count = array.size(times)
+    bool sameDay = count > 0 ? array.get(days, count - 1) == dayKey : false
+    bool sameType = sameDay ? array.get(highs, count - 1) == isHigh : false
+    if sameType
+        float oldPrice = array.get(prices, count - 1)
+        if isHigh ? price >= oldPrice : price <= oldPrice
+            array.set(times, count - 1, atTime)
+            array.set(prices, count - 1, price)
+    else
+        array.push(times, atTime)
+        array.push(prices, price)
+        array.push(highs, isHigh)
+        array.push(days, dayKey)
+    while array.size(times) > 120
+        array.shift(times)
+        array.shift(prices)
+        array.shift(highs)
+        array.shift(days)
+    array.size(times)
 
 swingClass(float price, float previousPrice, bool isHigh) =>
     na(previousPrice) ? (isHigh ? "H" : "L") : math.abs(price - previousPrice) <= 0.000000001 ? (isHigh ? "EH" : "EL") : isHigh ? (price > previousPrice ? "HH" : "LH") : (price > previousPrice ? "HL" : "LL")
@@ -629,7 +656,7 @@ newSwingLabel(int atTime, float price, string caption, string pointStyle) =>
     label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
     array.push(classifiedSwingIds, number)
     array.push(classifiedSwingHighs, pointStyle == label.style_label_down)
-    while array.size(classifiedSwingIds) > 180
+    while array.size(classifiedSwingIds) > 120
         array.shift(classifiedSwingIds)
         array.shift(classifiedSwingHighs)
     number
@@ -751,7 +778,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 array.push(firstPointLabels, zeroLabel)
             firstSwingLabel := newSwingLabel(firstExtremeTime, structureFirstPrice, "1", structureSide == -1 ? label.style_label_up : label.style_label_down)
             array.push(firstPointLabels, firstSwingLabel)
-            if array.size(firstPointLabels) > 180
+            if array.size(firstPointLabels) > 120
                 label.delete(array.shift(firstPointLabels))
 
 // Сопровождаем встречный экстремум 3 и его последний откат 5.
@@ -1075,7 +1102,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackOpen := open
                 pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
                 pullbackExtremeBar := bar_index
-    while array.size(firstPointLabels) > 180
+    while array.size(firstPointLabels) > 120
         label.delete(array.shift(firstPointLabels))
 
 
@@ -1167,7 +1194,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureCompleted 
         fifthLocked := false
         fifthLabel := newSwingLabel(time, confirmedFifthPrice, "5", positionSide == 1 ? label.style_label_down : label.style_label_up)
         array.push(firstPointLabels, fifthLabel)
-        while array.size(firstPointLabels) > 180
+        while array.size(firstPointLabels) > 120
             label.delete(array.shift(firstPointLabels))
         positionThreshold := (positionStop + positionTarget) / 2.0
         positionState := 1
@@ -1410,7 +1437,7 @@ if barstate.isconfirmed and m5Chart
         if not firstPositionIsZero and not firstPositionUsesFifth
             fifthLabel := newSwingLabel(time, confirmedFifthPrice, firstPositionUsesFourth ? (originRelocated ? "4" : "5") : (originRelocated ? "3" : "4"), positionSide == 1 ? label.style_label_down : label.style_label_up)
             array.push(firstPointLabels, fifthLabel)
-            if array.size(firstPointLabels) > 180
+            if array.size(firstPointLabels) > 120
                 label.delete(array.shift(firstPointLabels))
     if positionState == 5 and positionIsZero and dailyPositionEntries == 0 and positionPlanDay == rangeDayKey
         zeroScenarioCancelled := true
@@ -1436,7 +1463,7 @@ if barstate.isconfirmed and m5Chart
         array.push(positionLabels, positionInfo)
         array.push(positionLabels, positionStopInfo)
         array.push(positionLabels, positionTargetInfo)
-        // 120 ценовых подписей + 180 чисел + 120 событий: максимум 420 меток.
+        // 120 ценовых подписей + 120 номеров + 120 структурных + 120 событий: максимум 480 меток.
         while array.size(positionBoxes) > 80
             box.delete(array.shift(positionBoxes))
         while array.size(positionLabels) > 120
@@ -1571,34 +1598,77 @@ if barstate.islast
                 line levelLine = line.new(x1=leftTime, y1=levelPrice, x2=rightTime, y2=levelPrice, xloc=xloc.bar_time, color=levelIndex == 0 ? color.blue : levelIndex == 1 ? color.red : color.green, style=levelIndex == 0 ? line.style_dashed : line.style_solid, width=1)
                 array.push(positionLevelLines, levelLine)
 
-// Сортируем по актуальному времени точки: при переносах порядок создания не подходит.
-// Скрытые и удалённые точки не служат опорой; каждый день начинает свою структуру.
-if barstate.islast and array.size(classifiedSwingIds) > 0
-    array<int> swingTimes = array.new_int()
-    for classIndex = 0 to array.size(classifiedSwingIds) - 1
-        array.push(swingTimes, label.get_x(array.get(classifiedSwingIds, classIndex)))
-    array<int> swingOrder = array.sort_indices(swingTimes, order.ascending)
+// Полная структура: локальная остановка, свеча экстремума + четыре закрытые M5 справа.
+// Тела, не тени; left=1 обозначает локальный поворот. Кандидаты не рисуются заранее.
+float marketPivotHigh = ta.pivothigh(bodyHigh, 1, 4)
+float marketPivotLow = ta.pivotlow(bodyLow, 1, 4)
+bool structureSpanValid = m5Chart and not na(time[5]) and time - time[5] == 1500000 and rangeDayKey == rangeDayKey[4]
+if barstate.isconfirmed and structureSpanValid and rangeWeekday and time[4] >= zeroSearchStart
+    bool hasHigh = not na(marketPivotHigh)
+    bool hasLow = not na(marketPivotLow)
+    // Если одна свеча одновременно high и low, порядок внутри неё неизвестен.
+    // После существующей опоры допустима только противоположная; первую такую свечу пропускаем.
+    if hasHigh and hasLow
+        int count = array.size(marketSwingTimes)
+        bool sameDay = count > 0 ? array.get(marketSwingDays, count - 1) == rangeDayKey : false
+        if sameDay
+            bool previousIsHigh = array.get(marketSwingHighs, count - 1)
+            hasHigh := not previousIsHigh
+            hasLow := previousIsHigh
+        else
+            hasHigh := false
+            hasLow := false
+    if hasHigh
+        recordMarketSwing(marketSwingTimes, marketSwingPrices, marketSwingHighs, marketSwingDays, time[4], marketPivotHigh, true, rangeDayKey)
+    else if hasLow
+        recordMarketSwing(marketSwingTimes, marketSwingPrices, marketSwingHighs, marketSwingDays, time[4], marketPivotLow, false, rangeDayKey)
+
+// Обычные номера системы сохраняются. Совпадающие структурные опоры объединяем с номером.
+if barstate.islast
+    while array.size(marketStructureLabels) > 0
+        label.delete(array.pop(marketStructureLabels))
+    array<int> visibleTimes = array.new_int()
+    array<float> visiblePrices = array.new_float()
+    array<label> visibleIds = array.new_label()
+    array<bool> visibleHighs = array.new_bool()
+    if array.size(classifiedSwingIds) > 0
+        for classIndex = 0 to array.size(classifiedSwingIds) - 1
+            label number = array.get(classifiedSwingIds, classIndex)
+            if array.indexof(firstPointLabels, number) >= 0 and not na(label.get_text(number)) and label.get_text(number) != ""
+                string digit = array.get(str.split(label.get_text(number), " · "), 0)
+                label.set_text(number, digit)
+                array.push(visibleTimes, label.get_x(number))
+                array.push(visiblePrices, label.get_y(number))
+                array.push(visibleIds, number)
+                array.push(visibleHighs, array.get(classifiedSwingHighs, classIndex))
     float previousHigh = na
     float previousLow = na
     int previousSwingDay = na
     int swingSequence = 0
-    for orderIndex = 0 to array.size(swingOrder) - 1
-        int classIndex = array.get(swingOrder, orderIndex)
-        label number = array.get(classifiedSwingIds, classIndex)
-        if array.indexof(firstPointLabels, number) >= 0 and not na(label.get_text(number)) and label.get_text(number) != ""
-            int swingTime = label.get_x(number)
-            int swingDay = year(swingTime, localTimezone) * 10000 + month(swingTime, localTimezone) * 100 + dayofmonth(swingTime, localTimezone)
+    if showSwingClasses and array.size(marketSwingTimes) > 0
+        for swingIndex = 0 to array.size(marketSwingTimes) - 1
+            int swingDay = array.get(marketSwingDays, swingIndex)
             if na(previousSwingDay) or swingDay != previousSwingDay
                 previousHigh := na
                 previousLow := na
                 previousSwingDay := swingDay
                 swingSequence := 0
             swingSequence := swingSequence + 1
-            bool isHigh = array.get(classifiedSwingHighs, classIndex)
-            float price = label.get_y(number)
-            string classification = swingClass(price, isHigh ? previousHigh : previousLow, isHigh)
-            string digit = array.get(str.split(label.get_text(number), " · "), 0)
-            label.set_text(number, digit + (showSwingClasses ? " · " + classification + swingOrdinal(swingSequence) : ""))
+            bool isHigh = array.get(marketSwingHighs, swingIndex)
+            float price = array.get(marketSwingPrices, swingIndex)
+            int swingTime = array.get(marketSwingTimes, swingIndex)
+            string caption = swingClass(price, isHigh ? previousHigh : previousLow, isHigh) + swingOrdinal(swingSequence)
+            bool combined = false
+            if array.size(visibleIds) > 0
+                for visibleIndex = 0 to array.size(visibleIds) - 1
+                    if array.get(visibleTimes, visibleIndex) == swingTime and array.get(visibleHighs, visibleIndex) == isHigh and math.abs(array.get(visiblePrices, visibleIndex) - price) <= 0.000000001
+                        label number = array.get(visibleIds, visibleIndex)
+                        label.set_text(number, label.get_text(number) + " · " + caption)
+                        combined := true
+                        break
+            if not combined
+                label structureLabel = label.new(x=swingTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=isHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+                array.push(marketStructureLabels, structureLabel)
             if isHigh
                 previousHigh := price
             else
