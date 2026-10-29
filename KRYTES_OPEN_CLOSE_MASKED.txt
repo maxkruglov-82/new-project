@@ -368,6 +368,10 @@ var int retestSide = 0
 var int retestLastTime = na
 var float retestExtreme = na
 var int retestBars = 0
+var int shortVisitedSetup = na
+var int shortVisitedDay = na
+var int shortVisitedBar = na
+var float shortVisitedTarget = na
 var bool longPlanReplaced = false
 var bool longBackToMain = false
 var float localLongRetestHigh = na
@@ -1363,10 +1367,26 @@ if barstate.isconfirmed and m5Chart
                     retestBars := 0
                     longBackToMain := true
                     newPositionPlan := true
+            bool sameVisitedShort = shortVisitedSetup == positionSetupBar and shortVisitedDay == rangeDayKey
+            if not sameVisitedShort
+                shortVisitedBar := na
+                shortVisitedTarget := na
+            shortVisitedSetup := positionSetupBar
+            shortVisitedDay := rangeDayKey
+            bool shortTargetWithoutEntry = positionSide == -1 and pendingDirectionAllowed and not stopBeforeEntry and not na(shortVisitedBar) and bar_index > shortVisitedBar and low <= shortVisitedTarget
+            if positionSide == -1 and pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and na(shortVisitedBar) and high >= positionThreshold
+                shortVisitedBar := bar_index
+                shortVisitedTarget := positionTarget
             float currentTarget = positionIsZero or (positionIsSecond and (firstPositionIsZero or firstPositionUsesFifth)) ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
             positionThreshold := (positionStop + positionTarget) / 2.0
-            if bar_index > positionSetupBar and stopBeforeEntry
+            if shortTargetWithoutEntry
+                positionState := 7
+                positionTarget := shortVisitedTarget
+                positionThreshold := (positionStop + positionTarget) / 2.0
+                retestExtreme := na
+                retestBars := 0
+            else if bar_index > positionSetupBar and stopBeforeEntry
                 positionState := 5
                 retestExtreme := na
                 retestBars := 0
@@ -1517,7 +1537,7 @@ if barstate.isconfirmed and m5Chart
         box.set_right(positionRewardBox, time + 600000)
         float entryCaptionRisk = math.abs(drawnEntry - positionStop)
         string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
-        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (na(positionEntry) ? "Ожидание " : "Вход исполнен ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (positionState == 7 ? "Отработан без входа " : na(positionEntry) ? "Ожидание " : "Вход исполнен ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
         positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, positionLevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true) + (positionState == 4 ? " +" : ""), color.red)
         positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, positionLevelCaption("Цель: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false) + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
