@@ -20,9 +20,7 @@ for(const mirror of [false,true]){
  for(const [i,index] of [1,3,7,9,13,15,19].entries()){
   assert.equal(v('T'+i,24),data[index].openTime);assert.equal(v('P'+i,24),p(prices[index]));assert.equal(v('Text'+i,24),1,'correct sequential same-type classification');
  }
- const noLabels=await new PineTS(data,'SOLUSDT','5').run(original.replace('bool showSwingClasses = input.bool(true,','bool showSwingClasses = input.bool(false,')+diagnostics);
- assert.equal(noLabels.plots.Labels.data.at(-1).value,0);
- console.log('PASS full market structure',mirror?'LL/LH':'HH/HL','alternates, confirms five bars, ignores wicks, chronological numbers, display switch');
+ console.log('PASS full market structure',mirror?'LL/LH':'HH/HL','alternates, confirms five bars, ignores wicks, chronological numbers, mandatory structure');
 }
 // Same-side pivots update the extreme rather than create High -> High labels.
 const fn=original.slice(original.indexOf('recordMarketSwing('),original.indexOf('swingClass('));

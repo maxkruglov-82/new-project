@@ -7,11 +7,16 @@ const d=f.candles.map(b=>({...b,volume:b.vol,openTime:b.time*1000,closeTime:b.ti
 const diag='\nplot(longBackToMain?1:0,"Back")\nplot(retestBars,"Count")';
 const c=await new PineTS(d,'SOLUSDT','5').run(s+diag),v=(n,i)=>c.plots[n].data[i].value;
 const at=clock=>d.findIndex(b=>b.openTime===Date.parse('2026-10-26T'+clock+':00+07:00'));
-assert.equal(v('Back',at('18:45')),0);assert.equal(v('Стоп позиции',at('18:45')),100.91);
-const reset=at('18:50');assert.equal(v('Back',reset),1);assert.equal(v('Стоп позиции',reset),100.17);assert.equal(v('Цель позиции',reset),101.71);assert.equal(v('Count',reset),0);assert.equal(v('Вход LONG/SHORT',reset),0);assert.equal(v('Входов за день',reset),0);assert.ok(Math.abs(v('Граница RR 1:1',reset)-100.94)<1e-8);
-assert.equal(v('Вход LONG/SHORT',at('20:05')),0,'old local entry must not execute after fallback');
-for(let i=reset;i<d.length;i++)assert.equal(v('Стоп позиции',i),100.17,'main stop stays at 1 after fallback');
-console.log('PASS MEXC Oct26: failed local retest + HH at 18:50 restores main stop 100.17, RR1 100.94, no immediate or old local entry');
+// The new post-engulfing wick rule now fills the local plan before the old fallback.
+const entry=at('18:20'),exit=at('18:50');
+assert.equal(v('Вход LONG/SHORT',entry),1);
+assert.equal(v('Цена фактического входа',entry),101.275);
+assert.equal(v('Стоп позиции',entry),100.91);
+assert.equal(v('Цель позиции',entry),101.64);
+assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',exit),1);
+assert.equal(v('Back',exit),0,'an already entered local plan cannot be replaced by the pending-only fallback');
+assert.equal(v('Вход LONG/SHORT',at('20:05')),0);
+console.log('PASS MEXC Oct26: post-engulfing local fill 18:20, TP 18:50; actual trade never falls back');
 for(const mode of ['zone','no-zone','wick','entered']){
  const start=Date.parse('2026-10-22T14:00:00+07:00');
  const seq=mode==='no-zone'?[103.1,103.2,104.5,104.6]:[101.9,102.1,mode==='wick'?103.5:104.5,103.6];
