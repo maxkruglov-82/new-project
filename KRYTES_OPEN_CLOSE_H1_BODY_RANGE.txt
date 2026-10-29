@@ -237,6 +237,13 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                 result := trend
     result
 
+// Проценты движения цены от входа, без кредитного плеча и комиссий.
+positionMovePercent(float entryPrice, float levelPrice) =>
+    not na(entryPrice) and entryPrice > 0 ? math.abs(levelPrice - entryPrice) / entryPrice * 100.0 : na
+
+positionLevelCaption(string title, float entryPrice, float levelPrice, bool isStop) =>
+    title + str.tostring(levelPrice, "#.#####") + " (" + (isStop ? "-" : "+") + str.tostring(positionMovePercent(entryPrice, levelPrice), "0.##") + "%)"
+
 // Подписи уровней как в v72: прозрачный фон, цвет уровня, плюс по результату.
 updatePositionPrice(label id, int atTime, float price, string caption, color ink) =>
     label result = id
@@ -1357,8 +1364,8 @@ if barstate.isconfirmed and m5Chart
             if not hitStop
                 tradeEventMark(tradeEventMarks, time, exitPrice, true)
             // Фиксируем подписи предыдущей сделки до возможного создания второй.
-            positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
-            positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
+            positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, positionLevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true) + (positionState == 4 ? " +" : ""), color.red)
+            positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, positionLevelCaption("Цель: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false) + (positionState == 3 ? " +" : ""), color.teal)
             if positionState == 4 and dailyPositionEntries == 1 and positionPlanDay == rangeDayKey
                 firstStopped := true
                 firstStopBar := bar_index
@@ -1422,8 +1429,8 @@ if barstate.isconfirmed and m5Chart
         positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.red, 100), bgcolor=color.new(color.red, 85))
         positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.teal, 100), bgcolor=color.new(color.teal, 85))
         positionInfo := updatePositionPrice(na, time + 600000, positionThreshold, "Ожидание " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(positionThreshold, "#.#####"), color.blue)
-        positionStopInfo := updatePositionPrice(na, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####"), color.red)
-        positionTargetInfo := updatePositionPrice(na, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####"), color.teal)
+        positionStopInfo := updatePositionPrice(na, time + 600000, positionStop, positionLevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true), color.red)
+        positionTargetInfo := updatePositionPrice(na, time + 600000, positionTarget, positionLevelCaption("Цель: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false), color.teal)
         array.push(positionBoxes, positionRiskBox)
         array.push(positionBoxes, positionRewardBox)
         array.push(positionLabels, positionInfo)
@@ -1445,12 +1452,15 @@ if barstate.isconfirmed and m5Chart
         float entryCaptionRisk = math.abs(drawnEntry - positionStop)
         string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
         positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (na(positionEntry) ? "Ожидание " : "Вход исполнен ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
-        positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
-        positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
+        positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, positionLevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true) + (positionState == 4 ? " +" : ""), color.red)
+        positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, positionLevelCaption("Цель: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false) + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
         string rrCaption = displayedRisk > 0 ? "R:R 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / displayedRisk, "#.###") : ""
-        box.set_text(positionRewardBox, rrCaption)
-        box.set_text_color(positionRewardBox, color.white)
+        box.set_text(positionRiskBox, "Стоп: -" + str.tostring(positionMovePercent(drawnEntry, positionStop), "0.##") + "%")
+        box.set_text_color(positionRiskBox, color.red)
+        box.set_text_size(positionRiskBox, size.small)
+        box.set_text(positionRewardBox, "Тейк: +" + str.tostring(positionMovePercent(drawnEntry, positionTarget), "0.##") + "%\n" + rrCaption)
+        box.set_text_color(positionRewardBox, color.black)
         box.set_text_size(positionRewardBox, size.small)
 
 plot(positionEntryEvent ? positionSide : 0, "Вход LONG/SHORT", display=display.none)

@@ -4,7 +4,7 @@ import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js
 const f=JSON.parse(readFileSync(new URL('./fixtures/mexc-sol-usdt-m5-2026-10-29.json',import.meta.url)));
 const data=f.candles.map(b=>({...b,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));
 const source=readFileSync(new URL('../KRYTES_V1_1_LONDON.txt',import.meta.url),'utf8');
-const diag='\nplot(array.size(tradeEventMarks),"Marks")\nplot(label.get_y(positionInfo),"InfoPrice")';
+const diag='\nplot(array.size(tradeEventMarks),"Marks")\nplot(label.get_y(positionInfo),"InfoPrice")\nplot(str.contains(label.get_text(positionStopInfo),"-0.28%")?1:0,"StopPercent")\nplot(str.contains(label.get_text(positionTargetInfo),"+0.29%")?1:0,"TargetPercent")';
 const c=await new PineTS(data,'SOLUSDT','5').run(source+diag),v=(n,i)=>c.plots[n].data[i].value;
 const at=clock=>data.findIndex(b=>b.openTime===Date.parse('2026-10-29T'+clock+':00+07:00'));
 const entry=at('16:40'),exit=at('17:30');
@@ -14,6 +14,8 @@ assert.equal(v('Marks',entry-1),0);assert.equal(v('Marks',entry),1);
 assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',exit),1);assert.equal(v('Marks',exit),3);
 assert.equal(v('Состояние позиции',at('18:20')),3);assert.equal(v('Цель позиции',at('18:20')),100.48);
 assert.equal(v('InfoPrice',at('18:20')),100.19);
+assert.equal(v('StopPercent',entry),1);assert.equal(v('TargetPercent',entry),1);
+assert.equal(v('StopPercent',at('18:20')),1);assert.equal(v('TargetPercent',at('18:20')),1);
 const inspect=await new PineTS(data,'SOLUSDT','5').run(source+'\nplot(label.get_x(array.size(tradeEventMarks)>0?array.get(tradeEventMarks,0):na),"EntryTime")\nplot(label.get_y(array.size(tradeEventMarks)>0?array.get(tradeEventMarks,0):na),"EntryPrice")\nplot(label.get_x(array.size(tradeEventMarks)>1?array.get(tradeEventMarks,1):na),"ExitTime")\nplot(label.get_y(array.size(tradeEventMarks)>1?array.get(tradeEventMarks,1):na),"ExitPrice")\nplot(label.get_text(array.size(tradeEventMarks)>2?array.get(tradeEventMarks,2):na)=="✓"?1:0,"Tick")');
 const last=n=>inspect.plots[n].data.at(-1).value;
 assert.equal(last('EntryTime'),data[entry].openTime);assert.equal(last('EntryPrice'),100.19);
