@@ -369,6 +369,8 @@ var int retestLastTime = na
 var float retestExtreme = na
 var int retestBars = 0
 var bool longPlanReplaced = false
+var bool longBackToMain = false
+var float localLongRetestHigh = na
 var int positionAnchorTime = na
 var int zeroReversalTime = na
 var int positionEntryBar = na
@@ -503,6 +505,8 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         zeroScenarioCancelled := false
         zeroConditionUsed := false
         longPlanReplaced := false
+        longBackToMain := false
+        localLongRetestHigh := na
         zeroTrendReversed := false
         firstPositionIsZero := false
         zeroReversalStop := na
@@ -1291,6 +1295,8 @@ if barstate.isconfirmed and m5Chart and firstPointWindow and structureDay == ran
         retestExtreme := na
         retestBars := 0
         longPlanReplaced := true
+        longBackToMain := false
+        localLongRetestHigh := na
         newPositionPlan := true
 
 // Край всего движения после 1 нужен для стопа противоположной попытки после SL.
@@ -1329,6 +1335,34 @@ if barstate.isconfirmed and m5Chart
             positionState := 5
         else
             bool stopBeforeEntry = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
+            // Локальный LONG не дал вход: обновление HH после ретеста возвращает стоп за 1.
+            // Сравниваем с HH, который действовал при первом заходе в локальную зону,
+            // до сопровождения цели текущей свечой. Само обновление HH входом не является.
+            bool localLongPending = positionSide == 1 and positionIsZero and not positionIsSecond and longPlanReplaced and not longBackToMain and dailyPositionEntries == 0 and positionPlanDay == rangeDayKey
+            if localLongPending and pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar
+                if na(localLongRetestHigh) and low <= positionThreshold
+                    localLongRetestHigh := positionTarget
+                if not na(localLongRetestHigh) and bodyHigh > localLongRetestHigh and not na(structureFirstPrice) and structureFirstPrice < positionStop
+                    if not na(positionInfo)
+                        removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
+                    positionStop := structureFirstPrice
+                    firstPositionStop := positionStop
+                    positionTarget := math.max(positionTarget, bodyHigh)
+                    positionThreshold := (positionStop + positionTarget) / 2.0
+                    positionAnchorTime := firstExtremeTime
+                    positionSetupBar := bar_index
+                    positionEntry := na
+                    positionEntryBar := na
+                    positionRR := na
+                    positionRiskBox := na
+                    positionRewardBox := na
+                    positionInfo := na
+                    positionStopInfo := na
+                    positionTargetInfo := na
+                    retestExtreme := na
+                    retestBars := 0
+                    longBackToMain := true
+                    newPositionPlan := true
             float currentTarget = positionIsZero or (positionIsSecond and (firstPositionIsZero or firstPositionUsesFifth)) ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
             positionThreshold := (positionStop + positionTarget) / 2.0
