@@ -280,10 +280,10 @@ plotbar(open, bodyHigh, bodyLow, close, title="Чёрные бары без те
 
 
 // Как в v83: фиксированный час 14:00–15:00 Asia/Krasnoyarsk.
-// Только тело одной H1: open в 14:00 и close часа в 15:00; прямоугольник до 20:30 UTC+7.
+// Полные high/low H1; прямоугольник от 14:00 до 20:30 UTC+7.
 string rangeTimezone = "Asia/Krasnoyarsk"
 string localTimezone = "Asia/Krasnoyarsk"
-bool showBodyRange = input.bool(true, "Показывать диапазон по открытию и закрытию H1")
+bool showBodyRange = input.bool(true, "Показывать диапазон H1 как в v83")
 color bullishRange = input.color(color.teal, "Диапазон растущей H1")
 color bearishRange = input.color(color.red, "Диапазон падающей H1")
 int keepRanges = input.int(100, "Хранить диапазонов", minval=1, maxval=350)
@@ -469,15 +469,15 @@ bool rangeWeekday = dayofweek(time, rangeTimezone) != dayofweek.saturday and day
 if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bodyHourEnd
     if time == bodyHourStart
         hourBodyOpen := open
-        londonHourHigh := hourBodyOpen
-        londonHourLow := hourBodyOpen
+        londonHourHigh := high
+        londonHourLow := low
         collectingDay := rangeDayKey
         previousBodyBarClose := na
         completeBodyHour := true
     else if collectingDay != rangeDayKey or na(previousBodyBarClose) or (time != previousBodyBarClose and time != previousBodyBarClose + 1)
         completeBodyHour := false
-    londonHourHigh := math.max(hourBodyOpen, close)
-    londonHourLow := math.min(hourBodyOpen, close)
+    londonHourHigh := math.max(londonHourHigh, high)
+    londonHourLow := math.min(londonHourLow, low)
     previousBodyBarClose := time_close
     if showBodyRange and completeBodyHour and collectingDay == rangeDayKey and time_close >= bodyHourEnd - 1 and time_close <= bodyHourEnd and (na(lastBodyRangeDay) or lastBodyRangeDay != rangeDayKey)
         color rangeColor = close > hourBodyOpen ? bullishRange : close < hourBodyOpen ? bearishRange : flatColor
