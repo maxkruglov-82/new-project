@@ -20,7 +20,7 @@ const v=(n,t)=>c.plots[n].data[at(t)].value;
 assert.equal(v('Вход LONG/SHORT','17:35'),-1);
 assert.equal(v('Цена входа по close','17:35'),106.31);
 assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2','18:10'),-1);
-assert.equal(v('RetryBreak','19:50'),Date.parse('2026-10-16T19:50:00+07:00'));
+assert.equal(v('RetryBreak','19:45'),Date.parse('2026-10-16T19:45:00+07:00'));
 assert.equal(v('Состояние позиции','20:55'),1);
 assert.equal(v('Вход LONG/SHORT','21:15'),0);
 assert.equal(v('Вход LONG/SHORT','21:20'),-1);

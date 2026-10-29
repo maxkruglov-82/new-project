@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const original=readFileSync(new URL('../KRYTES_V1_LONDON_STRUCTURE.txt',import.meta.url),'utf8');
-for(const mirror of [false,true])for(const mode of ['reversal','continuation','missing-middle','missing-new-extreme','broken-middle','one-close','no-base-break','first-tp','daily-limit']){
+for(const mirror of [false,true])for(const mode of ['reversal','continuation','one-base-close','missing-middle','missing-new-extreme','broken-middle','one-close','no-base-break','first-tp','daily-limit']){
  const price=x=>mirror?200-x:x,firstSide=mirror?1:-1;
- const continuation=mode==='continuation'||mode==='no-base-break';
+ const continuation=mode==='continuation'||mode==='one-base-close'||mode==='no-base-break';
  const start=Date.parse('2026-10-16T14:00:00+07:00');
  const data=Array.from({length:26},(_,i)=>{
   let open=107,close=107,lo,hi;
   if(mode==='one-close'&&i>=14&&i<20)open=close=105.9;
-  if(continuation&&i===19)open=close=mode==='no-base-break'?101:99;
+  if(continuation&&i===19)open=close=(mode==='no-base-break'||mode==='one-base-close')?101:99;
   if(continuation&&i===20)open=close=mode==='no-base-break'?101:98.9;
   if(i===21){open=continuation?98.9:107;close=continuation?101.6:105.6;lo=continuation?98.8:105.45;}
   if(i===22){open=continuation?101.6:105.6;close=continuation?101.7:105.7;lo=continuation?101.4:105.4;}
@@ -49,13 +49,13 @@ if bar_index == 20
  const source=original.replace('    // Вторая сделка: новая тройка,',inject.split('\n').map(line=>line?'    '+line:line).join('\n')+'\n    // Вторая сделка: новая тройка,');
  const c=await new PineTS(data,'SOLUSDT','5').run(source),v=(n,i)=>c.plots[n].data[i].value;
  const fills=data.flatMap((_,i)=>v('Вход LONG/SHORT',i)?[i]:[]);
- const valid=mode==='reversal'||mode==='continuation';
+ const valid=mode==='reversal'||mode==='continuation'||mode==='one-base-close';
  assert.deepEqual(fills,valid?[22]:[],`${mirror} ${mode}`);
  if(valid){
-  assert.equal(v('Вход LONG/SHORT',22),mode==='continuation'?firstSide:-firstSide);
+  assert.equal(v('Вход LONG/SHORT',22),continuation?firstSide:-firstSide);
   assert.equal(v('Входов за день',22),2,'Friday permits a second fill after SL');
-  assert.equal(v('Стоп позиции',22),price(mode==='continuation'?106:103));
-  assert.equal(v('Цель позиции',22),price(mode==='continuation'?97:108));
+  assert.equal(v('Стоп позиции',22),price(continuation?106:103));
+  assert.equal(v('Цель позиции',22),price(continuation?97:108));
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',23),1);
   assert.equal(v('Входов за день',25),2,'no third entry');
  }

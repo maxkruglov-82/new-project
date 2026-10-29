@@ -204,15 +204,19 @@ drawColoredRuns(array<chart.point> points, array<polyline> drawings, array<polyl
             saveColoredRun(run, drawings, history, ink)
     array.size(drawings)
 
-// Цвет следует структуре: красный вниз, зелёный вверх; смена по двум close за опорой.
-rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int originBreakTime, int fourthBreakTime, float thirdPrice, float fourthPrice, bool fifthReady, int fifthTime, float fifthPrice, int fifthSide, float offset, int endTime) =>
+// Цвет меняется только после подтверждённой встречной тройки HH-HL-HH / LL-LH-LL.
+rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int firstTime, float offset, int endTime) =>
     array.clear(redPoints)
     array.clear(greenPoints)
     int trend = firstPrice > zeroPrice ? 1 : -1
-    float floorPrice = zeroPrice
-    float ceilingPrice = zeroPrice
     float latestHigh = trend == -1 ? zeroPrice : na
     float latestLow = trend == 1 ? zeroPrice : na
+    int reverseStage = 0
+    float reverseFirst = na
+    int reverseFirstTime = na
+    float reverseBase = na
+    float reverseMiddle = na
+    int reverseMiddleTime = na
     int result = 0
     int count = array.size(savedTimes)
     if count > 0
@@ -221,7 +225,6 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
             float candleOpen = array.get(savedOpens, candleIndex)
             float candleClose = array.get(savedCloses, candleIndex)
             if candleTime >= zeroTime and (na(endTime) or candleTime <= endTime)
-                // Подтверждённый поворот: свеча экстремума и четыре закрытые M5 справа.
                 if candleIndex >= 5
                     int pivotIndex = candleIndex - 4
                     int pivotTime = array.get(savedTimes, pivotIndex)
@@ -238,28 +241,62 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                             float rightLow = math.min(array.get(savedOpens, rightIndex), array.get(savedCloses, rightIndex))
                             highReady := highReady and pivotHigh >= rightHigh
                             lowReady := lowReady and pivotLow <= rightLow
-                        if highReady and not lowReady
-                            latestHigh := pivotHigh
-                            if trend == -1
-                                ceilingPrice := math.min(ceilingPrice, pivotHigh)
-                        if lowReady and not highReady
-                            latestLow := pivotLow
-                            if trend == 1
-                                floorPrice := math.max(floorPrice, pivotLow)
-                bool previousAtFloor = false
-                bool previousAtCeiling = false
-                if candleIndex > 0
-                    int previousTime = array.get(savedTimes, candleIndex - 1)
-                    float previousClose = array.get(savedCloses, candleIndex - 1)
-                    bool adjacent = candleTime - previousTime == 300000 and previousTime >= zeroTime
-                    previousAtFloor := adjacent and floorPrice - previousClose >= offset - 0.000000001
-                    previousAtCeiling := adjacent and previousClose - ceilingPrice >= offset - 0.000000001
-                if trend == 1 and floorPrice - candleClose >= offset - 0.000000001 and previousAtFloor
-                    trend := -1
-                    ceilingPrice := na(latestHigh) ? math.max(zeroPrice, candleOpen) : latestHigh
-                else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001 and previousAtCeiling
-                    trend := 1
-                    floorPrice := na(latestLow) ? math.min(zeroPrice, candleOpen) : latestLow
+                        if highReady != lowReady
+                            bool pivotIsHigh = highReady
+                            float pivotPrice = highReady ? pivotHigh : pivotLow
+                            bool wantUp = trend == -1
+                            bool firstType = pivotIsHigh == wantUp
+                            float priorSame = pivotIsHigh ? latestHigh : latestLow
+                            float priorOpposite = pivotIsHigh ? latestLow : latestHigh
+                            if pivotTime > firstTime
+                                if firstType
+                                    bool newFirst = not na(priorSame) and not na(priorOpposite) and (wantUp ? pivotPrice > priorSame : pivotPrice < priorSame)
+                                    if reverseStage == 0 and newFirst
+                                        reverseFirst := pivotPrice
+                                        reverseFirstTime := pivotTime
+                                        reverseBase := priorOpposite
+                                        reverseStage := 1
+                                    else if reverseStage == 1 and (wantUp ? pivotPrice > reverseFirst : pivotPrice < reverseFirst)
+                                        reverseFirst := pivotPrice
+                                        reverseFirstTime := pivotTime
+                                    else if reverseStage >= 2 and pivotTime > reverseMiddleTime and (wantUp ? pivotPrice > reverseFirst : pivotPrice < reverseFirst)
+                                        reverseStage := 3
+                                else if reverseStage >= 1 and pivotTime > reverseFirstTime
+                                    bool validMiddle = wantUp ? pivotPrice > reverseBase and pivotPrice < reverseFirst : pivotPrice < reverseBase and pivotPrice > reverseFirst
+                                    if validMiddle
+                                        reverseMiddle := pivotPrice
+                                        reverseMiddleTime := pivotTime
+                                        reverseStage := 2
+                                    else
+                                        reverseStage := 0
+                            if pivotIsHigh
+                                latestHigh := pivotPrice
+                            else
+                                latestLow := pivotPrice
+                if reverseStage == 3
+                    bool wantUp = trend == -1
+                    bool anchorBreak = false
+                    bool middleBreak = false
+                    bool previousAnchor = false
+                    bool previousMiddle = false
+                    int proofPreviousTime = na
+                    for proofIndex = 0 to candleIndex
+                        int proofTime = array.get(savedTimes, proofIndex)
+                        if proofTime >= reverseMiddleTime
+                            float proofClose = array.get(savedCloses, proofIndex)
+                            bool atAnchor = wantUp ? proofClose - reverseFirst >= offset - 0.000000001 : reverseFirst - proofClose >= offset - 0.000000001
+                            bool atMiddle = wantUp ? reverseMiddle - proofClose >= offset - 0.000000001 : proofClose - reverseMiddle >= offset - 0.000000001
+                            if proofTime - proofPreviousTime == 300000
+                                anchorBreak := anchorBreak or (atAnchor and previousAnchor)
+                                middleBreak := middleBreak or (atMiddle and previousMiddle)
+                            previousAnchor := atAnchor
+                            previousMiddle := atMiddle
+                            proofPreviousTime := proofTime
+                    if middleBreak
+                        reverseStage := 0
+                    else if anchorBreak
+                        trend := -trend
+                        reverseStage := 0
                 if trend == 1
                     appendColoredCandle(greenPoints, candleTime, candleOpen, candleClose)
                 else
@@ -366,6 +403,10 @@ var bool firstStopped = false
 var float retryBasePrice = na
 var int retryBaseTime = na
 var int retryContinuationBreakTime = na
+var bool retryPointOneAvailable = false
+var int retryPointOneTime = na
+var int retryReturnBreakTime = na
+var float retryStopBodyExtreme = na
 var int retryUsedGoalTime = na
 var int retryUsedSide = 0
 var array<int> retrySwingTimes = array.new_int()
@@ -536,6 +577,10 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         retryBasePrice := na
         retryBaseTime := na
         retryContinuationBreakTime := na
+        retryPointOneAvailable := false
+        retryPointOneTime := na
+        retryReturnBreakTime := na
+        retryStopBodyExtreme := na
         retryUsedGoalTime := na
         retryUsedSide := 0
         array.clear(retrySwingTimes)
@@ -1443,6 +1488,10 @@ if barstate.isconfirmed and m5Chart
                 retryBasePrice := positionTarget
                 retryBaseTime := na
                 retryContinuationBreakTime := na
+                retryPointOneAvailable := not na(structureFirstPrice) and math.abs(firstPositionStop - structureFirstPrice) <= 0.000000001
+                retryPointOneTime := firstExtremeTime
+                retryReturnBreakTime := na
+                retryStopBodyExtreme := firstPositionSide == 1 ? bodyLow : bodyHigh
                 retryUsedGoalTime := na
                 retryUsedSide := 0
                 if array.size(zeroSavedTimes) > 0
@@ -1463,7 +1512,8 @@ if barstate.isconfirmed and m5Chart
     int retryProposalGoalTime = na
     bool canSearchRetry = firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and (positionState == 4 or positionState == 5)
     if canSearchRetry and not na(retryBasePrice)
-        if na(retryContinuationBreakTime) and bar_index > firstStopBar and twoM5Break(retryBasePrice, firstPositionSide == 1, firstPointOffset, pointPairM5)
+        bool continuationCloseBeyond = firstPositionSide == 1 ? close - retryBasePrice >= firstPointOffset - 0.000000001 : retryBasePrice - close >= firstPointOffset - 0.000000001
+        if na(retryContinuationBreakTime) and bar_index > firstStopBar and continuationCloseBeyond
             retryContinuationBreakTime := time
         int retryCount = array.size(retrySwingTimes)
         int rejectionIndex = na
@@ -1534,6 +1584,63 @@ if barstate.isconfirmed and m5Chart
                     retryProposalTarget := continuationGoal
                     retryProposalStopTime := continuationStopTime
                     retryProposalGoalTime := continuationGoalTime
+    // Возврат к прежнему направлению: точка 1 -> прежний пик -> новый экстремум после SL.
+    // Манипуляция не отменяет прежние опоры: учитываем одно закрытие за точкой 1, включая свечу SL.
+    if canSearchRetry and retryPointOneAvailable
+        int returnSide = -firstPositionSide
+        bool returnCloseBeyond = returnSide == 1 ? close - firstPositionStop >= firstPointOffset - 0.000000001 : firstPositionStop - close >= firstPointOffset - 0.000000001
+        if na(retryReturnBreakTime) and bar_index >= firstStopBar and returnCloseBeyond
+            retryReturnBreakTime := time
+        if not na(retryReturnBreakTime)
+            int returnCount = array.size(retrySwingTimes)
+            float returnMiddle = na
+            int returnMiddleTime = na
+            bool middleIsHigh = returnSide == -1
+            if returnCount > 0
+                for i = 0 to returnCount - 1
+                    float price = array.get(retrySwingPrices, i)
+                    int atTime = array.get(retrySwingTimes, i)
+                    if array.get(retrySwingHighs, i) == middleIsHigh and atTime > retryPointOneTime and atTime < time[bar_index - firstStopBar] and math.abs(price - retryBasePrice) <= 0.000000001
+                        returnMiddle := price
+                        returnMiddleTime := atTime
+                if not na(returnMiddle)
+                    for i = 0 to returnCount - 1
+                        float price = array.get(retrySwingPrices, i)
+                        int atTime = array.get(retrySwingTimes, i)
+                        if array.get(retrySwingHighs, i) == middleIsHigh and atTime > retryPointOneTime and atTime <= retryReturnBreakTime and (middleIsHigh ? price > returnMiddle : price < returnMiddle)
+                            returnMiddle := price
+                            returnMiddleTime := atTime
+                    float returnGoal = na
+                    int returnGoalTime = na
+                    for i = 0 to returnCount - 1
+                        float price = array.get(retrySwingPrices, i)
+                        int atTime = array.get(retrySwingTimes, i)
+                        bool beyondPointOne = returnSide == 1 ? price > firstPositionStop : price < firstPositionStop
+                        bool moreExtreme = na(returnGoal) or (returnSide == 1 ? price > returnGoal : price < returnGoal)
+                        if array.get(retrySwingHighs, i) != middleIsHigh and atTime >= time[bar_index - firstStopBar] and atTime > returnMiddleTime and beyondPointOne and moreExtreme
+                            returnGoal := price
+                            returnGoalTime := atTime
+                    // Не превращаем манипуляцию в автоматический разворот: между
+                    // прежним экстремумом и новым LL/HH нужна подтверждённая пара
+                    // откат -> LH/HL. Опоры до SL сохраняются.
+                    bool returnStructureConfirmed = false
+                    int returnPullbackTime = na
+                    if not na(returnGoal)
+                        for i = 0 to returnCount - 1
+                            float price = array.get(retrySwingPrices, i)
+                            int atTime = array.get(retrySwingTimes, i)
+                            bool sameAsMiddle = array.get(retrySwingHighs, i) == middleIsHigh
+                            if atTime > returnMiddleTime and atTime < returnGoalTime
+                                if not sameAsMiddle
+                                    returnPullbackTime := atTime
+                                else if not na(returnPullbackTime) and atTime > returnPullbackTime and (middleIsHigh ? price < returnMiddle : price > returnMiddle)
+                                    returnStructureConfirmed := true
+                    if not na(returnGoal) and returnStructureConfirmed
+                        retryProposalSide := returnSide
+                        retryProposalStop := returnMiddle
+                        retryProposalTarget := returnGoal
+                        retryProposalStopTime := returnMiddleTime
+                        retryProposalGoalTime := returnGoalTime
     bool freshRetry = retryProposalSide != 0 and (retryProposalSide != retryUsedSide or retryProposalGoalTime != retryUsedGoalTime)
     bool retryStopIntact = retryProposalSide == 1 ? bodyLow > retryProposalStop : bodyHigh < retryProposalStop
     if canSearchRetry and freshRetry and retryStopIntact
@@ -1708,7 +1815,7 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
     int colorScopeEnd = colorScopeIndex >= 0 ? array.get(anchorTakeProfitTimes, colorScopeIndex) : na
     if positionExitEvent == 1 and positionPlanDay == structureDay
         colorScopeEnd := time
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, counterColorReady ? counterSignalTime : colorFourthBreakTime, counterColorReady ? counterStopPrice : (thirdStopQualified ? confirmedThirdPrice : structureFirstPrice), counterColorReady ? counterExtreme : confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorScopeEnd)
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, firstExtremeTime, firstPointOffset, colorScopeEnd)
     while array.size(colorDayDrawings) > 0
         polyline.delete(array.pop(colorDayDrawings))
     // Освобождаем бюджет перед созданием новых участков.
