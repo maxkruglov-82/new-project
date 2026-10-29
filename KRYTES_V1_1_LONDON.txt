@@ -267,6 +267,14 @@ removePendingPlan(array<box> boxes, array<label> labels, box riskBox, box reward
     deletePositionPrice(labels, stopInfo)
     deletePositionPrice(labels, targetInfo)
 
+// Фактические события: красная точка входа/выхода и зелёная галочка TP.
+tradeEventMark(array<label> marks, int atTime, float price, bool takeProfitTick) =>
+    label mark = label.new(x=atTime, y=price, text=takeProfitTick ? "✓" : "", xloc=xloc.bar_time, yloc=yloc.price, style=takeProfitTick ? label.style_label_down : label.style_circle, color=takeProfitTick ? color.new(color.white, 100) : color.red, textcolor=color.green, size=size.tiny)
+    array.push(marks, mark)
+    while array.size(marks) > 120
+        label.delete(array.shift(marks))
+    mark
+
 // Подберите цвет точно под фон графика KRYTES.
 color backgroundColor = input.color(color.rgb(245, 246, 248), "Цвет фона графика (маска теней)")
 color flatColor = color.black
@@ -372,6 +380,7 @@ var label positionStopInfo = na
 var label positionTargetInfo = na
 var array<box> positionBoxes = array.new_box()
 var array<label> positionLabels = array.new_label()
+var array<label> tradeEventMarks = array.new_label()
 color risingTrendColor = input.color(color.lime, "Восходящее движение между точками")
 color fallingTrendColor = input.color(color.red, "Нисходящее движение между точками")
 var int thirdColorTime = na
@@ -1331,6 +1340,7 @@ if barstate.isconfirmed and m5Chart
                             alert(entryAlertText("ВХОД ИСПОЛНЕН — остановка на трёх M5", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
                         colorStopTime := na
                         positionState := 2
+                        tradeEventMark(tradeEventMarks, time, positionEntry, false)
                 else
                     retestExtreme := na
                     retestBars := 0
@@ -1342,6 +1352,10 @@ if barstate.isconfirmed and m5Chart
             colorStopTime := time
             positionExitEvent := hitStop ? -1 : 1
             positionState := hitStop ? 4 : 3
+            float exitPrice = hitStop ? positionStop : positionTarget
+            tradeEventMark(tradeEventMarks, time, exitPrice, false)
+            if not hitStop
+                tradeEventMark(tradeEventMarks, time, exitPrice, true)
             // Фиксируем подписи предыдущей сделки до возможного создания второй.
             positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
             positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
@@ -1356,7 +1370,7 @@ if barstate.isconfirmed and m5Chart
         // Завершаем рисунок первой позиции до создания нового инструмента.
         if not na(positionInfo)
             label.set_xy(positionInfo, time + 600000, positionEntry)
-            label.set_text(positionInfo, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(positionEntry, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
+            label.set_text(positionInfo, "Вход исполнен " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(positionEntry, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
             box.set_right(positionRiskBox, time + 600000)
             box.set_right(positionRewardBox, time + 600000)
         positionSide := -firstPositionSide
@@ -1407,7 +1421,7 @@ if barstate.isconfirmed and m5Chart
     if newPositionPlan and pendingDirectionAllowed
         positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.red, 100), bgcolor=color.new(color.red, 85))
         positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime) - 600000, top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.teal, 100), bgcolor=color.new(color.teal, 85))
-        positionInfo := updatePositionPrice(na, time + 600000, positionThreshold, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(positionThreshold, "#.#####"), color.blue)
+        positionInfo := updatePositionPrice(na, time + 600000, positionThreshold, "Ожидание " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(positionThreshold, "#.#####"), color.blue)
         positionStopInfo := updatePositionPrice(na, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####"), color.red)
         positionTargetInfo := updatePositionPrice(na, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####"), color.teal)
         array.push(positionBoxes, positionRiskBox)
@@ -1415,7 +1429,7 @@ if barstate.isconfirmed and m5Chart
         array.push(positionLabels, positionInfo)
         array.push(positionLabels, positionStopInfo)
         array.push(positionLabels, positionTargetInfo)
-        // 40 инструментов по 3 подписи + 180 чисел структуры: максимум 300 меток.
+        // 120 ценовых подписей + 180 чисел + 120 событий: максимум 420 меток.
         while array.size(positionBoxes) > 80
             box.delete(array.shift(positionBoxes))
         while array.size(positionLabels) > 120
@@ -1430,7 +1444,7 @@ if barstate.isconfirmed and m5Chart
         box.set_right(positionRewardBox, time + 600000)
         float entryCaptionRisk = math.abs(drawnEntry - positionStop)
         string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
-        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (na(positionEntry) ? "Ожидание " : "Вход исполнен ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
         positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, "Стоп: " + str.tostring(positionStop, "#.#####") + (positionState == 4 ? " +" : ""), color.red)
         positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, "Цель: " + str.tostring(positionTarget, "#.#####") + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
