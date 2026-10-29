@@ -589,20 +589,9 @@ bool showFirstPoints = input.bool(true, "Показывать точки 1 за 
 float firstPointOffset = input.float(0.01, "Минимальный отступ закрепа за часом и точками", minval=0.01, step=0.01)
 // Только самый первый подтверждённый выход за день, в любую сторону.
 bool pointsUseWicks = false
-// Метки только структурных экстремумов стратегии; торговые расчёты не меняются.
-var array<label> swingNumberIds = array.new_label()
-var array<bool> swingHighFlags = array.new_bool()
-var array<label> swingMarkerIds = array.new_label()
-
+// Небольшие чёрные номера структуры без дополнительных символов high/low.
 newSwingLabel(int atTime, float price, string caption, string pointStyle) =>
-    label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
-    array.push(swingNumberIds, number)
-    array.push(swingHighFlags, pointStyle == label.style_label_down)
-    // 180 чисел + 180 символов + 120 ценовых подписей = 480 меток.
-    while array.size(swingNumberIds) > 180
-        array.shift(swingNumberIds)
-        array.shift(swingHighFlags)
-    number
+    label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
 
 var array<label> firstPointLabels = array.new_label()
 int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 1, 0, 0)
@@ -1395,7 +1384,7 @@ if barstate.isconfirmed and m5Chart
         array.push(positionLabels, positionInfo)
         array.push(positionLabels, positionStopInfo)
         array.push(positionLabels, positionTargetInfo)
-        // 40 инструментов по 3 подписи + 180 чисел + 180 символов: максимум 480.
+        // 40 инструментов по 3 подписи + 180 чисел структуры: максимум 300 меток.
         while array.size(positionBoxes) > 80
             box.delete(array.shift(positionBoxes))
         while array.size(positionLabels) > 120
@@ -1508,18 +1497,6 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
         else
             polyline.delete(array.shift(colorDayDrawings))
 plot(activeStructuralTrend, "Действующий цвет тренда", display=display.data_window)
-
-// Перерисовка на последнем баре синхронизирует переносы, скрытие и удаление точек.
-if barstate.islast
-    while array.size(swingMarkerIds) > 0
-        label.delete(array.pop(swingMarkerIds))
-    if array.size(swingNumberIds) > 0
-        for swingIndex = 0 to array.size(swingNumberIds) - 1
-            label number = array.get(swingNumberIds, swingIndex)
-            if array.indexof(firstPointLabels, number) >= 0 and not na(label.get_text(number)) and label.get_text(number) != ""
-                bool isHigh = array.get(swingHighFlags, swingIndex)
-                label marker = label.new(x=label.get_x(number), y=label.get_y(number), text="", xloc=xloc.bar_time, yloc=isHigh ? yloc.abovebar : yloc.belowbar, style=isHigh ? label.style_triangledown : label.style_cross, color=isHigh ? color.red : color.green, size=size.tiny)
-                array.push(swingMarkerIds, marker)
 
 // Линии следуют за сохранёнными инструментами, включая ожидающий вход.
 // После исполнения цены инструмента фиксированы; отменённый план удаляется.
