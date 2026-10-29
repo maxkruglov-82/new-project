@@ -391,11 +391,6 @@ var polyline colorArchiveGreen = na
 var float confirmedZeroPrice = na
 var int confirmedZeroTime = na
 // Незавершённая пара закрепа: старый уровень сохраняется до исхода второй M5.
-var bool zeroBreakPending = false
-var float zeroAttemptExtreme = na
-var int zeroAttemptTime = na
-var int zeroAttemptBar = na
-var float zeroAttemptOpen = na
 var bool firstLevelConfirmed = false
 var bool firstBreakPending = false
 var float firstAttemptExtreme = na
@@ -533,7 +528,6 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         colorStopTime := na
         confirmedZeroPrice := na
         confirmedZeroTime := na
-        zeroBreakPending := false
         firstBreakPending := false
         firstLevelConfirmed := false
         originRelocated := false
@@ -820,32 +814,10 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
     if counterSettled and not na(counterPullback) and (counterDown ? counterPullback > counterExtreme : counterPullback < counterExtreme)
         counterHasFive := true
 
-// Перенос неподтверждённого экстремума до первого фактического входа.
+// Перенос неподтверждённой точки 1 до первого входа; первоначальная 0 неподвижна.
 // Два close сравниваются со СТАРЫМ уровнем; первый close не двигает его.
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice) and dailyPositionEntries == 0 and positionState != 2 and not zeroTrendReversed
-    bool moveZero = false
     bool moveFirst = false
-    bool upZero = structureSide == -1
-    float zeroCandidate = upZero ? bodyHigh : bodyLow
-    bool beyondZero = upZero ? close - confirmedZeroPrice >= firstPointOffset - 0.000000001 : confirmedZeroPrice - close >= firstPointOffset - 0.000000001
-    if zeroBreakPending
-        if upZero ? zeroCandidate >= zeroAttemptExtreme : zeroCandidate <= zeroAttemptExtreme
-            zeroAttemptExtreme := zeroCandidate
-            zeroAttemptTime := time
-            zeroAttemptBar := bar_index
-            zeroAttemptOpen := open
-        if twoM5Break(confirmedZeroPrice, upZero, firstPointOffset, pointPairM5)
-            zeroBreakPending := false
-        else
-            // Когда уже есть самостоятельная 3–5, сохраняем исходную 0.
-            moveZero := not (counterModeActive and counterHasFive)
-            zeroBreakPending := false
-    else if beyondZero
-        zeroBreakPending := true
-        zeroAttemptExtreme := zeroCandidate
-        zeroAttemptTime := time
-        zeroAttemptBar := bar_index
-        zeroAttemptOpen := open
     bool upFirst = structureSide == 1
     float firstCandidate = upFirst ? bodyHigh : bodyLow
     bool beyondFirst = upFirst ? close - structureFirstPrice >= firstPointOffset - 0.000000001 : structureFirstPrice - close >= firstPointOffset - 0.000000001
@@ -867,7 +839,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         firstAttemptTime := time
         firstAttemptBar := bar_index
         firstAttemptOpen := open
-    if moveZero or moveFirst
+    if moveFirst
         // Удаляем только неисполненный сценарий: исполненные сделки не переписываем.
         if positionState == 1
             removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
@@ -929,18 +901,6 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
         pullbackExtremeTime := na
         firstConfirmedBar := bar_index
         firstLevelConfirmed := false
-        if moveZero
-            confirmedZeroPrice := zeroAttemptExtreme
-            confirmedZeroTime := zeroAttemptTime
-            originRelocated := true
-            label.set_xy(zeroLabel, confirmedZeroTime, confirmedZeroPrice)
-            // Внутренняя опора 2 совпадает с новой 0 и отдельной метки не имеет.
-            middlePrice := confirmedZeroPrice
-            middleTime := confirmedZeroTime
-            middleLastEqualTime := confirmedZeroTime
-            candidateOpen := zeroAttemptOpen
-            candidateExtremeBar := zeroAttemptBar
-            firstRollAwaitingRetreat := false
         if moveFirst
             firstPointRelocated := true
             structureFirstPrice := firstAttemptExtreme
