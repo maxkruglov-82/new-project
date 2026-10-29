@@ -4,13 +4,15 @@ import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js
 const f=JSON.parse(readFileSync(new URL('./fixtures/mexc-sol-usdt-m5-2026-10-20-structure-reversal.json',import.meta.url)));
 const data=f.candles.map(b=>({...b,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));
 const source=readFileSync(new URL('../KRYTES_V1_1_LONDON.txt',import.meta.url),'utf8');
-const c=await new PineTS(data,'SOLUSDT','5').run(source+'\nplot(engulfingRetestArmed?1:0,"Armed")');
+const c=await new PineTS(data,'SOLUSDT','5').run(source+'\nplot(engulfingRetestArmed?1:0,"Armed")\nplot(engulfingSignalAverage,"SignalMean")\nplot(engulfingSignalBody,"SignalBody")');
 const at=t=>data.findIndex(b=>b.openTime===Date.parse('2026-10-20T'+t+':00+07:00'));
 const v=(n,t)=>c.plots[n].data[at(t)].value;
 assert.equal(v('Состояние позиции','16:05'),7);
 assert.equal(v('Состояние позиции','20:05'),1,'intermediate lower high must not erase the first HH');
 assert.equal(v('Armed','20:15'),0,'wick-only zone visit before engulfing is not enough');
 assert.equal(v('Armed','20:35'),1);
+assert.ok(Math.abs(v('SignalMean','20:35')-.109)<1e-9);
+assert.ok(Math.abs(v('SignalBody','20:35')-.52)<1e-9);
 assert.equal(v('Состояние позиции','20:35'),1,'engulfing wick touching target preserves post-signal retest');
 assert.equal(v('Вход LONG/SHORT','20:40'),1);
 assert.equal(v('Цена входа по close','20:40'),104.28);

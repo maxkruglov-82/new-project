@@ -15,6 +15,32 @@ engulfingM5(int side) =>
     bool coversBody = math.min(open, close) <= math.min(open[1], close[1]) and math.max(open, close) >= math.max(open[1], close[1])
     bool direction = side == 1 ? close > open and close[1] < open[1] : close < open and close[1] > open[1]
     time - time[1] == 300000 and previousBody > 0 and currentBody >= previousBody * 1.10 - 0.000000001 and coversBody and direction
+retestBodyAverage(array<float> opens, array<float> closes, array<int> times, int side, int fromTime, int beforeTime) =>
+    float impulseExtreme = na
+    float bodySum = 0.0
+    int bodyCount = 0
+    int previousTime = na
+    bool contiguous = true
+    if array.size(times) > 0
+        for candleIndex = 0 to array.size(times) - 1
+            int candleTime = array.get(times, candleIndex)
+            if candleTime >= fromTime and candleTime < beforeTime
+                float candleOpen = array.get(opens, candleIndex)
+                float candleClose = array.get(closes, candleIndex)
+                float extreme = side == 1 ? math.max(candleOpen, candleClose) : math.min(candleOpen, candleClose)
+                bool newExtreme = na(impulseExtreme) or (side == 1 ? extreme > impulseExtreme + 0.000000001 : extreme < impulseExtreme - 0.000000001)
+                if newExtreme
+                    impulseExtreme := extreme
+                    bodySum := 0.0
+                    bodyCount := 0
+                    contiguous := true
+                else
+                    if candleTime - previousTime != 300000
+                        contiguous := false
+                    bodySum := bodySum + math.abs(candleClose - candleOpen)
+                    bodyCount := bodyCount + 1
+                previousTime := candleTime
+    bodyCount > 0 and contiguous ? bodySum / bodyCount : na
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
     int foundTime = na
@@ -314,6 +340,8 @@ var float retestExtreme = na
 var array<label> positionReasonLabels = array.new_label()
 var string positionEntryReason = ""
 var bool engulfingRetestArmed = false
+var float engulfingSignalBody = na
+var float engulfingSignalAverage = na
 var int retestBars = 0
 var int unfilledReverseDay = na
 var int unfilledReverseSide = 0
@@ -1353,7 +1381,9 @@ if barstate.isconfirmed and m5Chart
             shortVisitedDay := rangeDayKey
             bool priorEngulfingArmed = engulfingRetestArmed and retestSetupBar == positionSetupBar and retestDay == rangeDayKey and retestSide == positionSide and time - retestLastTime == 300000
             bool pendingSignalInZone = positionSide == 1 ? bodyLow <= positionThreshold and bodyLow > positionStop : bodyHigh >= positionThreshold and bodyHigh < positionStop
-            bool currentEngulfingSignal = bar_index > positionSetupBar and pendingDirectionAllowed and pendingSignalInZone and engulfingM5(positionSide)
+            float averageRetestBody = retestBodyAverage(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, positionSide, na(positionAnchorTime) ? zeroSearchStart : positionAnchorTime, time)
+            bool signalBodyMeetsAverage = not na(averageRetestBody) and math.abs(close - open) >= averageRetestBody - 0.000000001
+            bool currentEngulfingSignal = bar_index > positionSetupBar and pendingDirectionAllowed and pendingSignalInZone and engulfingM5(positionSide) and signalBodyMeetsAverage
             bool armedWickReached = priorEngulfingArmed and (positionSide == 1 ? low <= positionThreshold and high > positionStop : high >= positionThreshold and low < positionStop)
             bool shortTargetWithoutEntry = not priorEngulfingArmed and not currentEngulfingSignal and pendingDirectionAllowed and not stopBeforeEntry and not na(shortVisitedBar) and bar_index > shortVisitedBar and (positionSide == 1 ? high >= shortVisitedTarget : low <= shortVisitedTarget)
             if pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and na(shortVisitedBar) and (positionSide == 1 ? low <= positionThreshold : high >= positionThreshold)
@@ -1404,18 +1434,20 @@ if barstate.isconfirmed and m5Chart
                         alert(entryAlertText("КАСАНИЕ ЗОНЫ — ждём остановку 3 M5 или поглощение", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar_close)
                     bool priceStillInZone = positionSide == 1 ? close <= positionThreshold and close > positionStop : close >= positionThreshold and close < positionStop
                     bool stoppedAgainstEntry = positionSide == 1 ? close >= close[1] : close <= close[1]
-                    bool engulfingEntry = engulfingM5(positionSide) and extremeInZone
+                    bool engulfingEntry = engulfingM5(positionSide) and extremeInZone and signalBodyMeetsAverage
                     bool afterEngulfingTouch = priorEngulfingArmed and armedWickReached
                     float actualEntryPrice = afterEngulfingTouch ? (positionSide == 1 ? math.min(open, positionThreshold) : math.max(open, positionThreshold)) : close
                     float actualRisk = positionSide == 1 ? actualEntryPrice - positionStop : positionStop - actualEntryPrice
                     float actualReward = positionSide == 1 ? positionTarget - actualEntryPrice : actualEntryPrice - positionTarget
-                    if engulfingEntry
+                    if engulfingEntry and not afterEngulfingTouch
                         engulfingRetestArmed := true
+                        engulfingSignalBody := math.abs(close - open)
+                        engulfingSignalAverage := averageRetestBody
                     bool closeEntryReady = (retestBars >= 3 and stoppedAgainstEntry or engulfingEntry) and priceStillInZone
                     if (closeEntryReady or afterEngulfingTouch) and actualRisk > 0 and actualReward >= actualRisk - 0.000000001
                         dailyPositionEntries := dailyPositionEntries + 1
                         string entryContext = unfilledReversePlan and unfilledReverseDay == rangeDayKey ? "Сценарий без входа отработан; новая структура " + (positionSide == 1 ? "HH–HL–HH" : "LL–LH–LL") : positionIsSecond ? "После стопа: закреп в противоположную сторону" : positionIsZero ? "Смена направления: закреп за точкой 0" : "Продолжение движения: закреп за структурным уровнем"
-                        positionEntryReason := entryContext + "\nРетест: " + (engulfingRetestArmed ? "поглощение M5 ≥110%; вход по касанию зоны RR≥1:1" : "остановка на трёх M5")
+                        positionEntryReason := entryContext + "\nРетест: " + (engulfingRetestArmed ? "поглощение M5 ≥110%; тело " + str.tostring(engulfingSignalBody, "#.#####") + " ≥ среднего " + str.tostring(engulfingSignalAverage, "#.#####") + "; вход RR≥1:1" : "остановка на трёх M5")
                         positionEntry := actualEntryPrice
                         positionRR := actualReward / actualRisk
                         positionEntryBar := bar_index
