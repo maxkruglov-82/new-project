@@ -9,7 +9,7 @@ assert.equal(createHash('sha256').update(baseline).digest('hex'),'1a5eabf5409cdc
 assert.ok(source.includes('int dailyEntryLimit = 2'));
 assert.ok(source.includes('bool secondRRTouch = validTouch'));
 assert.ok(source.includes('twoM5Break(float level'));
-const plotNames=baseline.split('\n').filter(l=>l.startsWith('plot(')).map(l=>l.match(/"([^"]+)"/)[1]);
+const plotNames=baseline.split('\n').filter(l=>l.startsWith('plot(')&&!l.includes('Действующий цвет тренда')).map(l=>l.match(/"([^"]+)"/)[1]);
 for(const name of ['mexc-sol-usdt-m5-2026-10-02-v1-structure.json','mexc-sol-usdt-m5-2026-10-20-structure-reversal.json','mexc-sol-usdt-m5-2026-10-21-v1-structure.json','mexc-sol-usdt-m5-2026-10-23-structure-reversal.json','mexc-sol-usdt-m5-2026-10-29.json']){
  const f=JSON.parse(readFileSync(new URL('./fixtures/'+name,import.meta.url)));
  const data=f.candles.map(b=>({...b,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));

@@ -204,17 +204,15 @@ drawColoredRuns(array<chart.point> points, array<polyline> drawings, array<polyl
             saveColoredRun(run, drawings, history, ink)
     array.size(drawings)
 
-// Базовый тренд 0–1 сохраняется до закрепа за 0. После смены
-// откат сохраняет цвет; новая опора 3 защищает подтверждённый участок 3–4.
+// Цвет следует структуре: красный вниз, зелёный вверх; смена по двум close за опорой.
 rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int originBreakTime, int fourthBreakTime, float thirdPrice, float fourthPrice, bool fifthReady, int fifthTime, float fifthPrice, int fifthSide, float offset, int endTime) =>
     array.clear(redPoints)
     array.clear(greenPoints)
-    int initialSide = firstPrice > zeroPrice ? 1 : -1
-    int trend = initialSide
-    float floorPrice = math.min(zeroPrice, firstPrice)
-    float ceilingPrice = math.max(zeroPrice, firstPrice)
-    bool originApplied = false
-    bool fourthApplied = false
+    int trend = firstPrice > zeroPrice ? 1 : -1
+    float floorPrice = zeroPrice
+    float ceilingPrice = zeroPrice
+    float latestHigh = trend == -1 ? zeroPrice : na
+    float latestLow = trend == 1 ? zeroPrice : na
     int result = 0
     int count = array.size(savedTimes)
     if count > 0
@@ -223,41 +221,45 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
             float candleOpen = array.get(savedOpens, candleIndex)
             float candleClose = array.get(savedCloses, candleIndex)
             if candleTime >= zeroTime and (na(endTime) or candleTime <= endTime)
-                if not originApplied and not na(originBreakTime) and candleTime >= originBreakTime
-                    originApplied := true
-                    trend := -initialSide
-                    floorPrice := trend == 1 ? firstPrice : math.min(candleOpen, candleClose)
-                    ceilingPrice := trend == 1 ? math.max(candleOpen, candleClose) : firstPrice
-                if originApplied
-                    if not na(fourthBreakTime) and candleTime >= fourthBreakTime and not fourthApplied
-                        fourthApplied := true
-                        if fourthPrice > thirdPrice
-                            floorPrice := thirdPrice
-                            ceilingPrice := math.max(ceilingPrice, math.max(candleOpen, candleClose))
-                        else
-                            ceilingPrice := thirdPrice
-                            floorPrice := math.min(floorPrice, math.min(candleOpen, candleClose))
-                    bool previousAtFloor = false
-                    bool previousAtCeiling = false
-                    if candleIndex > 0
-                        int previousTime = array.get(savedTimes, candleIndex - 1)
-                        float previousClose = array.get(savedCloses, candleIndex - 1)
-                        bool pairInRun = candleTime - previousTime == 300000 and previousTime >= zeroTime
-                        previousAtFloor := pairInRun and floorPrice - previousClose >= offset - 0.000000001
-                        previousAtCeiling := pairInRun and previousClose - ceilingPrice >= offset - 0.000000001
-                    if trend == 1 and floorPrice - candleClose >= offset - 0.000000001 and previousAtFloor
-                        trend := -1
-                    else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001 and previousAtCeiling
-                        trend := 1
-                    if trend == 1
-                        ceilingPrice := math.max(ceilingPrice, math.max(candleOpen, candleClose))
-                    else
-                        floorPrice := math.min(floorPrice, math.min(candleOpen, candleClose))
-                    if fifthReady and candleTime >= fifthTime
-                        if fifthSide == 1
-                            ceilingPrice := fifthPrice
-                        else
-                            floorPrice := fifthPrice
+                // Подтверждённый поворот: свеча экстремума и четыре закрытые M5 справа.
+                if candleIndex >= 5
+                    int pivotIndex = candleIndex - 4
+                    int pivotTime = array.get(savedTimes, pivotIndex)
+                    bool contiguousPivot = candleTime - array.get(savedTimes, pivotIndex - 1) == 1500000
+                    if pivotTime >= zeroTime and contiguousPivot
+                        float pivotHigh = math.max(array.get(savedOpens, pivotIndex), array.get(savedCloses, pivotIndex))
+                        float pivotLow = math.min(array.get(savedOpens, pivotIndex), array.get(savedCloses, pivotIndex))
+                        float leftHigh = math.max(array.get(savedOpens, pivotIndex - 1), array.get(savedCloses, pivotIndex - 1))
+                        float leftLow = math.min(array.get(savedOpens, pivotIndex - 1), array.get(savedCloses, pivotIndex - 1))
+                        bool highReady = pivotHigh >= leftHigh
+                        bool lowReady = pivotLow <= leftLow
+                        for rightIndex = pivotIndex + 1 to candleIndex
+                            float rightHigh = math.max(array.get(savedOpens, rightIndex), array.get(savedCloses, rightIndex))
+                            float rightLow = math.min(array.get(savedOpens, rightIndex), array.get(savedCloses, rightIndex))
+                            highReady := highReady and pivotHigh >= rightHigh
+                            lowReady := lowReady and pivotLow <= rightLow
+                        if highReady and not lowReady
+                            latestHigh := pivotHigh
+                            if trend == -1
+                                ceilingPrice := math.min(ceilingPrice, pivotHigh)
+                        if lowReady and not highReady
+                            latestLow := pivotLow
+                            if trend == 1
+                                floorPrice := math.max(floorPrice, pivotLow)
+                bool previousAtFloor = false
+                bool previousAtCeiling = false
+                if candleIndex > 0
+                    int previousTime = array.get(savedTimes, candleIndex - 1)
+                    float previousClose = array.get(savedCloses, candleIndex - 1)
+                    bool adjacent = candleTime - previousTime == 300000 and previousTime >= zeroTime
+                    previousAtFloor := adjacent and floorPrice - previousClose >= offset - 0.000000001
+                    previousAtCeiling := adjacent and previousClose - ceilingPrice >= offset - 0.000000001
+                if trend == 1 and floorPrice - candleClose >= offset - 0.000000001 and previousAtFloor
+                    trend := -1
+                    ceilingPrice := na(latestHigh) ? math.max(zeroPrice, candleOpen) : latestHigh
+                else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001 and previousAtCeiling
+                    trend := 1
+                    floorPrice := na(latestLow) ? math.min(zeroPrice, candleOpen) : latestLow
                 if trend == 1
                     appendColoredCandle(greenPoints, candleTime, candleOpen, candleClose)
                 else
@@ -681,20 +683,6 @@ recordMarketSwing(array<int> times, array<float> prices, array<bool> highs, arra
 
 swingClass(float price, float previousPrice, bool isHigh) =>
     na(previousPrice) ? (isHigh ? "H" : "L") : math.abs(price - previousPrice) <= 0.000000001 ? (isHigh ? "EH" : "EL") : isHigh ? (price > previousPrice ? "HH" : "LH") : (price > previousPrice ? "HL" : "LL")
-
-swingOrdinal(int value) =>
-    string suffix = str.tostring(value)
-    suffix := str.replace_all(suffix, "0", "₀")
-    suffix := str.replace_all(suffix, "1", "₁")
-    suffix := str.replace_all(suffix, "2", "₂")
-    suffix := str.replace_all(suffix, "3", "₃")
-    suffix := str.replace_all(suffix, "4", "₄")
-    suffix := str.replace_all(suffix, "5", "₅")
-    suffix := str.replace_all(suffix, "6", "₆")
-    suffix := str.replace_all(suffix, "7", "₇")
-    suffix := str.replace_all(suffix, "8", "₈")
-    suffix := str.replace_all(suffix, "9", "₉")
-    suffix
 
 newSwingLabel(int atTime, float price, string caption, string pointStyle) =>
     label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
@@ -1716,7 +1704,11 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
 // Окраска истории пересчитывается только по телам. Финансовые сигналы не меняются.
 if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice)
     bool counterColorReady = counterReversalReady and counterStopQualified and not na(counterStopPrice)
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, counterColorReady ? counterSignalTime : colorFourthBreakTime, counterColorReady ? counterStopPrice : (thirdStopQualified ? confirmedThirdPrice : structureFirstPrice), counterColorReady ? counterExtreme : confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorStopTime)
+    int colorScopeIndex = array.indexof(anchorHistoryDays, structureDay)
+    int colorScopeEnd = colorScopeIndex >= 0 ? array.get(anchorTakeProfitTimes, colorScopeIndex) : na
+    if positionExitEvent == 1 and positionPlanDay == structureDay
+        colorScopeEnd := time
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, colorOriginBreakTime, counterColorReady ? counterSignalTime : colorFourthBreakTime, counterColorReady ? counterStopPrice : (thirdStopQualified ? confirmedThirdPrice : structureFirstPrice), counterColorReady ? counterExtreme : confirmedFourthPrice, positionIsSecond and fifthLocked and not na(confirmedFifthPrice), fifthColorTime, confirmedFifthPrice, positionSide, firstPointOffset, colorScopeEnd)
     while array.size(colorDayDrawings) > 0
         polyline.delete(array.pop(colorDayDrawings))
     // Освобождаем бюджет перед созданием новых участков.
@@ -1825,24 +1817,14 @@ if barstate.isconfirmed and positionExitEvent == 1
     if takeProfitIndex >= 0
         array.set(anchorTakeProfitTimes, takeProfitIndex, time)
 
-// Обычные номера системы сохраняются. Совпадающие структурные опоры объединяем с номером.
+// На графике только 0/1 с H/L и структура HH/HL/LH/LL. Внутренние номера движка скрыты.
 if barstate.islast
     while array.size(marketStructureLabels) > 0
         label.delete(array.pop(marketStructureLabels))
-    array<int> visibleTimes = array.new_int()
-    array<float> visiblePrices = array.new_float()
-    array<label> visibleIds = array.new_label()
-    array<bool> visibleHighs = array.new_bool()
-    if array.size(classifiedSwingIds) > 0
-        for classIndex = 0 to array.size(classifiedSwingIds) - 1
-            label number = array.get(classifiedSwingIds, classIndex)
-            if array.indexof(firstPointLabels, number) >= 0 and not na(label.get_text(number)) and label.get_text(number) != ""
-                string digit = array.get(str.split(label.get_text(number), " · "), 0)
-                label.set_text(number, digit)
-                array.push(visibleTimes, label.get_x(number))
-                array.push(visiblePrices, label.get_y(number))
-                array.push(visibleIds, number)
-                array.push(visibleHighs, array.get(classifiedSwingHighs, classIndex))
+    // Метки движка нужны внутренним опорам, но их номера больше не выводим.
+    if array.size(firstPointLabels) > 0
+        for numberIndex = 0 to array.size(firstPointLabels) - 1
+            label.set_text(array.get(firstPointLabels, numberIndex), "")
     int viewportLeft = chart.left_visible_bar_time
     int viewportRight = chart.right_visible_bar_time
     int visibleSwingCount = 0
@@ -1859,7 +1841,6 @@ if barstate.islast
     float previousHigh = na
     float previousLow = na
     int previousSwingDay = na
-    int swingSequence = 0
     int scopedStart = na
     int scopedEnd = na
     float scopedZeroPrice = na
@@ -1876,28 +1857,19 @@ if barstate.islast
                 previousHigh := scopedZeroHigh ? scopedZeroPrice : na
                 previousLow := scopedZeroHigh ? na : scopedZeroPrice
                 previousSwingDay := swingDay
-                swingSequence := 0
             bool isHigh = array.get(structureHistoryHighs, swingIndex)
             float price = array.get(structureHistoryPrices, swingIndex)
             int swingTime = array.get(structureHistoryTimes, swingIndex)
             bool inScope = not na(scopedStart) and swingTime >= scopedStart and (na(scopedEnd) or swingTime <= scopedEnd)
-            if inScope
-                swingSequence := swingSequence + 1
             bool zeroMatchesSwing = swingTime == scopedStart and isHigh == scopedZeroHigh and math.abs(price - scopedZeroPrice) <= 0.000000001
-            string caption = swingClass(price, zeroMatchesSwing ? na : isHigh ? previousHigh : previousLow, isHigh) + swingOrdinal(swingSequence)
+            string classification = swingClass(price, zeroMatchesSwing ? na : isHigh ? previousHigh : previousLow, isHigh)
+            string caption = classification == "H" ? "HH" : classification == "L" ? "LL" : classification
+            bool structuralCaption = caption == "HH" or caption == "HL" or caption == "LH" or caption == "LL"
             bool inViewport = inScope and swingTime >= viewportLeft and swingTime <= viewportRight
             if inViewport
                 visibleSwingSeen := visibleSwingSeen + 1
             if inViewport and visibleSwingSeen > math.max(0, visibleSwingCount - 116)
-                bool combined = false
-                if array.size(visibleIds) > 0
-                    for visibleIndex = 0 to array.size(visibleIds) - 1
-                        if array.get(visibleTimes, visibleIndex) == swingTime and array.get(visibleHighs, visibleIndex) == isHigh and math.abs(array.get(visiblePrices, visibleIndex) - price) <= 0.000000001
-                            label number = array.get(visibleIds, visibleIndex)
-                            label.set_text(number, label.get_text(number) + " · " + caption)
-                            combined := true
-                            break
-                if not combined
+                if structuralCaption
                     label structureLabel = label.new(x=swingTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=isHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
                     array.push(marketStructureLabels, structureLabel)
             if inScope
@@ -1915,21 +1887,15 @@ if barstate.islast
                 int anchorEnd = array.get(anchorTakeProfitTimes, anchorIndex)
                 if anchorTime >= viewportLeft and anchorTime <= viewportRight and (na(anchorEnd) or anchorTime <= anchorEnd)
                     bool foundAnchor = false
-                    if array.size(visibleIds) > 0
-                        for visibleIndex = 0 to array.size(visibleIds) - 1
-                            label existingNumber = array.get(visibleIds, visibleIndex)
-                            string existingDigit = array.get(str.split(label.get_text(existingNumber), " · "), 0)
-                            if label.get_x(existingNumber) == anchorTime and math.abs(label.get_y(existingNumber) - anchorPrice) <= 0.000000001 and existingDigit == str.tostring(anchorNumber)
-                                foundAnchor := true
                     if not foundAnchor and array.size(marketStructureLabels) > 0
                         for labelIndex = 0 to array.size(marketStructureLabels) - 1
                             label existingSwing = array.get(marketStructureLabels, labelIndex)
                             if label.get_x(existingSwing) == anchorTime and math.abs(label.get_y(existingSwing) - anchorPrice) <= 0.000000001
-                                label.set_text(existingSwing, str.tostring(anchorNumber) + " · " + label.get_text(existingSwing))
+                                label.set_text(existingSwing, str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L"))
                                 foundAnchor := true
                                 break
                     if not foundAnchor
-                        label anchorLabel = label.new(x=anchorTime, y=anchorPrice, text=str.tostring(anchorNumber), xloc=xloc.bar_time, yloc=yloc.price, style=anchorHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+                        label anchorLabel = label.new(x=anchorTime, y=anchorPrice, text=str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L"), xloc=xloc.bar_time, yloc=yloc.price, style=anchorHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
                         array.push(marketStructureLabels, anchorLabel)
                         while array.size(marketStructureLabels) > 120
                             label.delete(array.shift(marketStructureLabels))
