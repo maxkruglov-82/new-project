@@ -7,10 +7,8 @@ entryAlertText(string eventName, int side, float entryPrice, float stopPrice, fl
     eventName + " | " + (side == 1 ? "LONG" : "SHORT") + " | " + syminfo.tickerid + " | M5" + " | Вход: $" + str.tostring(entryPrice, "#.#####") + " | Стоп: $" + str.tostring(stopPrice, "#.#####") + " | Тейк: $" + str.tostring(targetPrice, "#.#####") + " | RR 1:" + str.tostring(math.abs(targetPrice - entryPrice) / math.abs(entryPrice - stopPrice), "#.###")
 nextRetreatCount(int previousCount, bool contiguous, float candleOpen, float candleClose, bool upward) =>
     contiguous ? previousCount + 1 : 1
-twoM5Break(float level, bool upward, float offset, bool adjacentSameDay) =>
-    bool currentBeyond = upward ? close - level >= offset - 0.000000001 : level - close >= offset - 0.000000001
-    bool previousBeyond = upward ? close[1] - level >= offset - 0.000000001 : level - close[1] >= offset - 0.000000001
-    adjacentSameDay and currentBeyond and previousBeyond
+singleM5Break(float level, bool upward, float offset) =>
+    upward ? close - level >= offset - 0.000000001 : level - close >= offset - 0.000000001
 findRangeOrigin(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
     int foundTime = na
@@ -175,17 +173,9 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                         else
                             ceilingPrice := thirdPrice
                             floorPrice := math.min(floorPrice, math.min(candleOpen, candleClose))
-                    bool previousAtFloor = false
-                    bool previousAtCeiling = false
-                    if candleIndex > 0
-                        int previousTime = array.get(savedTimes, candleIndex - 1)
-                        float previousClose = array.get(savedCloses, candleIndex - 1)
-                        bool pairInRun = candleTime - previousTime == 300000 and previousTime >= zeroTime
-                        previousAtFloor := pairInRun and floorPrice - previousClose >= offset - 0.000000001
-                        previousAtCeiling := pairInRun and previousClose - ceilingPrice >= offset - 0.000000001
-                    if trend == 1 and floorPrice - candleClose >= offset - 0.000000001 and previousAtFloor
+                    if trend == 1 and floorPrice - candleClose >= offset - 0.000000001
                         trend := -1
-                    else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001 and previousAtCeiling
+                    else if trend == -1 and candleClose - ceilingPrice >= offset - 0.000000001
                         trend := 1
                     if trend == 1
                         ceilingPrice := math.max(ceilingPrice, math.max(candleOpen, candleClose))
@@ -234,7 +224,7 @@ removePendingPlan(array<box> boxes, array<label> labels, box riskBox, box reward
 tradeEventMark(array<label> marks, int atTime, float price, bool takeProfitTick) =>
     label mark = label.new(x=atTime, y=price, text=takeProfitTick ? "✓" : "", xloc=xloc.bar_time, yloc=yloc.price, style=takeProfitTick ? label.style_label_down : label.style_circle, color=takeProfitTick ? color.new(color.white, 100) : color.red, textcolor=color.green, size=size.tiny)
     array.push(marks, mark)
-    while array.size(marks) > 120
+    while array.size(marks) > 80
         label.delete(array.shift(marks))
     mark
 color backgroundColor = input.color(color.rgb(245, 246, 248), "Цвет фона графика (маска теней)")
@@ -315,7 +305,13 @@ var int retestDay = na
 var int retestSide = 0
 var int retestLastTime = na
 var float retestExtreme = na
+var array<label> positionReasonLabels = array.new_label()
+var string positionEntryReason = ""
 var int retestBars = 0
+var int unfilledReverseDay = na
+var int unfilledReverseSide = 0
+var int unfilledCompletedTime = na
+var bool unfilledReversePlan = false
 var int shortVisitedSetup = na
 var int shortVisitedDay = na
 var int shortVisitedBar = na
@@ -745,7 +741,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
     else
         float nextExtreme = counterDown ? bodyLow : bodyHigh
         float nextPullback = counterDown ? bodyHigh : bodyLow
-        bool counterOriginBreak = zeroTrendReversed or twoM5Break(confirmedZeroPrice, not counterDown, firstPointOffset, pointPairM5)
+        bool counterOriginBreak = zeroTrendReversed or singleM5Break(confirmedZeroPrice, not counterDown, firstPointOffset)
         if counterSettled
             if na(counterPullback) or (counterDown ? nextPullback >= counterPullback : nextPullback <= counterPullback)
                 counterPullback := nextPullback
@@ -755,7 +751,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 if counterDown ? nextExtreme <= counterAttemptExtreme : nextExtreme >= counterAttemptExtreme
                     counterAttemptExtreme := nextExtreme
                     counterAttemptTime := time
-                if twoM5Break(counterExtreme, not counterDown, firstPointOffset, pointPairM5)
+                if singleM5Break(counterExtreme, not counterDown, firstPointOffset)
                     counterStopQualified := retreatStopHasMinimum(zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, counterExtremeTime, counterPullback, not counterDown, minimumRetreatBars)
                     counterStopPrice := counterPullback
                     counterStopTime := counterPullbackTime
@@ -801,7 +797,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             counterSignalTime := time
     if counterSettled and not na(counterPullback) and (counterDown ? counterPullback > counterExtreme : counterPullback < counterExtreme)
         counterHasFive := true
-if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice) and dailyPositionEntries == 0 and positionState != 2 and not zeroTrendReversed
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and firstSwingDisplayLocked and not na(confirmedZeroPrice) and dailyPositionEntries == 0 and positionState != 2 and not zeroTrendReversed and (na(unfilledReverseDay) or unfilledReverseDay != rangeDayKey)
     bool moveFirst = false
     bool upFirst = structureSide == 1
     float firstCandidate = upFirst ? bodyHigh : bodyLow
@@ -812,7 +808,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             firstAttemptTime := time
             firstAttemptBar := bar_index
             firstAttemptOpen := open
-        if twoM5Break(structureFirstPrice, upFirst, firstPointOffset, pointPairM5)
+        if singleM5Break(structureFirstPrice, upFirst, firstPointOffset)
             firstBreakPending := false
             firstLevelConfirmed := true
         else
@@ -936,7 +932,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                 pullbackOpen := open
                 pullbackOppositeBody := structureSide == -1 ? bodyHigh : bodyLow
                 pullbackExtremeBar := bar_index
-            bool continuationConfirmsSecond = twoM5Break(structureFirstPrice, structureSide == 1, firstPointOffset, pointPairM5)
+            bool continuationConfirmsSecond = singleM5Break(structureFirstPrice, structureSide == 1, firstPointOffset)
             if (pullbackCloseCount >= minimumRetreatBars and beyondCandidateBody) or continuationConfirmsSecond
                 secondPointReady := true
                 confirmedSecondPrice := middlePrice
@@ -944,8 +940,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
                     secondPointLabel := newSwingLabel(middleTime, middlePrice, "2", structureSide == -1 ? label.style_label_down : label.style_label_up)
                     array.push(firstPointLabels, secondPointLabel)
     if secondPointReady
-        bool crossedSecond = twoM5Break(middlePrice, structureSide == -1, firstPointOffset, pointPairM5)
-        bool crossedFirst = twoM5Break(structureFirstPrice, structureSide == 1, firstPointOffset, pointPairM5)
+        bool crossedSecond = singleM5Break(middlePrice, structureSide == -1, firstPointOffset)
+        bool crossedFirst = singleM5Break(structureFirstPrice, structureSide == 1, firstPointOffset)
         if crossedSecond or crossedFirst
             confirmedThirdPrice := crossedSecond ? pullbackExtreme : (structureSide == -1 ? bodyLow : bodyHigh)
             thirdStopQualified := true
@@ -976,7 +972,7 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == ran
             thirdLocked := crossedSecond
             array.push(firstPointLabels, thirdLabel)
             structureCompleted := true
-            if positionState != 2 and dailyPositionEntries == 0 and (not zeroConditionUsed or zeroScenarioCancelled)
+            if positionState != 2 and dailyPositionEntries == 0 and (not zeroConditionUsed or zeroScenarioCancelled) and (na(unfilledReverseDay) or unfilledReverseDay != rangeDayKey)
                 if positionState == 1
                     removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
                 newPositionPlan := true
@@ -1061,8 +1057,8 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and (positionIsSecond o
         fifthRetreatBars := nextRetreatCount(fifthRetreatBars, time - time[1] == 300000, open, close, positionSide == -1)
         if fifthRetreatBars >= minimumRetreatBars and (positionSide == 1 ? close < confirmedFifthPrice : close > confirmedFifthPrice)
             fifthLocked := true
-if barstate.isconfirmed and firstPointWindow and m5Chart and structureCompleted and not na(confirmedFourthPrice) and not na(confirmedThirdPrice) and thirdStopQualified and not zeroTrendReversed and not continuationAfterFourthUsed and dailyPositionEntries == 0 and positionState != 2
-    bool brokeThirdWithTrend = twoM5Break(confirmedThirdPrice, structureSide == 1, firstPointOffset, pointPairM5)
+if barstate.isconfirmed and firstPointWindow and m5Chart and structureCompleted and not na(confirmedFourthPrice) and not na(confirmedThirdPrice) and thirdStopQualified and not zeroTrendReversed and not continuationAfterFourthUsed and dailyPositionEntries == 0 and positionState != 2 and (na(unfilledReverseDay) or unfilledReverseDay != rangeDayKey)
+    bool brokeThirdWithTrend = singleM5Break(confirmedThirdPrice, structureSide == 1, firstPointOffset)
     if brokeThirdWithTrend
         if positionState == 1
             removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
@@ -1105,10 +1101,10 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and structureCompleted 
         positionStopInfo := na
         positionTargetInfo := na
         newPositionPlan := true
-if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice) and (not zeroConditionUsed or (not longPlanReplaced and positionIsZero and positionState == 1 and counterReversalReady and counterStopQualified and not na(counterStopPrice) and positionStop != counterStopPrice)) and dailyPositionEntries == 0 and positionState != 2
+if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice) and (not zeroConditionUsed or (not longPlanReplaced and positionIsZero and positionState == 1 and counterReversalReady and counterStopQualified and not na(counterStopPrice) and positionStop != counterStopPrice)) and dailyPositionEntries == 0 and positionState != 2 and (na(unfilledReverseDay) or unfilledReverseDay != rangeDayKey)
     bool zeroInitialUp = structureFirstPrice > confirmedZeroPrice
     bool zeroInitialDown = structureFirstPrice < confirmedZeroPrice
-    bool zeroBreak = (zeroInitialUp or zeroInitialDown) and twoM5Break(confirmedZeroPrice, zeroInitialDown, firstPointOffset, pointPairM5)
+    bool zeroBreak = (zeroInitialUp or zeroInitialDown) and singleM5Break(confirmedZeroPrice, zeroInitialDown, firstPointOffset)
     bool useCounterStop = counterModeActive and counterHasFive and counterStopQualified and not na(counterStopPrice)
     bool counterGate = not (counterModeActive and counterHasFive) or counterReversalReady
     if zeroBreak and counterGate
@@ -1151,14 +1147,14 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLo
         newPositionPlan := true
 if barstate.isconfirmed and firstPointWindow and m5Chart and firstSwingDisplayLocked and not na(confirmedZeroPrice)
     bool initialUptrend = structureFirstPrice > confirmedZeroPrice
-    bool crossedOrigin = twoM5Break(confirmedZeroPrice, not initialUptrend, firstPointOffset, pointPairM5)
+    bool crossedOrigin = singleM5Break(confirmedZeroPrice, not initialUptrend, firstPointOffset)
     if crossedOrigin
         if na(colorOriginBreakTime)
             colorOriginBreakTime := time
         zeroTrendReversed := true
 if barstate.isconfirmed and m5Chart and firstPointWindow and structureDay == rangeDayKey and structureSide == -1 and positionState == 1 and positionSide == 1 and positionIsZero and not positionIsSecond and dailyPositionEntries == 0 and positionPlanDay == rangeDayKey and structureCompleted and thirdStopQualified and not longPlanReplaced and not na(confirmedSecondPrice) and not na(confirmedThirdPrice) and not na(confirmedFourthPrice)
     bool confirmedHL = confirmedThirdPrice > positionStop and bar_index - thirdExtremeBar + 1 >= minimumRetreatBars
-    bool confirmedNewHH = twoM5Break(confirmedSecondPrice, true, firstPointOffset, pointPairM5)
+    bool confirmedNewHH = singleM5Break(confirmedSecondPrice, true, firstPointOffset)
     if confirmedHL and confirmedNewHH
         if not na(positionInfo)
             removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
@@ -1186,10 +1182,56 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and (firstPositionIsZer
     if na(zeroReversalStop) or (firstPositionSide == -1 ? bodyLow < zeroReversalStop : bodyHigh > zeroReversalStop)
         zeroReversalTime := time
     zeroReversalStop := firstPositionSide == -1 ? math.min(zeroReversalStop, bodyLow) : math.max(zeroReversalStop, bodyHigh)
+if barstate.isconfirmed and m5Chart and firstPointWindow and unfilledReverseDay == rangeDayKey and positionState == 7 and dailyPositionEntries < dailyEntryLimit
+    int swingCount = array.size(marketSwingTimes)
+    if swingCount >= 5
+        int a = swingCount - 3
+        int b = swingCount - 2
+        int c = swingCount - 1
+        bool highSide = unfilledReverseSide == 1
+        float firstPrice = array.get(marketSwingPrices, a)
+        float stopPrice = array.get(marketSwingPrices, b)
+        float goalPrice = array.get(marketSwingPrices, c)
+        bool sameDayStructure = array.get(marketSwingDays, a - 2) == rangeDayKey and array.get(marketSwingDays, c) == rangeDayKey
+        bool oppositeTriple = array.get(marketSwingHighs, a) == highSide and array.get(marketSwingHighs, b) != highSide and array.get(marketSwingHighs, c) == highSide
+        bool newExtreme = highSide ? goalPrice > firstPrice and stopPrice < firstPrice : goalPrice < firstPrice and stopPrice > firstPrice
+        bool risingOrFalling = highSide ? firstPrice > array.get(marketSwingPrices, a - 2) and stopPrice > array.get(marketSwingPrices, a - 1) : firstPrice < array.get(marketSwingPrices, a - 2) and stopPrice < array.get(marketSwingPrices, a - 1)
+        bool afterCompleted = array.get(marketSwingTimes, a) > unfilledCompletedTime
+        bool confirmedBreak = singleM5Break(firstPrice, highSide, firstPointOffset)
+        if sameDayStructure and oppositeTriple and newExtreme and risingOrFalling and afterCompleted and confirmedBreak
+            positionSide := unfilledReverseSide
+            positionStop := stopPrice
+            positionTarget := highSide ? math.max(goalPrice, bodyHigh) : math.min(goalPrice, bodyLow)
+            positionThreshold := (positionStop + positionTarget) / 2.0
+            positionAnchorTime := array.get(marketSwingTimes, b)
+            positionSetupBar := bar_index
+            positionPlanDay := rangeDayKey
+            positionEntry := na
+            positionEntryBar := na
+            positionRR := na
+            positionIsZero := false
+            positionUsesFourth := false
+            positionUsesFifth := false
+            positionIsSecond := false
+            firstPositionSide := positionSide
+            firstPositionStop := positionStop
+            firstPositionIsZero := false
+            firstPositionUsesFourth := false
+            firstPositionUsesFifth := false
+            positionRiskBox := na
+            positionRewardBox := na
+            positionInfo := na
+            positionStopInfo := na
+            positionTargetInfo := na
+            retestExtreme := na
+            retestBars := 0
+            unfilledReversePlan := true
+            positionState := 1
+            newPositionPlan := true
 int positionExitEvent = 0
 bool positionEntryEvent = false
 if barstate.isconfirmed and m5Chart
-    bool pendingAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
+    bool pendingAgainstTrend = not (unfilledReversePlan and unfilledReverseDay == rangeDayKey) and not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     bool waitingForCounterBreak = counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
     bool pendingDirectionAllowed = (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not waitingForCounterBreak
     if positionState == 1 and waitingForCounterBreak
@@ -1235,21 +1277,25 @@ if barstate.isconfirmed and m5Chart
                     retestBars := 0
                     longBackToMain := true
                     newPositionPlan := true
-            bool sameVisitedShort = shortVisitedSetup == positionSetupBar and shortVisitedDay == rangeDayKey
+            bool sameVisitedShort = shortVisitedSetup == positionSetupBar and shortVisitedDay == rangeDayKey and retestSide == positionSide
             if not sameVisitedShort
                 shortVisitedBar := na
                 shortVisitedTarget := na
             shortVisitedSetup := positionSetupBar
             shortVisitedDay := rangeDayKey
-            bool shortTargetWithoutEntry = positionSide == -1 and pendingDirectionAllowed and not stopBeforeEntry and not na(shortVisitedBar) and bar_index > shortVisitedBar and low <= shortVisitedTarget
-            if positionSide == -1 and pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and na(shortVisitedBar) and high >= positionThreshold
+            bool shortTargetWithoutEntry = pendingDirectionAllowed and not stopBeforeEntry and not na(shortVisitedBar) and bar_index > shortVisitedBar and (positionSide == 1 ? high >= shortVisitedTarget : low <= shortVisitedTarget)
+            if pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and na(shortVisitedBar) and (positionSide == 1 ? low <= positionThreshold : high >= positionThreshold)
                 shortVisitedBar := bar_index
                 shortVisitedTarget := positionTarget
-            float currentTarget = positionIsZero or (positionIsSecond and (firstPositionIsZero or firstPositionUsesFifth)) ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
+            float currentTarget = unfilledReversePlan and unfilledReverseDay == rangeDayKey ? (positionSide == 1 ? bodyHigh : bodyLow) : positionIsZero or (positionIsSecond and (firstPositionIsZero or firstPositionUsesFifth)) ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
             positionThreshold := (positionStop + positionTarget) / 2.0
             if shortTargetWithoutEntry
                 positionState := 7
+                unfilledReverseDay := rangeDayKey
+                unfilledReverseSide := -positionSide
+                unfilledCompletedTime := time
+                unfilledReversePlan := false
                 positionTarget := shortVisitedTarget
                 positionThreshold := (positionStop + positionTarget) / 2.0
                 retestExtreme := na
@@ -1267,7 +1313,7 @@ if barstate.isconfirmed and m5Chart
                 retestDay := rangeDayKey
                 retestSide := positionSide
                 retestLastTime := time
-                bool againstInitialTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
+                bool againstInitialTrend = not (unfilledReversePlan and unfilledReverseDay == rangeDayKey) and not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
                 bool originConfirmed = (not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and againstInitialTrend and not positionIsSecond)
                 bool eligibleRetest = originConfirmed and pendingDirectionAllowed and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped)
                 float candidate = positionSide == 1 ? bodyLow : bodyHigh
@@ -1293,6 +1339,8 @@ if barstate.isconfirmed and m5Chart
                     bool engulfingEntry = time - time[1] == 300000 and engulfingBody and engulfingDirection
                     if (retestBars >= 3 and stoppedAgainstEntry or engulfingEntry) and priceStillInZone and riskAtClose > 0 and rewardAtClose >= riskAtClose - 0.000000001
                         dailyPositionEntries := dailyPositionEntries + 1
+                        string entryContext = unfilledReversePlan and unfilledReverseDay == rangeDayKey ? "Сценарий без входа отработан; новая структура " + (positionSide == 1 ? "HH–HL–HH" : "LL–LH–LL") : positionIsSecond ? "После стопа: закреп в противоположную сторону" : positionIsZero ? "Смена направления: закреп за точкой 0" : "Продолжение движения: закреп за структурным уровнем"
+                        positionEntryReason := entryContext + "\nРетест: " + (engulfingEntry ? "поглощение M5, тело ≥110% предыдущего" : "остановка на трёх M5")
                         positionEntry := close
                         positionRR := rewardAtClose / riskAtClose
                         positionEntryBar := bar_index
@@ -1302,6 +1350,11 @@ if barstate.isconfirmed and m5Chart
                         colorStopTime := na
                         positionState := 2
                         tradeEventMark(tradeEventMarks, time, positionEntry, false)
+                        float descriptionY = math.min(positionStop, positionTarget) - math.abs(positionTarget - positionStop) * 0.12
+                        label description = label.new(x=time, y=descriptionY, text=(positionSide == 1 ? "Почему LONG" : "Почему SHORT") + "\n" + positionEntryReason + "\nRR при входе 1:" + str.tostring(positionRR, "#.##"), xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+                        array.push(positionReasonLabels, description)
+                        while array.size(positionReasonLabels) > 40
+                            label.delete(array.shift(positionReasonLabels))
                 else
                     retestExtreme := na
                     retestBars := 0
@@ -1321,7 +1374,7 @@ if barstate.isconfirmed and m5Chart
             if positionState == 4 and dailyPositionEntries == 1 and positionPlanDay == rangeDayKey
                 firstStopped := true
                 firstStopBar := bar_index
-    bool reverseBreak = twoM5Break(firstPositionStop, firstPositionSide == -1, firstPointOffset, pointPairM5)
+    bool reverseBreak = singleM5Break(firstPositionStop, firstPositionSide == -1, firstPointOffset)
     if not rangeFriday and firstPointWindow and positionPlanDay == rangeDayKey and firstStopped and dailyPositionEntries == 1 and positionState == 4 and not positionIsSecond and reverseBreak
         if not na(positionInfo)
             label.set_xy(positionInfo, time + 600000, positionEntry)
@@ -1369,7 +1422,7 @@ if barstate.isconfirmed and m5Chart
         positionInfo := na
         positionStopInfo := na
         positionTargetInfo := na
-    pendingAgainstTrend := not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
+    pendingAgainstTrend := not (unfilledReversePlan and unfilledReverseDay == rangeDayKey) and not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     waitingForCounterBreak := counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
     pendingDirectionAllowed := (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not waitingForCounterBreak
     if newPositionPlan and pendingDirectionAllowed

@@ -38,16 +38,16 @@ for(const mode of ['replace','one-close','unqualified','entered']){
     thirdStopQualified := ${mode!=='unqualified'}
     zeroReversalStop := 100.36
 `;
- const anchor='// Неисполненный LONG: два close за прежним HH заменяют план на HL -> новый HH.';
+ const anchor='// Неисполненный LONG: закреп за прежним HH заменяет план на HL -> новый HH.';
  const c=await new PineTS(data,'SOLUSDT','5').run(original.replace(anchor,inject+'\n'+anchor)+'\nplot(longPlanReplaced?1:0,"Replaced")\nplot(positionSetupBar,"Setup")');
  const v=(n,i)=>c.plots[n].data[i].value;
- assert.equal(v('Replaced',21),0,'one close cannot replace a plan');
+ assert.equal(v('Replaced',21),['replace','one-close'].includes(mode)?1:0,'one close confirms the new rule');
  if(mode==='replace'){
-  assert.equal(v('Replaced',22),1);assert.equal(v('Стоп позиции',22),99.97);assert.equal(v('Входов за день',22),0);assert.equal(v('Setup',22),22);
+  assert.equal(v('Replaced',22),1);assert.equal(v('Стоп позиции',22),99.97);assert.equal(v('Входов за день',22),0);assert.equal(v('Setup',22),21);
   assert.equal(v('Цель позиции',23),101.13);assert.ok(Math.abs(v('Граница RR 1:1',23)-100.55)<1e-8);
   assert.equal(v('Вход LONG/SHORT',27),1);assert.equal(v('Цена входа по close',27),100.5);assert.equal(v('Стоп позиции',27),99.97);
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',28),1);
- } else if(mode==='one-close')assert.equal(v('Replaced',22),0);
+ } else if(mode==='one-close')assert.equal(v('Replaced',22),1);
  else {assert.equal(v('Replaced',22),0);assert.equal(v('Стоп позиции',22),99.13);}
  console.log('PASS V1.1 pending LONG replanning',mode);
 }

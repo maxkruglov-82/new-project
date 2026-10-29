@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const original=readFileSync('KRYTES_V1_1_LONDON.txt','utf8');
-for(const side of [-1])for(const mode of ['visited','not-visited']){
+for(const side of [1,-1])for(const mode of ['visited','not-visited']){
  const price=x=>side===1?x:200-x,start=Date.parse('2026-10-22T14:00:00+07:00');
  const data=Array.from({length:25},(_,i)=>{
  let open=100.2,close=100.2;

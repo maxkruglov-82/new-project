@@ -29,9 +29,10 @@ if bar_index == 20
     positionIsSecond := false
     dailyPositionEntries := 0
 `;
- const source=original.replace('int positionExitEvent = 0',inject+'\nint positionExitEvent = 0');
+ const source=original.replace('int positionExitEvent = 0',inject+'\nint positionExitEvent = 0')+'\nplot(array.size(positionReasonLabels),"Reasons")\nplot(str.contains(positionEntryReason,"поглощение M5")?1:0,"EngulfReason")';
  const c=await new PineTS(data,'SOLUSDT','5').run(source);
  const fills=c.plots['Вход LONG/SHORT'].data.flatMap((v,i)=>v.value?[i]:[]);
  assert.deepEqual(fills,mode==='valid'?[22]:[],`${side} ${mode}`);
+ if(mode==='valid'){assert.equal(c.plots.Reasons.data[22].value,1);assert.equal(c.plots.EngulfReason.data[22].value,1);}
  console.log('PASS engulfing',side,mode);
 }

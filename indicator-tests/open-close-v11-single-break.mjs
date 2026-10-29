@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
+const source=readFileSync('KRYTES_V1_1_LONDON.txt','utf8');
+const fn=source.slice(source.indexOf('singleM5Break('),source.indexOf('// Точка 0'));
+const start=Date.parse('2026-10-22T14:00:00+07:00');
+const closes=[100,100.02,100,99.98,100.005];
+const data=closes.map((close,i)=>({open:100,close,high:101,low:99,volume:1,openTime:start+i*300000,closeTime:start+(i+1)*300000-1}));
+const c=await new PineTS(data,'SOLUSDT','5').run('//@version=5\nindicator("test")\n'+fn+'\nplot(singleM5Break(100,true,0.01)?1:0,"up")\nplot(singleM5Break(100,false,0.01)?1:0,"down")');
+assert.deepEqual(c.plots.up.data.map(x=>x.value),[0,1,0,0,0]);
+assert.deepEqual(c.plots.down.data.map(x=>x.value),[0,0,0,1,0]);
+assert.ok(!source.includes('twoM5Break('));
+console.log('PASS single close break up/down; no second close required; offset retained');

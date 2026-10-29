@@ -16,7 +16,7 @@ for(const mirror of [false,true]){
   assert.equal(v('Цена точки 0',i),100);assert.equal(v('T0',i),start);
   assert.equal(v('Label0Price',i),100);assert.equal(v('Label0Time',i),start);
  }
- assert.equal(v('Разворот закреплён за 0',14),0,'one failed close is not a reversal');
- assert.equal(v('Разворот закреплён за 0',16),1,'two closes still confirm reversal at original 0');
- console.log('PASS immutable 0:',mirror?'LOW':'HIGH','failed break and confirmed break keep price/time/label; two-close reversal preserved');
+ assert.equal(v('Разворот закреплён за 0',13),1,'one close confirms reversal at original 0');
+ assert.equal(v('Разворот закреплён за 0',16),1,'confirmed reversal remains at original 0');
+ console.log('PASS immutable 0:',mirror?'LOW':'HIGH','failed break and confirmed break keep price/time/label; single-close reversal preserved');
 }
