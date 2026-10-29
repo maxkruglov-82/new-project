@@ -589,9 +589,22 @@ bool showFirstPoints = input.bool(true, "Показывать точки 1 за 
 float firstPointOffset = input.float(0.01, "Минимальный отступ закрепа за часом и точками", minval=0.01, step=0.01)
 // Только самый первый подтверждённый выход за день, в любую сторону.
 bool pointsUseWicks = false
-// Небольшие чёрные номера структуры без дополнительных символов high/low.
+// HH/HL/LH/LL — только подписи существующих точек системы.
+bool showSwingClasses = input.bool(true, "Показывать HH / HL / LH / LL рядом с номерами")
+var array<label> classifiedSwingIds = array.new_label()
+var array<bool> classifiedSwingHighs = array.new_bool()
+
+swingClass(float price, float previousPrice, bool isHigh) =>
+    na(previousPrice) ? (isHigh ? "H" : "L") : math.abs(price - previousPrice) <= 0.000000001 ? (isHigh ? "EH" : "EL") : isHigh ? (price > previousPrice ? "HH" : "LH") : (price > previousPrice ? "HL" : "LL")
+
 newSwingLabel(int atTime, float price, string caption, string pointStyle) =>
-    label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+    label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+    array.push(classifiedSwingIds, number)
+    array.push(classifiedSwingHighs, pointStyle == label.style_label_down)
+    while array.size(classifiedSwingIds) > 180
+        array.shift(classifiedSwingIds)
+        array.shift(classifiedSwingHighs)
+    number
 
 var array<label> firstPointLabels = array.new_label()
 int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 1, 0, 0)
@@ -1515,3 +1528,33 @@ if barstate.islast
                 float levelPrice = label.get_y(priceLabel)
                 line levelLine = line.new(x1=leftTime, y1=levelPrice, x2=rightTime, y2=levelPrice, xloc=xloc.bar_time, color=levelIndex == 0 ? color.blue : levelIndex == 1 ? color.red : color.green, style=levelIndex == 0 ? line.style_dashed : line.style_solid, width=1)
                 array.push(positionLevelLines, levelLine)
+
+// Сортируем по актуальному времени точки: при переносах порядок создания не подходит.
+// Скрытые и удалённые точки не служат опорой; каждый день начинает свою структуру.
+if barstate.islast and array.size(classifiedSwingIds) > 0
+    array<int> swingTimes = array.new_int()
+    for classIndex = 0 to array.size(classifiedSwingIds) - 1
+        array.push(swingTimes, label.get_x(array.get(classifiedSwingIds, classIndex)))
+    array<int> swingOrder = array.sort_indices(swingTimes, order.ascending)
+    float previousHigh = na
+    float previousLow = na
+    int previousSwingDay = na
+    for orderIndex = 0 to array.size(swingOrder) - 1
+        int classIndex = array.get(swingOrder, orderIndex)
+        label number = array.get(classifiedSwingIds, classIndex)
+        if array.indexof(firstPointLabels, number) >= 0 and not na(label.get_text(number)) and label.get_text(number) != ""
+            int swingTime = label.get_x(number)
+            int swingDay = year(swingTime, localTimezone) * 10000 + month(swingTime, localTimezone) * 100 + dayofmonth(swingTime, localTimezone)
+            if na(previousSwingDay) or swingDay != previousSwingDay
+                previousHigh := na
+                previousLow := na
+                previousSwingDay := swingDay
+            bool isHigh = array.get(classifiedSwingHighs, classIndex)
+            float price = label.get_y(number)
+            string classification = swingClass(price, isHigh ? previousHigh : previousLow, isHigh)
+            string digit = array.get(str.split(label.get_text(number), " · "), 0)
+            label.set_text(number, digit + (showSwingClasses ? " · " + classification : ""))
+            if isHigh
+                previousHigh := price
+            else
+                previousLow := price
