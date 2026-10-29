@@ -1182,6 +1182,26 @@ if barstate.isconfirmed and firstPointWindow and m5Chart and (firstPositionIsZer
     if na(zeroReversalStop) or (firstPositionSide == -1 ? bodyLow < zeroReversalStop : bodyHigh > zeroReversalStop)
         zeroReversalTime := time
     zeroReversalStop := firstPositionSide == -1 ? math.min(zeroReversalStop, bodyLow) : math.max(zeroReversalStop, bodyHigh)
+float marketPivotHigh = ta.pivothigh(bodyHigh, 1, 4)
+float marketPivotLow = ta.pivotlow(bodyLow, 1, 4)
+bool structureSpanValid = m5Chart and not na(time[5]) and time - time[5] == 1500000 and rangeDayKey == rangeDayKey[4]
+if barstate.isconfirmed and structureSpanValid and rangeWeekday and time[4] >= zeroSearchStart
+    bool hasHigh = not na(marketPivotHigh)
+    bool hasLow = not na(marketPivotLow)
+    if hasHigh and hasLow
+        int count = array.size(marketSwingTimes)
+        bool sameDay = count > 0 ? array.get(marketSwingDays, count - 1) == rangeDayKey : false
+        if sameDay
+            bool previousIsHigh = array.get(marketSwingHighs, count - 1)
+            hasHigh := not previousIsHigh
+            hasLow := previousIsHigh
+        else
+            hasHigh := false
+            hasLow := false
+    if hasHigh
+        recordMarketSwing(marketSwingTimes, marketSwingPrices, marketSwingHighs, marketSwingDays, time[4], marketPivotHigh, true, rangeDayKey)
+    else if hasLow
+        recordMarketSwing(marketSwingTimes, marketSwingPrices, marketSwingHighs, marketSwingDays, time[4], marketPivotLow, false, rangeDayKey)
 if barstate.isconfirmed and m5Chart and firstPointWindow and unfilledReverseDay == rangeDayKey and positionState == 7 and dailyPositionEntries < dailyEntryLimit
     int swingCount = array.size(marketSwingTimes)
     if swingCount >= 5
@@ -1197,7 +1217,15 @@ if barstate.isconfirmed and m5Chart and firstPointWindow and unfilledReverseDay 
         bool newExtreme = highSide ? goalPrice > firstPrice and stopPrice < firstPrice : goalPrice < firstPrice and stopPrice > firstPrice
         bool risingOrFalling = highSide ? firstPrice > array.get(marketSwingPrices, a - 2) and stopPrice > array.get(marketSwingPrices, a - 1) : firstPrice < array.get(marketSwingPrices, a - 2) and stopPrice < array.get(marketSwingPrices, a - 1)
         bool afterCompleted = array.get(marketSwingTimes, a) > unfilledCompletedTime
-        bool confirmedBreak = singleM5Break(firstPrice, highSide, firstPointOffset)
+        bool confirmedBreak = false
+        int breakFromTime = array.get(marketSwingTimes, b)
+        if array.size(zeroSavedTimes) > 0
+            for breakIndex = 0 to array.size(zeroSavedTimes) - 1
+                int breakTime = array.get(zeroSavedTimes, breakIndex)
+                if breakTime >= breakFromTime and breakTime <= time
+                    float breakClose = array.get(zeroSavedCloses, breakIndex)
+                    if highSide ? breakClose - firstPrice >= firstPointOffset - 0.000000001 : firstPrice - breakClose >= firstPointOffset - 0.000000001
+                        confirmedBreak := true
         if sameDayStructure and oppositeTriple and newExtreme and risingOrFalling and afterCompleted and confirmedBreak
             positionSide := unfilledReverseSide
             positionStop := stopPrice
@@ -1415,7 +1443,7 @@ if barstate.isconfirmed and m5Chart
                 label.delete(array.shift(firstPointLabels))
     if positionState == 5 and positionIsZero and dailyPositionEntries == 0 and positionPlanDay == rangeDayKey
         zeroScenarioCancelled := true
-    if positionState == 5 and not na(positionInfo)
+    if positionState == 5 and not na(positionInfo) and not (unfilledReversePlan and positionPlanDay == unfilledReverseDay)
         removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
         positionRiskBox := na
         positionRewardBox := na
@@ -1450,7 +1478,7 @@ if barstate.isconfirmed and m5Chart
         box.set_right(positionRewardBox, time + 600000)
         float entryCaptionRisk = math.abs(drawnEntry - positionStop)
         string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
-        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (positionState == 7 ? "Отработан без входа " : na(positionEntry) ? "Ожидание " : "Вход исполнен ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (positionState == 5 and unfilledReversePlan ? "Отменён без входа " : positionState == 7 ? "Отработан без входа " : na(positionEntry) ? "Ожидание " : "Вход исполнен ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
         positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, positionLevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true) + (positionState == 4 ? " +" : ""), color.red)
         positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, positionLevelCaption("Цель: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false) + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
@@ -1554,26 +1582,6 @@ if barstate.islast
                 float levelPrice = label.get_y(priceLabel)
                 line levelLine = line.new(x1=leftTime, y1=levelPrice, x2=rightTime, y2=levelPrice, xloc=xloc.bar_time, color=levelIndex == 0 ? color.blue : levelIndex == 1 ? color.red : color.green, style=levelIndex == 0 ? line.style_dashed : line.style_solid, width=1)
                 array.push(positionLevelLines, levelLine)
-float marketPivotHigh = ta.pivothigh(bodyHigh, 1, 4)
-float marketPivotLow = ta.pivotlow(bodyLow, 1, 4)
-bool structureSpanValid = m5Chart and not na(time[5]) and time - time[5] == 1500000 and rangeDayKey == rangeDayKey[4]
-if barstate.isconfirmed and structureSpanValid and rangeWeekday and time[4] >= zeroSearchStart
-    bool hasHigh = not na(marketPivotHigh)
-    bool hasLow = not na(marketPivotLow)
-    if hasHigh and hasLow
-        int count = array.size(marketSwingTimes)
-        bool sameDay = count > 0 ? array.get(marketSwingDays, count - 1) == rangeDayKey : false
-        if sameDay
-            bool previousIsHigh = array.get(marketSwingHighs, count - 1)
-            hasHigh := not previousIsHigh
-            hasLow := previousIsHigh
-        else
-            hasHigh := false
-            hasLow := false
-    if hasHigh
-        recordMarketSwing(marketSwingTimes, marketSwingPrices, marketSwingHighs, marketSwingDays, time[4], marketPivotHigh, true, rangeDayKey)
-    else if hasLow
-        recordMarketSwing(marketSwingTimes, marketSwingPrices, marketSwingHighs, marketSwingDays, time[4], marketPivotLow, false, rangeDayKey)
 if barstate.islast
     while array.size(marketStructureLabels) > 0
         label.delete(array.pop(marketStructureLabels))
