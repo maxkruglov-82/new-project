@@ -7,6 +7,29 @@ int minimumRetreatBars = 5
 bool notifyZoneTouch = input.bool(true, "Уведомлять о касании зоны входа")
 bool notifyFilledEntry = input.bool(true, "Уведомлять об исполненном входе")
 
+// Для разворота нужны три подтверждённые опоры: HH-HL-HH либо LL-LH-LL.
+originalCounterTriple(array<int> times, array<float> prices, array<bool> highs, array<int> days, int dayKey, int fromTime, int side, float originalFirst) =>
+    bool ready = false
+    float stop = na
+    float target = na
+    int stopTime = na
+    int count = array.size(times)
+    if count >= 3 and not na(fromTime)
+        for i = 0 to count - 3
+            bool sameDay = array.get(days, i) == dayKey and array.get(days, i + 1) == dayKey and array.get(days, i + 2) == dayKey
+            bool types = side == 1 ? array.get(highs, i) and not array.get(highs, i + 1) and array.get(highs, i + 2) : not array.get(highs, i) and array.get(highs, i + 1) and not array.get(highs, i + 2)
+            float first = array.get(prices, i)
+            float middle = array.get(prices, i + 1)
+            float third = array.get(prices, i + 2)
+            float priorBase = i > 0 and array.get(days, i - 1) == dayKey ? array.get(prices, i - 1) : originalFirst
+            bool progression = side == 1 ? third > first and middle > priorBase and middle < first : third < first and middle < priorBase and middle > first
+            if sameDay and types and array.get(times, i) >= fromTime and progression
+                ready := true
+                stop := middle
+                target := third
+                stopTime := array.get(times, i + 1)
+    [ready, stop, target, stopTime]
+
 entryAlertText(string eventName, int side, float entryPrice, float stopPrice, float targetPrice) =>
     eventName + " | " + (side == 1 ? "LONG" : "SHORT") + " | " + syminfo.tickerid + " | M5" + " | Вход: $" + str.tostring(entryPrice, "#.#####") + " | Стоп: $" + str.tostring(stopPrice, "#.#####") + " | Тейк: $" + str.tostring(targetPrice, "#.#####") + " | RR 1:1"
 
@@ -473,6 +496,12 @@ var bool fifthLocked = false
 var int positionSide = 0
 var int positionState = 0
 var int positionSetupBar = na
+var int originalRuleDay = na
+var float originalRuleZero = na
+var float originalRuleOne = na
+var bool originalOneBroken = false
+var int originalZeroBreakTime = na
+var bool originalStopViolated = false
 var int zoneVisitSetup = na
 var int zoneVisitBar = na
 var float zoneVisitTarget = na
@@ -1456,6 +1485,111 @@ if barstate.isconfirmed and retrySpanValid and rangeWeekday and time[4] >= zeroS
     else if retryHasLow
         recordMarketSwing(retrySwingTimes, retrySwingPrices, retrySwingHighs, retrySwingDays, time[4], retryPivotLow, false, rangeDayKey, 64)
 
+// Финансовые опоры первой сделки: исходные видимые 0 и 1, а не поздние локальные точки.
+int originalScope = array.indexof(anchorHistoryDays, rangeDayKey)
+bool originalAvailable = originalScope >= 0
+float originalZero = originalAvailable ? array.get(anchorZeroPrices, originalScope) : na
+float originalOne = originalAvailable ? array.get(anchorOnePrices, originalScope) : na
+int originalOneTime = originalAvailable ? array.get(anchorOneTimes, originalScope) : na
+int originalZeroTime = originalAvailable ? array.get(anchorZeroTimes, originalScope) : na
+int originalSide = originalOne > originalZero ? 1 : -1
+if barstate.isconfirmed and m5Chart and originalAvailable
+    if na(originalRuleDay) or originalRuleDay != rangeDayKey or originalRuleZero != originalZero or originalRuleOne != originalOne
+        originalRuleDay := rangeDayKey
+        originalRuleZero := originalZero
+        originalRuleOne := originalOne
+        originalOneBroken := false
+        originalZeroBreakTime := na
+        originalStopViolated := false
+    if time > originalOneTime
+        if originalSide == 1 ? bodyHigh > originalOne : bodyLow < originalOne
+            originalOneBroken := true
+        if na(originalZeroBreakTime) and twoM5Break(originalZero, originalSide == -1, firstPointOffset, pointPairM5)
+            originalZeroBreakTime := time
+        if originalSide == 1 ? bodyLow <= originalZero : bodyHigh >= originalZero
+            originalStopViolated := true
+// Обновление исходной1 в её направлении сразу готовит диапазон0–1, без дополнительного закрепа.
+if barstate.isconfirmed and m5Chart and firstPointWindow and originalAvailable and originalOneBroken and not originalStopViolated and dailyPositionEntries == 0 and not positionIsSecond and positionState != 2
+    if positionState != 1 or positionSide != originalSide
+        if positionState == 1 and not na(positionInfo)
+            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
+        positionSide := originalSide
+        positionState := 1
+        positionPlanDay := rangeDayKey
+        positionSetupBar := bar_index
+        positionEntry := na
+        positionEntryBar := na
+        positionRR := na
+        positionRiskBox := na
+        positionRewardBox := na
+        positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
+        newPositionPlan := true
+[originalCounterReady, originalCounterStop, originalCounterTarget, originalCounterStopTime] = originalCounterTriple(retrySwingTimes, retrySwingPrices, retrySwingHighs, retrySwingDays, rangeDayKey, originalZeroBreakTime, -originalSide, originalOne)
+// Старую встречную тройку нельзя повторно использовать после нарушения её HL/LH.
+if originalCounterReady
+    int counterMiddleIndex = array.indexof(retrySwingTimes, originalCounterStopTime)
+    int counterThirdTime = counterMiddleIndex >= 0 and counterMiddleIndex + 1 < array.size(retrySwingTimes) ? array.get(retrySwingTimes, counterMiddleIndex + 1) : na
+    int savedCount = array.size(zeroSavedTimes)
+    if not na(counterThirdTime) and savedCount > 0
+        for si = 0 to savedCount - 1
+            if array.get(zeroSavedTimes, si) >= counterThirdTime
+                float edge = originalSide == -1 ? math.min(array.get(zeroSavedOpens, si), array.get(zeroSavedCloses, si)) : math.max(array.get(zeroSavedOpens, si), array.get(zeroSavedCloses, si))
+                if originalSide == -1 ? edge <= originalCounterStop : edge >= originalCounterStop
+                    originalCounterReady := false
+// Встречный план появляется только после закрепа за0 и готовой подтверждённой тройки.
+if barstate.isconfirmed and m5Chart and firstPointWindow and originalAvailable and originalCounterReady and not na(originalZeroBreakTime) and dailyPositionEntries == 0 and not positionIsSecond and positionState != 2
+    if positionState != 1 or positionSide != -originalSide
+        if positionState == 1 and not na(positionInfo)
+            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
+        positionSide := -originalSide
+        positionIsZero := true
+        firstPositionIsZero := true
+        positionUsesFifth := false
+        firstPositionUsesFifth := false
+        positionUsesFourth := false
+        firstPositionUsesFourth := false
+        zeroReversalStop := originalCounterTarget
+        zeroReversalTime := time
+        positionState := 1
+        positionPlanDay := rangeDayKey
+        positionSetupBar := bar_index
+        positionEntry := na
+        positionEntryBar := na
+        positionRR := na
+        positionRiskBox := na
+        positionRewardBox := na
+        positionInfo := na
+        positionStopInfo := na
+        positionTargetInfo := na
+        newPositionPlan := true
+bool firstOriginalDirection = originalAvailable and positionSide == originalSide
+bool firstScenarioReady = originalAvailable and (firstOriginalDirection ? originalOneBroken and not originalStopViolated : not na(originalZeroBreakTime) and originalCounterReady)
+bool originalFixedRange = originalAvailable and not positionIsSecond and dailyPositionEntries == 0 and firstOriginalDirection
+if barstate.isconfirmed and m5Chart and positionState == 1 and not positionIsSecond and dailyPositionEntries == 0 and originalAvailable
+    float chosenStop = firstOriginalDirection ? originalZero : originalCounterStop
+    float chosenTarget = firstOriginalDirection ? originalOne : originalCounterTarget
+    if firstOriginalDirection or originalCounterReady
+        bool changedRange = positionStop != chosenStop or positionTarget != chosenTarget
+        positionStop := chosenStop
+        positionTarget := chosenTarget
+        positionThreshold := (positionStop + positionTarget) / 2.0
+        positionAnchorTime := firstOriginalDirection ? originalZeroTime : originalCounterStopTime
+        firstPositionStop := positionStop
+        firstPositionSide := positionSide
+        if firstOriginalDirection
+            positionIsZero := false
+            firstPositionIsZero := false
+            positionUsesFifth := false
+            firstPositionUsesFifth := false
+            positionUsesFourth := false
+            firstPositionUsesFourth := false
+        if changedRange
+            positionSetupBar := bar_index
+        if firstScenarioReady and na(positionInfo)
+            newPositionPlan := true
+
 // Вход: первое касание RR1 разрешённого сценария, без дополнительных свечных фильтров.
 // State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired, 7 worked without entry.
 // Если TP тенью и SL телом на одной M5 — приоритет SL.
@@ -1466,6 +1600,8 @@ bool positionEntryEvent = false
 if barstate.isrealtime and not barstate.isconfirmed and m5Chart and positionState == 1
     bool liveAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     bool liveDirectionAllowed = (not liveAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and liveAgainstTrend and not positionIsSecond)
+    if not positionIsSecond and dailyPositionEntries == 0
+        liveDirectionAllowed := firstScenarioReady
     bool liveStopIntact = positionSide == 1 ? bodyLow > positionStop : bodyHigh < positionStop
     if liveDirectionAllowed and liveStopIntact and positionPlanDay == rangeDayKey and firstPointWindow and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and bar_index > positionSetupBar and low <= positionThreshold and high >= positionThreshold
         liveEntrySignalBar := bar_index
@@ -1478,6 +1614,9 @@ if barstate.isconfirmed and m5Chart
     bool pendingAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     bool waitingForCounterBreak = counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
     bool pendingDirectionAllowed = (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not waitingForCounterBreak
+    if not positionIsSecond and dailyPositionEntries == 0
+        pendingDirectionAllowed := firstScenarioReady
+        waitingForCounterBreak := false
     // Новая самостоятельная 3–5 заменяет старое неисполненное ожидание за 1.
     if positionState == 1 and waitingForCounterBreak
         if positionIsZero
@@ -1502,7 +1641,7 @@ if barstate.isconfirmed and m5Chart
             bool workedWithoutEntry = zoneVisitSetup == positionSetupBar and bar_index > zoneVisitBar and (positionSide == 1 ? high >= zoneVisitTarget : low <= zoneVisitTarget)
             bool touchesExistingRR = low <= positionThreshold and high >= positionThreshold
             float currentTarget = positionIsSecond or positionIsZero ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
-            if not (touchesExistingRR and pendingDirectionAllowed and not stopBeforeEntry)
+            if not originalFixedRange and not (not positionIsSecond and dailyPositionEntries == 0 and originalAvailable and originalCounterReady) and not (touchesExistingRR and pendingDirectionAllowed and not stopBeforeEntry)
                 positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
                 positionThreshold := (positionStop + positionTarget) / 2.0
             if bar_index > positionSetupBar and stopBeforeEntry
@@ -1518,6 +1657,8 @@ if barstate.isconfirmed and m5Chart
                     zoneVisitLevel := positionThreshold
                 bool againstInitialTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
                 bool originConfirmed = (not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and againstInitialTrend and not positionIsSecond)
+                if not positionIsSecond and dailyPositionEntries == 0
+                    originConfirmed := firstScenarioReady
                 bool confirmedRREntry = touchedRRZone and originConfirmed and pendingDirectionAllowed
                 if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and confirmedRREntry
                     dailyPositionEntries := dailyPositionEntries + 1
@@ -1766,6 +1907,8 @@ if barstate.isconfirmed and m5Chart
     pendingAgainstTrend := not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     waitingForCounterBreak := counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
     pendingDirectionAllowed := (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not waitingForCounterBreak
+    if not positionIsSecond and dailyPositionEntries == 0
+        pendingDirectionAllowed := firstScenarioReady
     if newPositionPlan and pendingDirectionAllowed
         positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime), top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.red, 100), bgcolor=color.new(color.red, 85))
         positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime), top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.teal, 100), bgcolor=color.new(color.teal, 85))

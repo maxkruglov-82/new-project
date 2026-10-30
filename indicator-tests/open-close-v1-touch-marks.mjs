@@ -4,8 +4,8 @@ import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js
 const source=readFileSync(new URL('../KRYTES_V1_LONDON_STRUCTURE.txt',import.meta.url),'utf8');
 const diagnostic=source+'\nplot(zoneVisitTarget,"testGoal")\nplot(zoneVisitBar,"testVisit")\n';
 let fills=0,missed=0,exits=0;
-for(const day of ['09','16'])for(const mirror of [false,true]){
- const f=JSON.parse(readFileSync(new URL(day==='09'?'fixtures/mexc-sol-usdt-m5-2026-10-09-v1-structure.json':'fixtures/mexc-sol-usdt-m5-2026-10-16.json',import.meta.url)));
+for(const day of ['09','16','26'])for(const mirror of [false,true]){
+ const f=JSON.parse(readFileSync(new URL(day==='09'?'fixtures/mexc-sol-usdt-m5-2026-10-09-v1-structure.json':`fixtures/mexc-sol-usdt-m5-2026-10-${day}.json`,import.meta.url)));
  const price=x=>mirror?250-x:x;
  const data=f.candles.map(b=>({...b,open:price(b.open),close:price(b.close),high:mirror?price(b.low):b.high,low:mirror?price(b.high):b.low,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));
  const c=await new PineTS(data,'SOLUSDT','5').run(diagnostic);
