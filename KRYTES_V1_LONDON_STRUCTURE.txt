@@ -1914,10 +1914,14 @@ if barstate.isconfirmed and m5Chart and firstSwingDisplayLocked and structureDay
             array.shift(anchorZeroHighs)
             array.shift(anchorTakeProfitTimes)
     else
-        // В V1 точка 0 может переноситься; визуальный архив следует её текущему положению.
-        array.set(anchorZeroTimes, anchorCount - 1, confirmedZeroTime)
-        array.set(anchorZeroPrices, anchorCount - 1, confirmedZeroPrice)
-        array.set(anchorZeroHighs, anchorCount - 1, confirmedZeroPrice > structureFirstPrice)
+        // Расчётная опора V1 может переноситься после 1, но это уже не начало 0→1.
+        // Видимая 0 сохраняет противоположный тип и строго предшествует точке 1.
+        bool chronologicalZero = confirmedZeroTime < firstExtremeTime
+        bool oppositeZero = structureSide == 1 ? confirmedZeroPrice < structureFirstPrice : confirmedZeroPrice > structureFirstPrice
+        if chronologicalZero and oppositeZero
+            array.set(anchorZeroTimes, anchorCount - 1, confirmedZeroTime)
+            array.set(anchorZeroPrices, anchorCount - 1, confirmedZeroPrice)
+            array.set(anchorZeroHighs, anchorCount - 1, structureSide == -1)
         array.set(anchorOneTimes, anchorCount - 1, firstExtremeTime)
         array.set(anchorOnePrices, anchorCount - 1, structureFirstPrice)
 
