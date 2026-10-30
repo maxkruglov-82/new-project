@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const source=readFileSync(new URL('../KRYTES_V1_LONDON_STRUCTURE.txt',import.meta.url),'utf8');
 const financial=source.slice(source.indexOf('var array<label> firstPointLabels'),source.indexOf('// Окраска истории пересчитывается'));
-assert.equal(createHash('sha256').update(financial).digest('hex'),'d9a9108fc1b2351af858e8bab88f9e73568fd489f8f12383b440925e02d3bc31','financial engine unchanged by visual edits');
+assert.equal(createHash('sha256').update(financial).digest('hex'),'1e6312024708d67d26313c5f22571dffa11fb8fcbb7a1f6849f936cdf526e0dc','reviewed financial engine with London-relative zero search');
 const diag=`
 int invalidCaption = 0
 int zeroCount = 0

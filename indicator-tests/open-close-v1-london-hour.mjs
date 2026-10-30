@@ -13,7 +13,7 @@ for(const [day,h] of [['2026-01-15',15],['2026-03-27',15],['2026-03-30',14],['20
  const end=Date.parse(day+'T'+(h+1)+':00:00+07:00'),i=d.findIndex(x=>x.openTime===end-300000);
  {
   const c=await new PineTS(d,'SOLUSDT','5').run(source+diagnostic),v=(n,j=i)=>c.plots[n].data[j].value;
-  assert.equal(v('LondonStart'),end-3600000);assert.equal(v('LondonEnd'),end);assert.equal(v('ZeroStart'),Date.parse(day+'T13:00:00+07:00'));
+  assert.equal(v('LondonStart'),end-3600000);assert.equal(v('LondonEnd'),end);assert.equal(v('ZeroStart'),end-7200000);
   assert.ok(Number.isNaN(v('RangeHigh',i-1)),'range is not published before hour closes');
   assert.equal(v('RangeHigh'),106);assert.equal(v('RangeLow'),94,'use wick extremes, not bodies');
   const boxes=c.plots.__boxes__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&x.top===106&&x.bottom===94);
@@ -22,5 +22,5 @@ for(const [day,h] of [['2026-01-15',15],['2026-03-27',15],['2026-03-30',14],['20
  const a=await new PineTS(d,'SOLUSDT','5').run(source),b=await new PineTS(d,'SOLUSDT','5').run(mini);
  const normalized=x=>JSON.parse(JSON.stringify(x,(k,v)=>k==='id'?undefined:v));
  for(const n of Object.keys(a.plots))assert.deepEqual(normalized(b.plots[n]),normalized(a.plots[n]),'full/small '+day+' '+n);
- console.log('PASS London08-09 -> Krasnoyarsk'+h+'-'+(h+1)+': '+day+'; closed H1, wick extremes, DST and compact parity');
+ console.log('PASS London08-09 -> Krasnoyarsk'+h+'-'+(h+1)+': '+day+'; closed H1, wick extremes, DST-relative zero window and compact parity');
 }

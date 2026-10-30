@@ -790,8 +790,9 @@ int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
 bool pointPairM5 = m5Chart and rangeDayKey == rangeDayKey[1]
-int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)
-// История дня нужна для окраски; поиск обоих типов 0 начинается с 13:00.
+// Окно0 следует Лондону: за час до открытия до первоначальной1.
+int zeroSearchStart = bodyHourStart - 3600000
+// История дня нужна для окраски; начало поиска0 учитывает сезонное время Лондона.
 if barstate.isconfirmed and m5Chart and time >= timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 0, 0)
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
         if array.size(colorDayDrawings) > 0
@@ -1872,7 +1873,9 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
     // Цвет ориентируется на видимую исходную 0, а не на перенесённую расчётную опору.
     int colorOriginTime = colorScopeIndex >= 0 ? array.get(anchorZeroTimes, colorScopeIndex) : (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime)
     float colorOriginPrice = colorScopeIndex >= 0 ? array.get(anchorZeroPrices, colorScopeIndex) : confirmedZeroPrice
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, colorOriginTime, colorOriginPrice, structureFirstPrice, firstExtremeTime, firstPointOffset, colorScopeEnd)
+    float colorFirstPrice = colorScopeIndex >= 0 ? array.get(anchorOnePrices, colorScopeIndex) : structureFirstPrice
+    int colorFirstTime = colorScopeIndex >= 0 ? array.get(anchorOneTimes, colorScopeIndex) : firstExtremeTime
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, colorOriginTime, colorOriginPrice, colorFirstPrice, colorFirstTime, firstPointOffset, colorScopeEnd)
     while array.size(colorDayDrawings) > 0
         polyline.delete(array.pop(colorDayDrawings))
     // Освобождаем бюджет перед созданием новых участков.
@@ -1970,14 +1973,16 @@ if barstate.isconfirmed and m5Chart and firstSwingDisplayLocked and structureDay
     else
         // Расчётная опора V1 может переноситься после 1, но это уже не начало 0→1.
         // Видимая 0 сохраняет противоположный тип и строго предшествует точке 1.
-        bool chronologicalZero = confirmedZeroTime < firstExtremeTime
-        bool oppositeZero = structureSide == 1 ? confirmedZeroPrice < structureFirstPrice : confirmedZeroPrice > structureFirstPrice
+        int originalOneTime = array.get(anchorOneTimes, anchorCount - 1)
+        float originalOnePrice = array.get(anchorOnePrices, anchorCount - 1)
+        bool originalZeroHigh = array.get(anchorZeroHighs, anchorCount - 1)
+        bool chronologicalZero = confirmedZeroTime < originalOneTime
+        bool oppositeZero = originalZeroHigh ? confirmedZeroPrice > originalOnePrice : confirmedZeroPrice < originalOnePrice
         if chronologicalZero and oppositeZero
             array.set(anchorZeroTimes, anchorCount - 1, confirmedZeroTime)
             array.set(anchorZeroPrices, anchorCount - 1, confirmedZeroPrice)
-            array.set(anchorZeroHighs, anchorCount - 1, structureSide == -1)
-        array.set(anchorOneTimes, anchorCount - 1, firstExtremeTime)
-        array.set(anchorOnePrices, anchorCount - 1, structureFirstPrice)
+            array.set(anchorZeroHighs, anchorCount - 1, originalZeroHigh)
+        // Первая подтверждённая видимая1 фиксирована. Последующие вершины — HH/LH/HL/LL.
 
 // SL не завершает разметку; TP первой либо второй сделки закрывает её окно.
 if barstate.isconfirmed and positionExitEvent == 1
@@ -1995,7 +2000,19 @@ if barstate.islast
             label.set_text(array.get(firstPointLabels, numberIndex), "")
     int viewportLeft = chart.left_visible_bar_time
     int viewportRight = chart.right_visible_bar_time
-    int visibleSwingCount = 0
+    // Сначала резервируем места для всех видимых 0/1, затем распределяем
+    // оставшиеся метки структуры между днями, а не только последними свечами.
+    int visibleAnchorCount = 0
+    if array.size(anchorHistoryDays) > 0
+        for anchorIndex = 0 to array.size(anchorHistoryDays) - 1
+            int anchorEnd = array.get(anchorTakeProfitTimes, anchorIndex)
+            for anchorNumber = 0 to 1
+                int anchorTime = anchorNumber == 0 ? array.get(anchorZeroTimes, anchorIndex) : array.get(anchorOneTimes, anchorIndex)
+                if anchorTime >= viewportLeft and anchorTime <= viewportRight and (na(anchorEnd) or anchorTime <= anchorEnd)
+                    visibleAnchorCount := visibleAnchorCount + 1
+    int structuralLabelBudget = math.max(0, 120 - visibleAnchorCount)
+    array<int> visibleStructureDays = array.new_int()
+    array<int> visibleStructureCounts = array.new_int()
     if array.size(structureHistoryTimes) > 0
         for historyIndex = 0 to array.size(structureHistoryTimes) - 1
             int historyTime = array.get(structureHistoryTimes, historyIndex)
@@ -2004,8 +2021,16 @@ if barstate.islast
             int historyStart = historyScope >= 0 ? array.get(anchorZeroTimes, historyScope) : na
             int historyEnd = historyScope >= 0 ? array.get(anchorTakeProfitTimes, historyScope) : na
             if historyTime >= viewportLeft and historyTime <= viewportRight and not na(historyStart) and historyTime >= historyStart and (na(historyEnd) or historyTime <= historyEnd)
-                visibleSwingCount := visibleSwingCount + 1
-    int visibleSwingSeen = 0
+                int visibleDayIndex = array.indexof(visibleStructureDays, historyDay)
+                if visibleDayIndex < 0
+                    array.push(visibleStructureDays, historyDay)
+                    array.push(visibleStructureCounts, 1)
+                else
+                    array.set(visibleStructureCounts, visibleDayIndex, array.get(visibleStructureCounts, visibleDayIndex) + 1)
+    int visibleDayCount = array.size(visibleStructureDays)
+    int labelsPerDay = visibleDayCount > 0 ? int(math.floor(structuralLabelBudget / visibleDayCount)) : 0
+    int extraDayLabels = visibleDayCount > 0 ? structuralLabelBudget % visibleDayCount : 0
+    array<int> visibleStructureSeen = array.new_int(visibleDayCount, 0)
     float previousHigh = na
     float previousLow = na
     int previousSwingDay = na
@@ -2034,9 +2059,15 @@ if barstate.islast
             string caption = classification == "H" ? "HH" : classification == "L" ? "LL" : classification
             bool structuralCaption = caption == "HH" or caption == "HL" or caption == "LH" or caption == "LL"
             bool inViewport = inScope and swingTime >= viewportLeft and swingTime <= viewportRight
+            bool renderSwing = false
             if inViewport
-                visibleSwingSeen := visibleSwingSeen + 1
-            if inViewport and visibleSwingSeen > math.max(0, visibleSwingCount - 116)
+                int visibleDayIndex = array.indexof(visibleStructureDays, swingDay)
+                if visibleDayIndex >= 0
+                    int seenForDay = array.get(visibleStructureSeen, visibleDayIndex) + 1
+                    array.set(visibleStructureSeen, visibleDayIndex, seenForDay)
+                    int dayQuota = labelsPerDay + (visibleDayIndex >= visibleDayCount - extraDayLabels ? 1 : 0)
+                    renderSwing := seenForDay > math.max(0, array.get(visibleStructureCounts, visibleDayIndex) - dayQuota)
+            if renderSwing
                 if structuralCaption
                     label structureLabel = label.new(x=swingTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=isHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
                     array.push(marketStructureLabels, structureLabel)
