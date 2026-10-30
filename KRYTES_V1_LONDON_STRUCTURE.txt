@@ -586,8 +586,9 @@ int rangeYear = year(time, rangeTimezone)
 int rangeMonth = month(time, rangeTimezone)
 int rangeDay = dayofmonth(time, rangeTimezone)
 int rangeDayKey = rangeYear * 10000 + rangeMonth * 100 + rangeDay
-int bodyHourStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 14, 0)
-int bodyHourEnd = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 15, 0)
+// Первый час Лондона08:00–09:00; Europe/London сам учитывает летнее время.
+int bodyHourStart = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 8, 0)
+int bodyHourEnd = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 9, 0)
 
 bool rangeFriday = dayofweek(time, rangeTimezone) == dayofweek.friday
 int dailyEntryLimit = 2

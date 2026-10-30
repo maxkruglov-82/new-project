@@ -528,8 +528,8 @@ int rangeYear = year(time, q254)
 int rangeMonth = month(time, q254)
 int rangeDay = dayofmonth(time, q254)
 int rangeDayKey = rangeYear * 10000 + rangeMonth * 100 + rangeDay
-int q20 = timestamp(q254, rangeYear, rangeMonth, rangeDay, 14, 0)
-int bodyHourEnd = timestamp(q254, rangeYear, rangeMonth, rangeDay, 15, 0)
+int q20 = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 8, 0)
+int bodyHourEnd = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 9, 0)
 bool rangeFriday = dayofweek(time, q254) == dayofweek.friday
 int q104 = 2
 bool q255 = dayofweek(time, q254) != dayofweek.saturday and dayofweek(time, q254) != dayofweek.sunday

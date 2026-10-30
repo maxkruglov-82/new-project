@@ -13,7 +13,8 @@ const plotNames=baseline.split('\n').filter(l=>l.startsWith('plot(')&&!l.include
 for(const name of ['mexc-sol-usdt-m5-2026-10-02-v1-structure.json','mexc-sol-usdt-m5-2026-10-20-structure-reversal.json','mexc-sol-usdt-m5-2026-10-21-v1-structure.json','mexc-sol-usdt-m5-2026-10-23-structure-reversal.json','mexc-sol-usdt-m5-2026-10-29.json']){
  const f=JSON.parse(readFileSync(new URL('./fixtures/'+name,import.meta.url)));
  const data=f.candles.map(b=>({...b,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));
- const a=await new PineTS(data,'SOLUSDT','5').run(baseline);
+ const seasonalBaseline=baseline.replace('timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 14, 0)','timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 8, 0)').replace('timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 15, 0)','timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 9, 0)');
+ const a=await new PineTS(data,'SOLUSDT','5').run(seasonalBaseline);
  const b=await new PineTS(data,'SOLUSDT','5').run(source+'\nplot(array.size(marketStructureLabels),"VisibleStructureLabels")');
  const c=await new PineTS(data,'SOLUSDT','5').run(mini);
  const firstSL=a.plots['Выход TP 1 / SL -1 / неизвестно 2'].data.findIndex(x=>x.value===-1);
