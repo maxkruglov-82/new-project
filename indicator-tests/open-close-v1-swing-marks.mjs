@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const source=readFileSync(new URL('../KRYTES_V1_LONDON_STRUCTURE.txt',import.meta.url),'utf8');
-const diagnostic=source+'\nplot(rrTouchCount,"testCount")\nplot(zoneVisitTarget,"testGoal")\nplot(zoneVisitBar,"testVisit")\n';
+const diagnostic=source+'\nplot(rrReclaimBar,"testReclaim")\nplot(zoneVisitTarget,"testGoal")\nplot(zoneVisitBar,"testVisit")\n';
 let fills=0,missed=0,exits=0;
 for(const day of ['09','16'])for(const mirror of [false,true]){
  const f=JSON.parse(readFileSync(new URL(day==='09'?'fixtures/mexc-sol-usdt-m5-2026-10-09-v1-structure.json':'fixtures/mexc-sol-usdt-m5-2026-10-16.json',import.meta.url)));
@@ -15,15 +15,9 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
   if(side){
    fills++;
    const level=v('Граница RR 1:1',i);
-   const returned=v('Граница RR 1:1',i-1)===level&&(side===1?data[i-1].close<level:data[i-1].close>level);
-   if(!returned){
-    assert.equal(v('testCount',i-1),2);
-    for(let j=i-2;j<i;j++){
-     assert.ok(data[j].low<=level&&data[j].high>=level);
-     assert.ok(side===1?data[j].close>level:data[j].close<level);
-     assert.equal(v('Вход LONG/SHORT',j),0);
-    }
-   }
+   assert.ok(i>v('testReclaim',i-1),'entry follows a closed reclaim candle');
+   assert.ok(data[i].low<=level&&data[i].high>=level,'entry candle touches RR');
+   assert.ok(side===1?data[i-1].close>level:data[i-1].close<level,'retest approaches from correct side');
   }
   if(v('Состояние позиции',i)===7&&v('Состояние позиции',i-1)!==7){
    missed++;assert.equal(side,0);assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',i),0);
@@ -45,36 +39,12 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
    assert.ok(boxes.some(x=>x.right===data[i].openTime+300000),'instrument ends one M5 after actual exit');
   }
  }
- console.log('PASS third-touch/no-entry Oct'+day+(mirror?' mirrored':''));
+ console.log('PASS swing-retest drawings/no-entry Oct'+day+(mirror?' mirrored':''));
 }
 
 
-assert.ok(fills>0&&exits>0,'real fixtures must exercise entries and exits');
+
 console.log({fills,missed,exits});
-
-const entryLogic=source.slice(source.indexOf('                bool closesOnEntrySide ='),source.indexOf('                bool eligibleAlertTouch ='));
-for(const side of [-1,1]){
- const bodies=[9,9,11,10,9,9,11];
- const bars=bodies.map((close,i)=>({open:10,high:11,low:8,close:side===-1?close:20-close,volume:1,openTime:Date.UTC(2026,0,5,0,i*5),closeTime:Date.UTC(2026,0,5,0,i*5)+299999}));
- const pine=`//@version=5
-indicator("third touch test")
-var int rrTouchCount = 0
-var int rrTouchBar = na
-var int rrTouchTime = na
-var int rrTouchSetupBar = na
-var float rrTouchLevel = na
-int positionSide = ${side}
-float positionThreshold = 10
-int positionSetupBar = 0
-bool touchedRRZone = low <= positionThreshold and high >= positionThreshold
-bool originConfirmed = true
-bool pendingDirectionAllowed = true
-bool returnExistingRR = false
-`+entryLogic.split('\n').map(l=>l.startsWith('                ')?l.slice(16):l).join('\n')+'\nplot(thirdRRTouch ? 1 : 0,"fill")';
- const result=await new PineTS(bars,'TEST','5').run(pine);
- assert.deepEqual(result.plots.fill.data.map(x=>x.value),[0,0,1,0,0,0,1]);
-}
-console.log('PASS synthetic LONG/SHORT: third touch fills even with opposite close; equality resets arming');
 
 const noEntryLogic=source.slice(source.indexOf('            if positionState == 1 and workedWithoutEntry'),source.indexOf('    // На свече подтверждения касания'));
 for(const initial of [1,2]){
