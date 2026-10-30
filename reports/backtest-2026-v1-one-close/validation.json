@@ -1,0 +1,8 @@
+{
+  "experimentBase": "41aa36a",
+  "sourceSha256": "d2a432ec13fc9854a89fef317efab0c94ed2315fee86dd4762a715d539c19469",
+  "inputSha256": "93a1e4d2d32ff92f80bac14ee70be0ed13b750c3a495a6d760130cc6a641d74f",
+  "workingIndicatorChanged": false,
+  "scope": "Only one-close confirmations, historical confirmation proofs, and immediate completion of pending confirmation; swing five bars and entry two RR1 touches unchanged",
+  "checks": "MEXC OHLC continuity; all entry touches and each modeled exit independently verified; monthly sums; current/historical one-close vs two-close helpers tested in both directions; baseline financial core matches current working indicator"
+}
