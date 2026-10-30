@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const source=readFileSync(new URL('../KRYTES_V1_LONDON_STRUCTURE.txt',import.meta.url),'utf8');
-const diagnostic=source+'\nplot(rrReclaimBar,"testReclaim")\nplot(zoneVisitTarget,"testGoal")\nplot(zoneVisitBar,"testVisit")\n';
+const diagnostic=source+'\nplot(zoneVisitTarget,"testGoal")\nplot(zoneVisitBar,"testVisit")\n';
 let fills=0,missed=0,exits=0;
 for(const day of ['09','16'])for(const mirror of [false,true]){
  const f=JSON.parse(readFileSync(new URL(day==='09'?'fixtures/mexc-sol-usdt-m5-2026-10-09-v1-structure.json':'fixtures/mexc-sol-usdt-m5-2026-10-16.json',import.meta.url)));
@@ -15,9 +15,7 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
   if(side){
    fills++;
    const level=v('Граница RR 1:1',i);
-   assert.ok(i>v('testReclaim',i-1),'entry follows a closed reclaim candle');
    assert.ok(data[i].low<=level&&data[i].high>=level,'entry candle touches RR');
-   assert.ok(side===1?data[i-1].close>level:data[i-1].close<level,'retest approaches from correct side');
   }
   if(v('Состояние позиции',i)===7&&v('Состояние позиции',i-1)!==7){
    missed++;assert.equal(side,0);assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',i),0);
@@ -39,7 +37,7 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
    assert.ok(boxes.some(x=>x.right===data[i].openTime+300000),'instrument ends one M5 after actual exit');
   }
  }
- console.log('PASS swing-retest drawings/no-entry Oct'+day+(mirror?' mirrored':''));
+ console.log('PASS first-touch drawings/no-entry Oct'+day+(mirror?' mirrored':''));
 }
 
 
