@@ -473,6 +473,11 @@ var bool fifthLocked = false
 var int positionSide = 0
 var int positionState = 0
 var int positionSetupBar = na
+var int zoneVisitSetup = na
+var int zoneVisitBar = na
+var float zoneVisitTarget = na
+var float zoneVisitLevel = na
+var int rrTouchCount = 0
 var int rrTouchBar = na
 var int rrTouchTime = na
 var int rrTouchSetupBar = na
@@ -1454,9 +1459,9 @@ if barstate.isconfirmed and retrySpanValid and rangeWeekday and time[4] >= zeroS
     else if retryHasLow
         recordMarketSwing(retrySwingTimes, retrySwingPrices, retrySwingHighs, retrySwingDays, time[4], retryPivotLow, false, rangeDayKey, 64)
 
-// Все сценарии: две последовательные закрытые M5 касаются одного RR1 по high/low.
-// Вход по RR1 на второй свече; новая структура или изменение уровня сбрасывают пару.
-// State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired.
+// Все сценарии: три последовательные закрытые M5 касаются одного RR1 и закрываются на стороне сделки.
+// Вход по RR1 на третьей свече; новая структура или изменение уровня сбрасывают серию.
+// State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired, 7 worked without entry.
 // Если TP тенью и SL телом на одной M5 — приоритет SL.
 // После первого SL, включая пятницу, нужна новая структура 1–2–3 и ретест.
 int positionExitEvent = 0
@@ -1485,8 +1490,9 @@ if barstate.isconfirmed and m5Chart
             positionState := 5
         else
             bool stopBeforeEntry = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
-            // Второе касание уже действующего RR имеет приоритет над новым экстремумом.
-            bool fillsExistingRR = pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold and low <= positionThreshold and high >= positionThreshold
+            bool workedWithoutEntry = zoneVisitSetup == positionSetupBar and bar_index > zoneVisitBar and (positionSide == 1 ? high >= zoneVisitTarget : low <= zoneVisitTarget)
+            // Последовательное касание сохраняет действующий RR до подтверждения третьей M5.
+            bool fillsExistingRR = pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold and low <= positionThreshold and high >= positionThreshold and (positionSide == -1 ? close < positionThreshold : close > positionThreshold)
             float currentTarget = positionIsSecond or positionIsZero ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             if not fillsExistingRR
                 positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
@@ -1497,18 +1503,26 @@ if barstate.isconfirmed and m5Chart
                 float riskAtLevel = positionSide == 1 ? positionThreshold - positionStop : positionStop - positionThreshold
                 float rewardAtLevel = positionSide == 1 ? positionTarget - positionThreshold : positionThreshold - positionTarget
                 bool touchedRRZone = low <= positionThreshold and high >= positionThreshold
+                if touchedRRZone and pendingDirectionAllowed and (na(zoneVisitSetup) or zoneVisitSetup != positionSetupBar)
+                    zoneVisitSetup := positionSetupBar
+                    zoneVisitBar := bar_index
+                    zoneVisitTarget := positionTarget
+                    zoneVisitLevel := positionThreshold
                 bool againstInitialTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
                 bool originConfirmed = (not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and againstInitialTrend and not positionIsSecond)
-                bool validTouch = touchedRRZone and originConfirmed and pendingDirectionAllowed
-                bool secondRRTouch = validTouch and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold
+                bool closesOnEntrySide = positionSide == -1 ? close < positionThreshold : close > positionThreshold
+                bool validTouch = touchedRRZone and closesOnEntrySide and originConfirmed and pendingDirectionAllowed
+                bool consecutiveRRTouch = validTouch and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold
+                rrTouchCount := validTouch ? (consecutiveRRTouch ? rrTouchCount + 1 : 1) : 0
+                bool thirdRRTouch = rrTouchCount >= 3
                 rrTouchBar := validTouch ? bar_index : na
                 rrTouchTime := validTouch ? time : na
                 rrTouchSetupBar := validTouch ? positionSetupBar : na
                 rrTouchLevel := validTouch ? positionThreshold : na
                 bool eligibleAlertTouch = validTouch and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0
-                if eligibleAlertTouch and not secondRRTouch and notifyZoneTouch
-                    alert(entryAlertText("КАСАНИЕ ЗОНЫ — ждём вторую M5", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar_close)
-                if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and secondRRTouch
+                if eligibleAlertTouch and not thirdRRTouch and notifyZoneTouch
+                    alert(entryAlertText("КАСАНИЕ ЗОНЫ — ждём три касания M5", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar_close)
+                if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and thirdRRTouch
                     dailyPositionEntries := dailyPositionEntries + 1
                     positionEntry := positionThreshold
                     positionRR := rewardAtLevel / riskAtLevel
@@ -1517,9 +1531,13 @@ if barstate.isconfirmed and m5Chart
                     positionEntryEvent := true
                     v1EntryMark(v1EntryMarks, time, positionEntry, positionSide, dailyPositionEntries)
                     if notifyFilledEntry
-                        alert(entryAlertText("ВХОД ИСПОЛНЕН — второе касание", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
+                        alert(entryAlertText("ВХОД ИСПОЛНЕН — третье касание", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
                     colorStopTime := na
                     positionState := 2
+            if positionState == 1 and workedWithoutEntry and not stopBeforeEntry
+                positionState := 7
+                positionTarget := zoneVisitTarget
+                positionThreshold := zoneVisitLevel
     // На свече подтверждения касания выход не моделируем: порядок high/low неизвестен.
     if positionState == 2 and bar_index > positionEntryBar
         bool hitStop = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
@@ -1722,6 +1740,7 @@ if barstate.isconfirmed and m5Chart
         positionEntryBar := na
         positionEntry := na
         positionRR := na
+        rrTouchCount := 0
         rrTouchBar := na
         rrTouchTime := na
         rrTouchSetupBar := na
@@ -1777,12 +1796,12 @@ if barstate.isconfirmed and m5Chart
         box.set_bottom(positionRiskBox, math.min(positionStop, drawnEntry))
         box.set_top(positionRewardBox, math.max(positionTarget, drawnEntry))
         box.set_bottom(positionRewardBox, math.min(positionTarget, drawnEntry))
-        int positionDrawRight = (positionState == 4 or positionState == 3) ? time + 300000 : time + 600000
+        int positionDrawRight = (positionState == 4 or positionState == 3 or positionState == 7) ? time + 300000 : time + 600000
         box.set_right(positionRiskBox, positionDrawRight)
         box.set_right(positionRewardBox, positionDrawRight)
         float entryCaptionRisk = math.abs(drawnEntry - positionStop)
         string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
-        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (positionState == 7 ? "Отработал без входа " : "Точка входа в ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
         positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, v1LevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true) + (positionState == 4 ? " +" : ""), color.red)
         positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, v1LevelCaption("Тейк: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false) + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
