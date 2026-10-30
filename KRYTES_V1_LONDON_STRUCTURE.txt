@@ -204,11 +204,14 @@ drawColoredRuns(array<chart.point> points, array<polyline> drawings, array<polyl
             saveColoredRun(run, drawings, history, ink)
     array.size(drawings)
 
-// Цвет меняется только после подтверждённой встречной тройки HH-HL-HH / LL-LH-LL.
+// Начальная смена цвета — сразу после двух закрытий за исходной 0.
+// После неё сохраняем подтверждение последующих встречных троек.
 rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int firstTime, float offset, int endTime) =>
     array.clear(redPoints)
     array.clear(greenPoints)
     int trend = firstPrice > zeroPrice ? 1 : -1
+    int initialTrend = trend
+    bool initialZeroBroken = false
     float latestHigh = trend == -1 ? zeroPrice : na
     float latestLow = trend == 1 ? zeroPrice : na
     int reverseStage = 0
@@ -225,6 +228,15 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
             float candleOpen = array.get(savedOpens, candleIndex)
             float candleClose = array.get(savedCloses, candleIndex)
             if candleTime >= zeroTime and (na(endTime) or candleTime <= endTime)
+                if not initialZeroBroken and candleIndex > 0 and candleTime > firstTime
+                    int priorTime = array.get(savedTimes, candleIndex - 1)
+                    float priorClose = array.get(savedCloses, candleIndex - 1)
+                    bool beyondZeroNow = initialTrend == 1 ? zeroPrice - candleClose >= offset - 0.000000001 : candleClose - zeroPrice >= offset - 0.000000001
+                    bool beyondZeroBefore = initialTrend == 1 ? zeroPrice - priorClose >= offset - 0.000000001 : priorClose - zeroPrice >= offset - 0.000000001
+                    if priorTime > firstTime and candleTime - priorTime == 300000 and beyondZeroNow and beyondZeroBefore
+                        trend := -initialTrend
+                        initialZeroBroken := true
+                        reverseStage := 0
                 if candleIndex >= 5
                     int pivotIndex = candleIndex - 4
                     int pivotTime = array.get(savedTimes, pivotIndex)
@@ -1818,7 +1830,10 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
     int colorScopeEnd = colorScopeIndex >= 0 ? array.get(anchorTakeProfitTimes, colorScopeIndex) : na
     if positionExitEvent == 1 and positionPlanDay == structureDay
         colorScopeEnd := time
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime), confirmedZeroPrice, structureFirstPrice, firstExtremeTime, firstPointOffset, colorScopeEnd)
+    // Цвет ориентируется на видимую исходную 0, а не на перенесённую расчётную опору.
+    int colorOriginTime = colorScopeIndex >= 0 ? array.get(anchorZeroTimes, colorScopeIndex) : (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime)
+    float colorOriginPrice = colorScopeIndex >= 0 ? array.get(anchorZeroPrices, colorScopeIndex) : confirmedZeroPrice
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, colorOriginTime, colorOriginPrice, structureFirstPrice, firstExtremeTime, firstPointOffset, colorScopeEnd)
     while array.size(colorDayDrawings) > 0
         polyline.delete(array.pop(colorDayDrawings))
     // Освобождаем бюджет перед созданием новых участков.

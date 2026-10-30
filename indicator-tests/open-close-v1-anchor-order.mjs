@@ -10,7 +10,7 @@ for(const mirror of [false,true]){
  const price=x=>mirror?200-x:x;
  const d=f.candles.map(x=>({...x,open:price(x.open),close:price(x.close),high:mirror?price(x.low):x.high,low:mirror?price(x.high):x.low,volume:x.vol,openTime:x.time*1000,closeTime:x.time*1000+299999}));
  const a=await new PineTS(d,'SOLUSDT','5').run(old),b=await new PineTS(d,'SOLUSDT','5').run(source);
- for(const n of Object.keys(a.plots).filter(n=>!n.startsWith('__')))assert.deepEqual(b.plots[n].data,a.plots[n].data,'financial series unchanged: '+n);
+ for(const n of Object.keys(a.plots).filter(n=>!n.startsWith('__')&&n!=='Действующий цвет тренда'))assert.deepEqual(b.plots[n].data,a.plots[n].data,'financial series unchanged: '+n);
  const anchors=c=>c.plots.__labels__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&/^[01] ·/.test(x.text));
  const before=anchors(a),after=anchors(b);
  assert.equal(after.length,2);

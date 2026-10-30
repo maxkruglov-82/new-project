@@ -9,7 +9,7 @@ for(const [day,name,ends] of [['09','mexc-sol-usdt-m5-2026-10-09-v1-structure.js
  const f=JSON.parse(readFileSync(new URL('fixtures/'+name,import.meta.url)));
  const data=f.candles.map(x=>({...x,volume:x.vol,openTime:x.time*1000,closeTime:x.time*1000+299999}));
  const a=await new PineTS(data,'SOLUSDT','5').run(old),b=await new PineTS(data,'SOLUSDT','5').run(source);
- for(const n of Object.keys(a.plots).filter(n=>!n.startsWith('__')))assert.deepEqual(b.plots[n].data,a.plots[n].data,'financial values unchanged '+n);
+ for(const n of Object.keys(a.plots).filter(n=>!n.startsWith('__')&&n!=='Действующий цвет тренда'))assert.deepEqual(b.plots[n].data,a.plots[n].data,'financial values unchanged '+n);
  const boxes=c=>c.plots.__boxes__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&x.border_color.endsWith('00'));
  const before=boxes(a),after=boxes(b);
  assert.equal(after.length,4);assert.equal(before.length,4);
