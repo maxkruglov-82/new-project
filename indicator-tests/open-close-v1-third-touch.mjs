@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const source=readFileSync(new URL('../KRYTES_V1_LONDON_STRUCTURE.txt',import.meta.url),'utf8');
 const diagnostic=source+'\nplot(rrTouchCount,"testCount")\nplot(zoneVisitTarget,"testGoal")\nplot(zoneVisitBar,"testVisit")\n';
-let fills=0,missed=0;
+let fills=0,missed=0,exits=0;
 for(const day of ['09','16'])for(const mirror of [false,true]){
  const f=JSON.parse(readFileSync(new URL(day==='09'?'fixtures/mexc-sol-usdt-m5-2026-10-09-v1-structure.json':'fixtures/mexc-sol-usdt-m5-2026-10-16.json',import.meta.url)));
  const price=x=>mirror?250-x:x;
@@ -13,11 +13,11 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
  for(let i=0;i<data.length;i++){
   const side=v('Вход LONG/SHORT',i);
   if(side){
-   fills++; assert.equal(v('testCount',i),3);
+   fills++; assert.equal(v('testCount',i-1),2);
    const level=v('Граница RR 1:1',i);
    for(let j=i-2;j<=i;j++){
     assert.ok(data[j].low<=level&&data[j].high>=level);
-    assert.ok(side===1?data[j].close>level:data[j].close<level);
+    if(j<i)assert.ok(side===1?data[j].close>level:data[j].close<level);
     if(j<i)assert.equal(v('Вход LONG/SHORT',j),0);
    }
   }
@@ -27,15 +27,30 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
    const goal=v('testGoal',i);assert.ok(data[i].high>=goal||data[i].low<=goal);
   }
  }
+ const circles=c.plots.__labels__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&x.style==='style_circle');
+ const traces=c.plots.__lines__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&x.style==='style_dashed');
+ const boxes=c.plots.__boxes__.data.flatMap(x=>x.value).filter(x=>!x._deleted);
+ for(let i=0;i<data.length;i++){
+  if(v('Вход LONG/SHORT',i))assert.ok(circles.some(x=>x.x===data[i].openTime&&x.y===v('Цена входа по close',i)&&x.tooltip.startsWith('Вход ')),'actual entry circle');
+  const event=v('Выход TP 1 / SL -1 / неизвестно 2',i);
+  if(event===1||event===-1){
+   exits++;
+   const price=v(event===1?'Цель позиции':'Стоп позиции',i);
+   assert.ok(circles.some(x=>x.x===data[i].openTime&&x.y===price&&/^(Стоп|Тейк) /.test(x.tooltip)),'actual exit circle');
+   assert.ok(traces.some(x=>x.x2===data[i].openTime&&x.y2===price),'dashed entry-to-exit path');
+   assert.ok(boxes.some(x=>x.right===data[i].openTime+300000),'instrument ends one M5 after actual exit');
+  }
+ }
  console.log('PASS third-touch/no-entry Oct'+day+(mirror?' mirrored':''));
 }
 
 
-console.log({fills,missed});
+assert.ok(fills>0&&exits>0&&missed>0,'real fixtures must exercise entries, exits and missed scenarios');
+console.log({fills,missed,exits});
 
 const entryLogic=source.slice(source.indexOf('                bool closesOnEntrySide ='),source.indexOf('                bool eligibleAlertTouch ='));
 for(const side of [-1,1]){
- const bodies=[9,9,9,10,9,9,9];
+ const bodies=[9,9,11,10,9,9,11];
  const bars=bodies.map((close,i)=>({open:10,high:11,low:8,close:side===-1?close:20-close,volume:1,openTime:Date.UTC(2026,0,5,0,i*5),closeTime:Date.UTC(2026,0,5,0,i*5)+299999}));
  const pine=`//@version=5
 indicator("third touch test")
@@ -54,7 +69,7 @@ bool pendingDirectionAllowed = true
  const result=await new PineTS(bars,'TEST','5').run(pine);
  assert.deepEqual(result.plots.fill.data.map(x=>x.value),[0,0,1,0,0,0,1]);
 }
-console.log('PASS synthetic LONG/SHORT: third touch, equality rejection and sequence reset');
+console.log('PASS synthetic LONG/SHORT: third touch fills even with opposite close; equality resets arming');
 
 const noEntryLogic=source.slice(source.indexOf('            if positionState == 1 and workedWithoutEntry'),source.indexOf('    // На свече подтверждения касания'));
 for(const initial of [1,2]){

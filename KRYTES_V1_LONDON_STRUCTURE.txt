@@ -477,6 +477,8 @@ var int zoneVisitSetup = na
 var int zoneVisitBar = na
 var float zoneVisitTarget = na
 var float zoneVisitLevel = na
+varip int liveEntrySignalBar = na
+varip int liveEntrySignalSetup = na
 var int rrTouchCount = 0
 var int rrTouchBar = na
 var int rrTouchTime = na
@@ -1459,13 +1461,26 @@ if barstate.isconfirmed and retrySpanValid and rangeWeekday and time[4] >= zeroS
     else if retryHasLow
         recordMarketSwing(retrySwingTimes, retrySwingPrices, retrySwingHighs, retrySwingDays, time[4], retryPivotLow, false, rangeDayKey, 64)
 
-// Все сценарии: три последовательные закрытые M5 касаются одного RR1 и закрываются на стороне сделки.
-// Вход по RR1 на третьей свече; новая структура или изменение уровня сбрасывают серию.
+// Все сценарии: две закрытые M5 касаются одного RR1 и закрываются на стороне сделки; вход при третьем касании.
+// Вход по RR1 при касании третьей свечой без требования к её закрытию; новая структура или изменение уровня сбрасывают серию.
 // State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired, 7 worked without entry.
 // Если TP тенью и SL телом на одной M5 — приоритет SL.
 // После первого SL, включая пятницу, нужна новая структура 1–2–3 и ретест.
 int positionExitEvent = 0
 bool positionEntryEvent = false
+// На живой M5 сигнал появляется при касании после двух закрытых подтверждений.
+if barstate.isrealtime and not barstate.isconfirmed and m5Chart and positionState == 1
+    bool liveAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
+    bool liveDirectionAllowed = (not liveAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and liveAgainstTrend and not positionIsSecond)
+    bool liveArmed = rrTouchCount >= 2 and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold
+    bool liveStopIntact = positionSide == 1 ? bodyLow > positionStop : bodyHigh < positionStop
+    if liveArmed and liveDirectionAllowed and liveStopIntact and positionPlanDay == rangeDayKey and firstPointWindow and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and bar_index > positionSetupBar and low <= positionThreshold and high >= positionThreshold
+        liveEntrySignalBar := bar_index
+        liveEntrySignalSetup := positionSetupBar
+    if liveEntrySignalBar == bar_index and liveEntrySignalSetup == positionSetupBar
+        v1EntryMark(v1EntryMarks, time, positionThreshold, positionSide, dailyPositionEntries + 1)
+        if notifyFilledEntry
+            alert(entryAlertText("ВХОД — третье касание", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar)
 if barstate.isconfirmed and m5Chart
     bool pendingAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     bool waitingForCounterBreak = counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
@@ -1489,10 +1504,11 @@ if barstate.isconfirmed and m5Chart
         if positionPlanDay != rangeDayKey or not firstPointWindow
             positionState := 5
         else
-            bool stopBeforeEntry = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
+            bool liveFillLatched = liveEntrySignalBar == bar_index and liveEntrySignalSetup == positionSetupBar
+            bool stopBeforeEntry = not liveFillLatched and (positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop)
             bool workedWithoutEntry = zoneVisitSetup == positionSetupBar and bar_index > zoneVisitBar and (positionSide == 1 ? high >= zoneVisitTarget : low <= zoneVisitTarget)
             // Последовательное касание сохраняет действующий RR до подтверждения третьей M5.
-            bool fillsExistingRR = pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold and low <= positionThreshold and high >= positionThreshold and (positionSide == -1 ? close < positionThreshold : close > positionThreshold)
+            bool fillsExistingRR = pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold and low <= positionThreshold and high >= positionThreshold
             float currentTarget = positionIsSecond or positionIsZero ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
             if not fillsExistingRR
                 positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
@@ -1512,16 +1528,16 @@ if barstate.isconfirmed and m5Chart
                 bool originConfirmed = (not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and againstInitialTrend and not positionIsSecond)
                 bool closesOnEntrySide = positionSide == -1 ? close < positionThreshold : close > positionThreshold
                 bool validTouch = touchedRRZone and closesOnEntrySide and originConfirmed and pendingDirectionAllowed
-                bool consecutiveRRTouch = validTouch and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold
-                rrTouchCount := validTouch ? (consecutiveRRTouch ? rrTouchCount + 1 : 1) : 0
-                bool thirdRRTouch = rrTouchCount >= 3
+                bool previousRRTouch = rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold
+                bool thirdRRTouch = touchedRRZone and originConfirmed and pendingDirectionAllowed and previousRRTouch and rrTouchCount >= 2
+                rrTouchCount := validTouch ? (previousRRTouch ? rrTouchCount + 1 : 1) : 0
                 rrTouchBar := validTouch ? bar_index : na
                 rrTouchTime := validTouch ? time : na
                 rrTouchSetupBar := validTouch ? positionSetupBar : na
                 rrTouchLevel := validTouch ? positionThreshold : na
                 bool eligibleAlertTouch = validTouch and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0
                 if eligibleAlertTouch and not thirdRRTouch and notifyZoneTouch
-                    alert(entryAlertText("КАСАНИЕ ЗОНЫ — ждём три касания M5", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar_close)
+                    alert(entryAlertText("КАСАНИЕ ЗОНЫ — ждём третье касание M5", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar_close)
                 if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and thirdRRTouch
                     dailyPositionEntries := dailyPositionEntries + 1
                     positionEntry := positionThreshold
