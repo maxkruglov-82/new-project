@@ -306,7 +306,7 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                                 latestHigh := pivotPrice
                             else
                                 latestLow := pivotPrice
-                if reverseStage == 3
+                if initialZeroBroken and reverseStage == 3
                     bool wantUp = trend == -1
                     bool anchorBreak = false
                     bool middleBreak = false

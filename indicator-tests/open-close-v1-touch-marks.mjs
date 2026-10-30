@@ -9,6 +9,9 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
  const price=x=>mirror?250-x:x;
  const data=f.candles.map(b=>({...b,open:price(b.open),close:price(b.close),high:mirror?price(b.low):b.high,low:mirror?price(b.high):b.low,volume:b.vol,openTime:b.time*1000,closeTime:b.time*1000+299999}));
  const c=await new PineTS(data,'SOLUSDT','5').run(diagnostic);
+ const beforeColorFix=source.replace('if initialZeroBroken and reverseStage == 3','if reverseStage == 3');
+ const previous=await new PineTS(data,'SOLUSDT','5').run(beforeColorFix);
+ for(const name of Object.keys(previous.plots).filter(n=>!n.startsWith('__')&&n!=='Действующий цвет тренда'))assert.deepEqual(c.plots[name].data,previous.plots[name].data,'color fix must not change trading: '+name);
  const v=(name,i)=>c.plots[name].data[i].value;
  for(let i=0;i<data.length;i++){
   const side=v('Вход LONG/SHORT',i);

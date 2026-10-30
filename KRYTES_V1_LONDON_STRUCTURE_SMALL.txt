@@ -265,7 +265,7 @@ q270(array<chart.point> redPoints,array<chart.point> greenPoints,array<float> sa
 								latestHigh := pivotPrice
 							else
 								latestLow := pivotPrice
-				if q315 == 3
+				if q173 and q315 == 3
 					bool wantUp = trend == -1
 					bool anchorBreak = false
 					bool middleBreak = false
