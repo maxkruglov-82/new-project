@@ -38,5 +38,5 @@ assert.equal(v('StopPct','22:05'),1);
 assert.equal(v('TargetPct','22:05'),1);
 const dayFills=data.flatMap((b,i)=>b.openTime>=Date.parse('2026-10-16T00:00:00+07:00')&&b.openTime<Date.parse('2026-10-17T00:00:00+07:00')&&c.plots['Вход LONG/SHORT'].data[i].value?[c.plots['Вход LONG/SHORT'].data[i].value]:[]);
 assert.deepEqual(dayFills,[-1,-1],'no automatic LONG; exactly two SHORT fills on Friday');
-assert.ok(source.includes('color=stopped ? color.red : color.green'));
+assert.ok(source.includes('color ink = stopped ? color.red : (side == 1 ? color.green : color.red)'));
 console.log('PASS MEXC Friday Oct16: first SHORT SL; new 1-2-3 confirms SHORT retry 106.185, TP 105.16; exit dots and percentages');

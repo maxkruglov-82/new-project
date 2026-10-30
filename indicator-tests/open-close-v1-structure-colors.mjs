@@ -22,7 +22,7 @@ for(const mirror of [false,true])for(const mode of ['full','immediate','one-clos
  assert.equal(v('Trend',8),initial,'one close never changes color');
  const switches=['full','immediate','tp-on-break'].includes(mode);
  assert.equal(v('Trend',9),switches?flipped:initial,mode);
- if(switches){assert.equal(v(mirror?'Red':'Green',9),1,'only confirmation candle gets new color');assert.equal(v(mirror?'Green':'Red',9),9,'earlier candles retain original color');}
+ if(switches){assert.equal(v(mirror?'Red':'Green',9),6,'confirmed new leg is colored from1');assert.equal(v(mirror?'Green':'Red',9),4,'0-to-1 retains original color');}
  if(mode==='full'){assert.equal(v('Trend',11),flipped,'return across0 alone does not flip back');assert.equal(v('Trend',39),initial,'later complete reversal remains supported');}
  if(cutoff!==null)assert.equal(v('Red',last)+v('Green',last),cutoff+1,'coloring stops at TP');
  console.log('PASS V1 colors: two-close break of original0 switches immediately; mirror='+mirror+' mode='+mode);

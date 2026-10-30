@@ -43,12 +43,30 @@ v1LevelCaption(string prefix, float entry, float level, bool stopLevel) =>
     float percent = not na(entry) and entry > 0 ? math.abs(level - entry) / entry * 100.0 : na
     prefix + str.tostring(level, "#.#####") + (not na(percent) ? " (" + (stopLevel ? "-" : "+") + str.tostring(percent, "0.##") + "%)" : "")
 
-v1ExitMark(array<label> marks, int atTime, float price, bool stopped) =>
-    label mark = label.new(x=atTime, y=price, text="", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_circle, color=stopped ? color.red : color.green, textcolor=stopped ? color.red : color.green, size=size.tiny)
+v1EntryMark(array<label> marks, int atTime, float price, int side, int number) =>
+    color ink = side == 1 ? color.green : color.red
+    label mark = label.new(x=atTime, y=price, text=str.tostring(number), xloc=xloc.bar_time, yloc=yloc.price, style=label.style_circle, color=ink, textcolor=color.white, size=size.tiny, tooltip="Вход " + (side == 1 ? "LONG" : "SHORT") + " №" + str.tostring(number))
     array.push(marks, mark)
-    while array.size(marks) > 60
+    while array.size(marks) > 30
         label.delete(array.shift(marks))
     mark
+
+v1ExitMark(array<label> marks, int atTime, float price, bool stopped, int side) =>
+    color ink = stopped ? color.red : (side == 1 ? color.green : color.red)
+    label mark = label.new(x=atTime, y=price, text="", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_circle, color=ink, textcolor=ink, size=size.tiny, tooltip=(stopped ? "Стоп " : "Тейк ") + (side == 1 ? "LONG" : "SHORT"))
+    array.push(marks, mark)
+    while array.size(marks) > 30
+        label.delete(array.shift(marks))
+    mark
+
+// Пунктир связывает фактические свечи входа и закрытия сделки.
+v1ExitTrace(array<line> traces, int entryTime, float entryPrice, int exitTime, float exitPrice, bool stopped, int side) =>
+    color ink = stopped ? color.red : (side == 1 ? color.green : color.red)
+    line trace = line.new(x1=entryTime, y1=entryPrice, x2=exitTime, y2=exitPrice, xloc=xloc.bar_time, color=ink, style=line.style_dashed, width=1)
+    array.push(traces, trace)
+    while array.size(traces) > 60
+        line.delete(array.shift(traces))
+    trace
 
 // Точка 0 — экстремум собственного отката от противоположного экстремума.
 // От 13:00 строго до 1; минимум пять свечей от начала отката включительно.
@@ -212,6 +230,7 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
     int trend = firstPrice > zeroPrice ? 1 : -1
     int initialTrend = trend
     bool initialZeroBroken = false
+    int zeroBreakColorTime = na
     float latestHigh = trend == -1 ? zeroPrice : na
     float latestLow = trend == 1 ? zeroPrice : na
     int reverseStage = 0
@@ -222,6 +241,7 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
     int reverseMiddleTime = na
     int result = 0
     int count = array.size(savedTimes)
+    array<int> candleTrends = array.new_int(count, 0)
     if count > 0
         for candleIndex = 0 to count - 1
             int candleTime = array.get(savedTimes, candleIndex)
@@ -236,6 +256,7 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                     if priorTime > firstTime and candleTime - priorTime == 300000 and beyondZeroNow and beyondZeroBefore
                         trend := -initialTrend
                         initialZeroBroken := true
+                        zeroBreakColorTime := candleTime
                         reverseStage := 0
                 if candleIndex >= 5
                     int pivotIndex = candleIndex - 4
@@ -309,11 +330,21 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                     else if anchorBreak
                         trend := -trend
                         reverseStage := 0
-                if trend == 1
-                    appendColoredCandle(greenPoints, candleTime, candleOpen, candleClose)
-                else
-                    appendColoredCandle(redPoints, candleTime, candleOpen, candleClose)
+                array.set(candleTrends, candleIndex, trend)
                 result := trend
+    // Только после состоявшегося закрепа перекрашиваем весь новый импульс от1.
+    // До подтверждения участок сохраняет прежний цвет; от0 до1 он не меняется.
+    if count > 0
+        for paintIndex = 0 to count - 1
+            int paintTrend = array.get(candleTrends, paintIndex)
+            int paintTime = array.get(savedTimes, paintIndex)
+            if paintTrend != 0
+                if initialZeroBroken and paintTime > firstTime and paintTime <= zeroBreakColorTime
+                    paintTrend := -initialTrend
+                if paintTrend == 1
+                    appendColoredCandle(greenPoints, paintTime, array.get(savedOpens, paintIndex), array.get(savedCloses, paintIndex))
+                else
+                    appendColoredCandle(redPoints, paintTime, array.get(savedOpens, paintIndex), array.get(savedCloses, paintIndex))
     result
 
 // Подписи уровней как в v72: прозрачный фон, цвет уровня, плюс по результату.
@@ -411,6 +442,8 @@ var bool firstPositionIsZero = false
 var float zeroReversalStop = na
 var bool positionIsSecond = false
 var array<label> v1ExitMarks = array.new_label()
+var array<label> v1EntryMarks = array.new_label()
+var array<line> v1ExitTraces = array.new_line()
 var bool firstStopped = false
 var float retryBasePrice = na
 var int retryBaseTime = na
@@ -447,6 +480,7 @@ var float rrTouchLevel = na
 var int positionAnchorTime = na
 var int zeroReversalTime = na
 var int positionEntryBar = na
+var int positionEntryTime = na
 var int positionPlanDay = na
 var bool positionUsesFourth = false
 var bool positionUsesFifth = false
@@ -1477,7 +1511,9 @@ if barstate.isconfirmed and m5Chart
                     positionEntry := positionThreshold
                     positionRR := rewardAtLevel / riskAtLevel
                     positionEntryBar := bar_index
+                    positionEntryTime := time
                     positionEntryEvent := true
+                    v1EntryMark(v1EntryMarks, time, positionEntry, positionSide, dailyPositionEntries)
                     if notifyFilledEntry
                         alert(entryAlertText("ВХОД ИСПОЛНЕН — второе касание", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
                     colorStopTime := na
@@ -1494,7 +1530,9 @@ if barstate.isconfirmed and m5Chart
             if not na(positionRiskBox)
                 box.set_right(positionRiskBox, time + 300000)
                 box.set_right(positionRewardBox, time + 300000)
-            v1ExitMark(v1ExitMarks, time, hitStop ? positionStop : positionTarget, hitStop)
+            v1ExitMark(v1ExitMarks, time, hitStop ? positionStop : positionTarget, hitStop, positionSide)
+            if not na(positionEntryTime)
+                v1ExitTrace(v1ExitTraces, positionEntryTime, positionEntry, time, hitStop ? positionStop : positionTarget, hitStop, positionSide)
             // Фиксируем подписи предыдущей сделки до возможного создания второй.
             positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, v1LevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true) + (positionState == 4 ? " +" : ""), color.red)
             positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, v1LevelCaption("Тейк: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false) + (positionState == 3 ? " +" : ""), color.teal)
