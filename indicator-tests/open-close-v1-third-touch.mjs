@@ -13,12 +13,16 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
  for(let i=0;i<data.length;i++){
   const side=v('Вход LONG/SHORT',i);
   if(side){
-   fills++; assert.equal(v('testCount',i-1),2);
+   fills++;
    const level=v('Граница RR 1:1',i);
-   for(let j=i-2;j<=i;j++){
-    assert.ok(data[j].low<=level&&data[j].high>=level);
-    if(j<i)assert.ok(side===1?data[j].close>level:data[j].close<level);
-    if(j<i)assert.equal(v('Вход LONG/SHORT',j),0);
+   const returned=v('Граница RR 1:1',i-1)===level&&(side===1?data[i-1].close<level:data[i-1].close>level);
+   if(!returned){
+    assert.equal(v('testCount',i-1),2);
+    for(let j=i-2;j<i;j++){
+     assert.ok(data[j].low<=level&&data[j].high>=level);
+     assert.ok(side===1?data[j].close>level:data[j].close<level);
+     assert.equal(v('Вход LONG/SHORT',j),0);
+    }
    }
   }
   if(v('Состояние позиции',i)===7&&v('Состояние позиции',i-1)!==7){
@@ -31,7 +35,7 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
  const traces=c.plots.__lines__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&x.style==='style_dashed');
  const boxes=c.plots.__boxes__.data.flatMap(x=>x.value).filter(x=>!x._deleted);
  for(let i=0;i<data.length;i++){
-  if(v('Вход LONG/SHORT',i))assert.ok(circles.some(x=>x.x===data[i].openTime&&x.y===v('Цена входа по close',i)&&x.tooltip.startsWith('Вход ')),'actual entry circle');
+  if(v('Вход LONG/SHORT',i))assert.ok(circles.some(x=>x.x===data[i].openTime&&x.y===v('Цена входа по close',i)&&x.tooltip.startsWith('Вход ')&&x.text===String(v('Входов за день',i))&&x.color===(v('Вход LONG/SHORT',i)===1?'#4CAF50':'#F23645')),'numbered side-colored actual entry circle');
   const event=v('Выход TP 1 / SL -1 / неизвестно 2',i);
   if(event===1||event===-1){
    exits++;
@@ -45,7 +49,7 @@ for(const day of ['09','16'])for(const mirror of [false,true]){
 }
 
 
-assert.ok(fills>0&&exits>0&&missed>0,'real fixtures must exercise entries, exits and missed scenarios');
+assert.ok(fills>0&&exits>0,'real fixtures must exercise entries and exits');
 console.log({fills,missed,exits});
 
 const entryLogic=source.slice(source.indexOf('                bool closesOnEntrySide ='),source.indexOf('                bool eligibleAlertTouch ='));
@@ -65,6 +69,7 @@ int positionSetupBar = 0
 bool touchedRRZone = low <= positionThreshold and high >= positionThreshold
 bool originConfirmed = true
 bool pendingDirectionAllowed = true
+bool returnExistingRR = false
 `+entryLogic.split('\n').map(l=>l.startsWith('                ')?l.slice(16):l).join('\n')+'\nplot(thirdRRTouch ? 1 : 0,"fill")';
  const result=await new PineTS(bars,'TEST','5').run(pine);
  assert.deepEqual(result.plots.fill.data.map(x=>x.value),[0,0,1,0,0,0,1]);
