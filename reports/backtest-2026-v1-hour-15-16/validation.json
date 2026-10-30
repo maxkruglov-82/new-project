@@ -1,0 +1,14 @@
+{
+  "experimentBase": "e14ff8e",
+  "baselineStats": "b2375d6 financial rules, unchanged by later visual-only commits",
+  "baselineSourceSha256": "9db578a0e1fe8d8083b9a3c2aa030bfc130ee0caa9acaf5414093958deb23489",
+  "sourceSha256": "3561c35b83b5e23c3074b602f36b6c6012a84d53e95cbab108279b2b326a7d70",
+  "inputSha256": "93a1e4d2d32ff92f80bac14ee70be0ed13b750c3a495a6d760130cc6a641d74f",
+  "productionChanged": false,
+  "onlyChangedLines": [
+    "bodyHourStart14->15",
+    "bodyHourEnd15->16"
+  ],
+  "unchanged": "zero search13:00; two-close confirmations; five-bar swings; RR1 two-touch entry; daily limits; entry deadline; exits",
+  "checks": "source inverse exact; same candles/hash; OHLC continuity; all fills and modeled exits independently validated; month totals; all160 entries after16:00; exact12 M5 wick candles in H1 tested"
+}

@@ -1,0 +1,340 @@
+{
+  "baselineCommit": "b2375d6",
+  "experimentBase": "e14ff8e",
+  "sameInputSha256": "93a1e4d2d32ff92f80bac14ee70be0ed13b750c3a495a6d760130cc6a641d74f",
+  "period": "2026-01-02 through 2026-10-25 inclusive",
+  "baseline": {
+    "executed": 171,
+    "tp": 103,
+    "sl": 68,
+    "winRate": 60.23391812865497,
+    "netR": 35,
+    "unresolved": 0
+  },
+  "experiment": {
+    "executed": 160,
+    "tp": 89,
+    "sl": 71,
+    "winRate": 55.625,
+    "netR": 18,
+    "unresolved": 0
+  },
+  "oldMerged": {
+    "executed": 161,
+    "tp": 103,
+    "sl": 58,
+    "unresolved": 0,
+    "winRate": 63.975155279503106
+  },
+  "newMerged": {
+    "executed": 150,
+    "tp": 89,
+    "sl": 61,
+    "unresolved": 0,
+    "winRate": 59.333333333333336
+  },
+  "deltaR": -17,
+  "deltaWinRate": -4.60891812865497,
+  "months": [
+    {
+      "month": "2026-01",
+      "oldTrades": 18,
+      "oldTP": 7,
+      "oldSL": 11,
+      "oldWinRate": 38.888888888888886,
+      "oldR": -4,
+      "newTrades": 17,
+      "newTP": 7,
+      "newSL": 10,
+      "newWinRate": 41.1764705882353,
+      "newR": -3,
+      "deltaTrades": -1,
+      "deltaWinRate": 2.2875816993464113,
+      "deltaR": 1,
+      "oldMerged": {
+        "executed": 17,
+        "tp": 7,
+        "sl": 10,
+        "unresolved": 0,
+        "winRate": 41.1764705882353
+      },
+      "newMerged": {
+        "executed": 17,
+        "tp": 7,
+        "sl": 10,
+        "unresolved": 0,
+        "winRate": 41.1764705882353
+      }
+    },
+    {
+      "month": "2026-02",
+      "oldTrades": 19,
+      "oldTP": 11,
+      "oldSL": 8,
+      "oldWinRate": 57.89473684210526,
+      "oldR": 3,
+      "newTrades": 14,
+      "newTP": 12,
+      "newSL": 2,
+      "newWinRate": 85.71428571428571,
+      "newR": 10,
+      "deltaTrades": -5,
+      "deltaWinRate": 27.819548872180448,
+      "deltaR": 7,
+      "oldMerged": {
+        "executed": 18,
+        "tp": 11,
+        "sl": 7,
+        "unresolved": 0,
+        "winRate": 61.111111111111114
+      },
+      "newMerged": {
+        "executed": 13,
+        "tp": 12,
+        "sl": 1,
+        "unresolved": 0,
+        "winRate": 92.3076923076923
+      }
+    },
+    {
+      "month": "2026-03",
+      "oldTrades": 16,
+      "oldTP": 9,
+      "oldSL": 7,
+      "oldWinRate": 56.25,
+      "oldR": 2,
+      "newTrades": 15,
+      "newTP": 9,
+      "newSL": 6,
+      "newWinRate": 60,
+      "newR": 3,
+      "deltaTrades": -1,
+      "deltaWinRate": 3.75,
+      "deltaR": 1,
+      "oldMerged": {
+        "executed": 14,
+        "tp": 9,
+        "sl": 5,
+        "unresolved": 0,
+        "winRate": 64.28571428571429
+      },
+      "newMerged": {
+        "executed": 15,
+        "tp": 9,
+        "sl": 6,
+        "unresolved": 0,
+        "winRate": 60.0
+      }
+    },
+    {
+      "month": "2026-04",
+      "oldTrades": 19,
+      "oldTP": 8,
+      "oldSL": 11,
+      "oldWinRate": 42.10526315789474,
+      "oldR": -3,
+      "newTrades": 17,
+      "newTP": 6,
+      "newSL": 11,
+      "newWinRate": 35.294117647058826,
+      "newR": -5,
+      "deltaTrades": -2,
+      "deltaWinRate": -6.811145510835914,
+      "deltaR": -2,
+      "oldMerged": {
+        "executed": 18,
+        "tp": 8,
+        "sl": 10,
+        "unresolved": 0,
+        "winRate": 44.44444444444444
+      },
+      "newMerged": {
+        "executed": 16,
+        "tp": 6,
+        "sl": 10,
+        "unresolved": 0,
+        "winRate": 37.5
+      }
+    },
+    {
+      "month": "2026-05",
+      "oldTrades": 10,
+      "oldTP": 5,
+      "oldSL": 5,
+      "oldWinRate": 50,
+      "oldR": 0,
+      "newTrades": 14,
+      "newTP": 8,
+      "newSL": 6,
+      "newWinRate": 57.142857142857146,
+      "newR": 2,
+      "deltaTrades": 4,
+      "deltaWinRate": 7.142857142857146,
+      "deltaR": 2,
+      "oldMerged": {
+        "executed": 9,
+        "tp": 5,
+        "sl": 4,
+        "unresolved": 0,
+        "winRate": 55.55555555555556
+      },
+      "newMerged": {
+        "executed": 13,
+        "tp": 8,
+        "sl": 5,
+        "unresolved": 0,
+        "winRate": 61.53846153846154
+      }
+    },
+    {
+      "month": "2026-06",
+      "oldTrades": 20,
+      "oldTP": 13,
+      "oldSL": 7,
+      "oldWinRate": 65,
+      "oldR": 6,
+      "newTrades": 17,
+      "newTP": 11,
+      "newSL": 6,
+      "newWinRate": 64.70588235294117,
+      "newR": 5,
+      "deltaTrades": -3,
+      "deltaWinRate": -0.29411764705882604,
+      "deltaR": -1,
+      "oldMerged": {
+        "executed": 20,
+        "tp": 13,
+        "sl": 7,
+        "unresolved": 0,
+        "winRate": 65.0
+      },
+      "newMerged": {
+        "executed": 16,
+        "tp": 11,
+        "sl": 5,
+        "unresolved": 0,
+        "winRate": 68.75
+      }
+    },
+    {
+      "month": "2026-07",
+      "oldTrades": 17,
+      "oldTP": 11,
+      "oldSL": 6,
+      "oldWinRate": 64.70588235294117,
+      "oldR": 5,
+      "newTrades": 21,
+      "newTP": 9,
+      "newSL": 12,
+      "newWinRate": 42.857142857142854,
+      "newR": -3,
+      "deltaTrades": 4,
+      "deltaWinRate": -21.84873949579832,
+      "deltaR": -8,
+      "oldMerged": {
+        "executed": 15,
+        "tp": 11,
+        "sl": 4,
+        "unresolved": 0,
+        "winRate": 73.33333333333333
+      },
+      "newMerged": {
+        "executed": 18,
+        "tp": 9,
+        "sl": 9,
+        "unresolved": 0,
+        "winRate": 50.0
+      }
+    },
+    {
+      "month": "2026-08",
+      "oldTrades": 16,
+      "oldTP": 10,
+      "oldSL": 6,
+      "oldWinRate": 62.5,
+      "oldR": 4,
+      "newTrades": 13,
+      "newTP": 7,
+      "newSL": 6,
+      "newWinRate": 53.84615384615385,
+      "newR": 1,
+      "deltaTrades": -3,
+      "deltaWinRate": -8.653846153846153,
+      "deltaR": -3,
+      "oldMerged": {
+        "executed": 16,
+        "tp": 10,
+        "sl": 6,
+        "unresolved": 0,
+        "winRate": 62.5
+      },
+      "newMerged": {
+        "executed": 13,
+        "tp": 7,
+        "sl": 6,
+        "unresolved": 0,
+        "winRate": 53.84615384615385
+      }
+    },
+    {
+      "month": "2026-09",
+      "oldTrades": 18,
+      "oldTP": 15,
+      "oldSL": 3,
+      "oldWinRate": 83.33333333333333,
+      "oldR": 12,
+      "newTrades": 18,
+      "newTP": 10,
+      "newSL": 8,
+      "newWinRate": 55.55555555555556,
+      "newR": 2,
+      "deltaTrades": 0,
+      "deltaWinRate": -27.77777777777777,
+      "deltaR": -10,
+      "oldMerged": {
+        "executed": 18,
+        "tp": 15,
+        "sl": 3,
+        "unresolved": 0,
+        "winRate": 83.33333333333333
+      },
+      "newMerged": {
+        "executed": 18,
+        "tp": 10,
+        "sl": 8,
+        "unresolved": 0,
+        "winRate": 55.55555555555556
+      }
+    },
+    {
+      "month": "2026-10",
+      "oldTrades": 18,
+      "oldTP": 14,
+      "oldSL": 4,
+      "oldWinRate": 77.77777777777777,
+      "oldR": 10,
+      "newTrades": 14,
+      "newTP": 10,
+      "newSL": 4,
+      "newWinRate": 71.42857142857143,
+      "newR": 6,
+      "deltaTrades": -4,
+      "deltaWinRate": -6.349206349206341,
+      "deltaR": -4,
+      "oldMerged": {
+        "executed": 16,
+        "tp": 14,
+        "sl": 2,
+        "unresolved": 0,
+        "winRate": 87.5
+      },
+      "newMerged": {
+        "executed": 11,
+        "tp": 10,
+        "sl": 1,
+        "unresolved": 0,
+        "winRate": 90.9090909090909
+      }
+    }
+  ]
+}
