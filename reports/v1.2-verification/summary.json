@@ -1,0 +1,224 @@
+{
+  "version": "V1.2",
+  "timezone": "Asia/Krasnoyarsk",
+  "market": "MEXC SOL_USDT perpetual M5",
+  "scope": "verification examples, not annual backtest",
+  "source_sha256": "d9c116d983fb396922bdefaf6bc4d88e252512aa42627d28206727266a1ebf01",
+  "small_bytes": 68555,
+  "cases": [
+    {
+      "fills": [
+        [
+          "21:15",
+          -1,
+          109.98,
+          110.64,
+          109.32
+        ]
+      ],
+      "exits": [
+        [
+          "22:30",
+          1
+        ]
+      ],
+      "date": "2026-10-09",
+      "mirrored": false
+    },
+    {
+      "fills": [
+        [
+          "21:15",
+          1,
+          139.985,
+          139.29,
+          140.68
+        ]
+      ],
+      "exits": [
+        [
+          "22:30",
+          1
+        ]
+      ],
+      "date": "2026-10-09",
+      "mirrored": true
+    },
+    {
+      "fills": [
+        [
+          "17:00",
+          1,
+          106.495,
+          105.95,
+          107.04
+        ]
+      ],
+      "exits": [
+        [
+          "18:50",
+          1
+        ]
+      ],
+      "date": "2026-10-21",
+      "mirrored": false
+    },
+    {
+      "fills": [
+        [
+          "16:50",
+          -1,
+          143.255,
+          143.55,
+          142.96
+        ],
+        [
+          "20:30",
+          -1,
+          143.245,
+          143.99,
+          142.5
+        ]
+      ],
+      "exits": [
+        [
+          "17:00",
+          -1
+        ],
+        [
+          "21:45",
+          1
+        ]
+      ],
+      "date": "2026-10-21",
+      "mirrored": true
+    },
+    {
+      "fills": [
+        [
+          "18:25",
+          -1,
+          104.155,
+          104.43,
+          103.88
+        ],
+        [
+          "19:00",
+          1,
+          104.34,
+          103.88,
+          104.8
+        ]
+      ],
+      "exits": [
+        [
+          "18:45",
+          -1
+        ],
+        [
+          "20:40",
+          1
+        ]
+      ],
+      "date": "2026-10-23",
+      "mirrored": false
+    },
+    {
+      "fills": [
+        [
+          "18:25",
+          1,
+          145.845,
+          145.57,
+          146.12
+        ],
+        [
+          "19:00",
+          -1,
+          145.66,
+          146.12,
+          145.2
+        ]
+      ],
+      "exits": [
+        [
+          "18:45",
+          -1
+        ],
+        [
+          "20:40",
+          1
+        ]
+      ],
+      "date": "2026-10-23",
+      "mirrored": true
+    },
+    {
+      "fills": [
+        [
+          "16:40",
+          1,
+          106.46,
+          106.08,
+          106.84
+        ],
+        [
+          "19:00",
+          1,
+          106.495,
+          105.78,
+          107.21
+        ]
+      ],
+      "exits": [
+        [
+          "17:00",
+          -1
+        ],
+        [
+          "19:45",
+          -1
+        ]
+      ],
+      "date": "2026-10-16",
+      "mirrored": false
+    },
+    {
+      "fills": [
+        [
+          "16:40",
+          -1,
+          143.54,
+          143.92,
+          143.16
+        ],
+        [
+          "19:00",
+          -1,
+          143.505,
+          144.22,
+          142.79
+        ]
+      ],
+      "exits": [
+        [
+          "17:00",
+          -1
+        ],
+        [
+          "19:45",
+          -1
+        ]
+      ],
+      "date": "2026-10-16",
+      "mirrored": true
+    }
+  ],
+  "notes": [
+    "Continuation stop is original0; confirmed reversal stop is middle HL/LH.",
+    "October16 now has two SLs: earlier continuation entry consumes the daily limit.",
+    "Timestamps label M5 opening times; exact intrabar execution seconds are unknown.",
+    "Live KRYTES stream not verified.",
+    "Pivot confirmation retains extreme plus four closed M5 to the right."
+  ]
+}
