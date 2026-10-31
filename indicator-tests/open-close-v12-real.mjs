@@ -9,8 +9,8 @@ const origin=s=>s.slice(s.indexOf('findRangeOrigin('),s.indexOf('// Опора �
 assert.equal(origin(full),origin(old),'original point0 finder preserved exactly');
 const normalize=x=>JSON.parse(JSON.stringify(x,(k,v)=>k==='id'?undefined:v));
 let fillCount=0,exitCount=0;
-for(const day of ['09','21','23','16','22'])for(const mirror of [false,true]){
- const name=day==='09'?'mexc-sol-usdt-m5-2026-10-09-v1-structure.json':day==='21'?'mexc-sol-usdt-m5-2026-10-21-v1-structure.json':day==='23'?'mexc-sol-usdt-m5-2026-10-23-structure-reversal.json':day==='16'?'mexc-sol-usdt-m5-2026-10-16.json':'mexc-sol-usdt-m5-2026-10-22-full.json';
+for(const day of ['09','21','23','16','22','14'])for(const mirror of [false,true]){
+ const name=day==='09'?'mexc-sol-usdt-m5-2026-10-09-v1-structure.json':day==='21'?'mexc-sol-usdt-m5-2026-10-21-v1-structure.json':day==='23'?'mexc-sol-usdt-m5-2026-10-23-structure-reversal.json':day==='16'?'mexc-sol-usdt-m5-2026-10-16.json':day==='22'?'mexc-sol-usdt-m5-2026-10-22-full.json':'mexc-sol-usdt-m5-2026-10-14-full.json';
  const f=JSON.parse(readFileSync(new URL('fixtures/'+name,import.meta.url))),p=x=>mirror?250-x:x;
  const d=f.candles.map(x=>({...x,open:p(x.open),close:p(x.close),high:mirror?p(x.low):x.high,low:mirror?p(x.high):x.low,volume:x.vol,openTime:x.time*1000,closeTime:x.time*1000+299999}));
 
@@ -85,6 +85,13 @@ for(const day of ['09','21','23','16','22'])for(const mirror of [false,true]){
   const first=Object.values(c.plots.testOne.data).find((x,i)=>Number.isFinite(x.value)&&new Date(d[i].openTime+7*3600000).toISOString().startsWith('2026-10-22'));
   assert.ok(Math.abs(first.value-p(103.64))<1e-8,'larger15:40 body prevents early confirmation of103.70');
   assert.ok(!fills.some(x=>x[0]==='16:50'),'false SHORT from treating relocated1 as LL is removed');
+ }
+ if(day==='14'){
+  assert.deepEqual(fills.map(x=>x.slice(0,2)),[['20:45',mirror?1:-1]],'rejected inner triple cannot block the later outer structure');
+  assert.deepEqual(exits,[['21:05',1]]);
+  assert.ok(Math.abs(fills[0][2]-p(106.215))<1e-8);
+  assert.ok(Math.abs(fills[0][3]-p(107.82))<1e-8);
+  assert.ok(Math.abs(fills[0][4]-p(104.61))<1e-8);
  }
  console.log('PASS V1.2 MEXC',day,'mirror='+mirror,JSON.stringify({fills,exits}));
 }
