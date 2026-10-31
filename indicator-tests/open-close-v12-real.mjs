@@ -77,8 +77,6 @@ for(const day of ['09','21','23','16','22','14'])for(const mirror of [false,true
  if(day==='09'&&!mirror){
   assert.deepEqual(fills.map(x=>x.slice(0,2)),[['21:20',-1]],'no false LONG before failed countertrend resolves');
   assert.deepEqual(exits,[['22:30',1]]);
-  assert.ok(Math.abs(fills[0][2]-110.325)<1e-8,'failed LONG returns to original SHORT at first RR touch');
-  assert.equal(fills[0][3],111.33,'stop uses counter HH body');
  }
  if(day==='16'){
   assert.deepEqual(fills.map(x=>x.slice(0,2)),[['18:45',mirror?-1:1],['21:15',mirror?1:-1]]);

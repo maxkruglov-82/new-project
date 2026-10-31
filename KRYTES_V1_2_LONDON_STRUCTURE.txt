@@ -1566,7 +1566,6 @@ var float thirdStop = na
 var int thirdStopTime = na
 var int thirdBreakTime = na
 bool thirdCancelEvent = false
-var bool v12FailedCounterReturn = false
 var bool v12ResumeInitial = false
 var int v12ResumeTime = na
 var int v12State = 0
@@ -1652,7 +1651,6 @@ if barstate.isconfirmed and m5Chart
         thirdBreakTime := na
         v12ResumeInitial := false
         v12ResumeTime := na
-        v12FailedCounterReturn := false
         v12Entries := 0
         v12Stopped := false
         v12Stage := 0
@@ -1689,22 +1687,10 @@ if barstate.isconfirmed and m5Chart
             v12A := na
             v12B := na
             v12C := na
-    // A countertrend A->B failed before a confirmed C: prepare the original side on its pullback.
-    bool failedCounterBreak = v12InitialSide == -1 ? v12One-close >= firstPointOffset-0.000000001 : close-v12One >= firstPointOffset-0.000000001
-    if not thirdCanceled and not v12FailedCounterReturn and v12CanFirst and v12State != 1 and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage == 2 and v12SequenceSide == -v12InitialSide and not na(v12A) and not na(v12B) and failedCounterBreak
-        v12FailedCounterReturn := true
-        v12ProposedKind := 5
-        v12ProposedSide := v12InitialSide
-        v12ProposedStop := v12A
-        v12ProposedTarget := v12InitialSide == 1 ? bodyHigh : bodyLow
-        v12ProposedAnchor := v12ATime
-        v12SequenceSide := 0
-        v12Stage := 0
-        v12ResumeInitial := false
     // Первая свеча равного экстремума; повтор тела на открытии не двигает опору.
     // Встречная тройка не состоялась: обновление исходной1 возвращает исходный тренд.
     bool v12RenewedOne = v12InitialSide==1?close-v12One>=firstPointOffset-0.000000001:v12One-close>=firstPointOffset-0.000000001
-    if not thirdCanceled and not v12FailedCounterReturn and v12CanFirst and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage<3 and v12RenewedOne
+    if not thirdCanceled and v12CanFirst and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage<3 and v12RenewedOne
         v12ResumeInitial := true
         v12ResumeTime := time
         v12FirstTarget := na
@@ -1910,7 +1896,7 @@ if barstate.isconfirmed and m5Chart
 
 // Встречная третья опора сопровождает незавершённый импульс до входа.
 // Первое продолжение0→1 и возврат к исходной1 остаются фиксированными.
-if barstate.isconfirmed and m5Chart and v12State==1 and (v12PlanKind==2 or v12PlanKind==4 or v12PlanKind==5) and not (low<=v12Level and high>=v12Level)
+if barstate.isconfirmed and m5Chart and v12State==1 and (v12PlanKind==2 or v12PlanKind==4) and not (low<=v12Level and high>=v12Level)
     v12Target := v12Side==1?math.max(v12Target,bodyHigh):math.min(v12Target,bodyLow)
     v12Level := (v12Stop+v12Target)/2.0
     if not na(v12RewardBox)

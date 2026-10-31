@@ -11,7 +11,7 @@ for(const mirror of [false,true])for(const mode of ['freeze','same-stop','return
   bars[21].low=mirror?90.9:108;
   bars[21].high=mirror?92:109.1;
  }
- if(mode==='resume'){bars[22].open=p(106.5);bars[22].close=p(106.5);bars[22].low=Math.min(p(106.4),p(107.1));bars[22].high=Math.max(p(106.4),p(107.1));}
+ if(mode==='resume'){bars[22].low=mirror?95.5:104.4;bars[22].high=mirror?95.6:104.5;}
  if(mode==='freeze'||mode==='same-stop'){bars[15].low=mirror?97.9:97.4;bars[15].high=mirror?102.6:102.1;if(mode==='same-stop'){bars[16].open=p(89);bars[16].close=p(89);bars[16].high=p(89)+.1;bars[16].low=p(89)-.1;}}
  if(mode==='same-stop'){for(let j=12;j<=15;j++){bars[j].open=p(102);bars[j].close=p(102);bars[j].high=p(102)+.1;bars[j].low=p(102)-.1;}if(mirror)bars[11].high=102.6;else bars[11].low=97.4;}
  const zero=p(['return','resume'].includes(mode)?110:90),one=100;
@@ -33,9 +33,9 @@ for(const mirror of [false,true])for(const mode of ['freeze','same-stop','return
   assert.equal(entries[0].entry,p(94));assert.equal(entries[0].stop,p(105));assert.equal(entries[0].target,p(83));
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',21),1);
  }else if(mode==='resume'){
-  assert.equal(entries.length,1,'failed countertrend returns to original direction at subsequent RR touch');
+  assert.equal(entries.length,1,'incomplete countertrend must not create an actual trade');
   assert.equal(entries[0].i,22);assert.equal(entries[0].side,mirror?1:-1);
-  assert.equal(entries[0].entry,p(107));assert.equal(entries[0].stop,p(115));assert.equal(entries[0].target,p(99));
+  assert.equal(entries[0].entry,p(104.5));assert.equal(entries[0].stop,p(110));assert.equal(entries[0].target,p(99));
   assert.equal(v('Выход TP 1 / SL -1 / неизвестно 2',24),1);
  }else{
   assert.equal(entries.length,2);
