@@ -3,8 +3,8 @@
   "timezone": "Asia/Krasnoyarsk",
   "market": "MEXC SOL_USDT perpetual M5",
   "scope": "verification examples, not annual backtest",
-  "source_sha256": "d9c116d983fb396922bdefaf6bc4d88e252512aa42627d28206727266a1ebf01",
-  "small_bytes": 68555,
+  "source_sha256": "e35145b64a37ac225336215ac2d00f2257fbc9195fc898457afa28cf724917eb",
+  "small_bytes": 68675,
   "cases": [
     {
       "fills": [
@@ -156,28 +156,28 @@
     {
       "fills": [
         [
-          "16:40",
+          "18:35",
           1,
-          106.46,
+          106.645,
           106.08,
-          106.84
+          107.21
         ],
         [
-          "19:00",
-          1,
-          106.495,
-          105.78,
-          107.21
+          "21:15",
+          -1,
+          106.185,
+          107.21,
+          105.16
         ]
       ],
       "exits": [
         [
-          "17:00",
+          "19:10",
           -1
         ],
         [
-          "19:45",
-          -1
+          "22:05",
+          1
         ]
       ],
       "date": "2026-10-16",
@@ -186,28 +186,28 @@
     {
       "fills": [
         [
-          "16:40",
+          "18:35",
           -1,
-          143.54,
+          143.355,
           143.92,
-          143.16
+          142.79
         ],
         [
-          "19:00",
-          -1,
-          143.505,
-          144.22,
-          142.79
+          "21:15",
+          1,
+          143.815,
+          142.79,
+          144.84
         ]
       ],
       "exits": [
         [
-          "17:00",
+          "19:10",
           -1
         ],
         [
-          "19:45",
-          -1
+          "22:05",
+          1
         ]
       ],
       "date": "2026-10-16",
@@ -216,7 +216,7 @@
   ],
   "notes": [
     "Continuation stop is original0; confirmed reversal stop is middle HL/LH.",
-    "October16 now has two SLs: earlier continuation entry consumes the daily limit.",
+    "October16 point1 relocates to106.84 after body-retreat confirmation; early16:40 fill is removed.",
     "Timestamps label M5 opening times; exact intrabar execution seconds are unknown.",
     "Live KRYTES stream not verified.",
     "Pivot confirmation retains extreme plus four closed M5 to the right."

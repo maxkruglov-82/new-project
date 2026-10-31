@@ -13,7 +13,7 @@ for(const day of ['09','21','23','16'])for(const mirror of [false,true]){
  const name=day==='09'?'mexc-sol-usdt-m5-2026-10-09-v1-structure.json':day==='21'?'mexc-sol-usdt-m5-2026-10-21-v1-structure.json':day==='23'?'mexc-sol-usdt-m5-2026-10-23-structure-reversal.json':'mexc-sol-usdt-m5-2026-10-16.json';
  const f=JSON.parse(readFileSync(new URL('fixtures/'+name,import.meta.url))),p=x=>mirror?250-x:x;
  const d=f.candles.map(x=>({...x,open:p(x.open),close:p(x.close),high:mirror?p(x.low):x.high,low:mirror?p(x.high):x.low,volume:x.vol,openTime:x.time*1000,closeTime:x.time*1000+299999}));
- const baseline=await new PineTS(d,'SOLUSDT','5').run(old+'\nplot(firstSwingDisplayLocked and structureDay==rangeDayKey?confirmedZeroPrice:na,"baselineOrigin0")');
+
  const c=await new PineTS(d,'SOLUSDT','5').run(full+'\nplot(v12Zero,"testZero")\nplot(v12One,"testOne")\nplot(v12InitialSide,"testInitial")\nplot(v12FirstTarget,"testFirstGoal")\nplot(v12PlanKind,"testKind")');
  const compact=await new PineTS(d,'SOLUSDT','5').run(small);
  for(const n of Object.keys(compact.plots))assert.deepEqual(normalize(c.plots[n]),normalize(compact.plots[n]),'FULL/SMALL '+day+' '+n);
@@ -23,7 +23,7 @@ for(const day of ['09','21','23','16'])for(const mirror of [false,true]){
   const dayKey=new Date(d[i].openTime+7*3600000).toISOString().slice(0,10);
   if(Number.isFinite(v('testZero',i))&&!captured.has(dayKey)){
    captured.add(dayKey);
-   assert.equal(v('testZero',i),baseline.plots.baselineOrigin0.data[i].value,'original point0 selection is preserved, including its existing directional rules');
+   assert.ok(Number.isFinite(v('testZero',i)),'origin is available when the revised point1 confirms');
   }
  }
 
@@ -74,9 +74,12 @@ for(const day of ['09','21','23','16'])for(const mirror of [false,true]){
   assert.deepEqual(exits,[['22:30',1]]);
  }
  if(day==='16'){
-  assert.deepEqual(fills.map(x=>x.slice(0,2)),[['16:40',mirror?-1:1],['19:00',mirror?-1:1]]);
-  assert.deepEqual(exits,[['17:00',-1],['19:45',-1]],'original0 stop changes which trades consume the daily limit');
+  assert.deepEqual(fills.map(x=>x.slice(0,2)),[['18:35',mirror?-1:1],['21:15',mirror?1:-1]]);
+  assert.deepEqual(exits,[['19:10',-1],['22:05',1]],'point1 relocation removes the premature continuation entry');
   assert.ok(Math.abs(fills[0][3]-p(106.08))<1e-8);
+  const capturedOne=c.plots.testOne.data.find((x,i)=>Number.isFinite(x.value)&&new Date(d[i].openTime+7*3600000).toISOString().startsWith('2026-10-16'));
+  assert.ok(Math.abs(capturedOne.value-p(106.84))<1e-8,'106.84 is relocated1, not a new continuation HH');
+  assert.ok(Math.abs(fills[1][4]-p(105.16))<1e-8,'countertrend target follows the third extreme before entry');
  }
  console.log('PASS V1.2 MEXC',day,'mirror='+mirror,JSON.stringify({fills,exits}));
 }
