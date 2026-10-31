@@ -1,0 +1,275 @@
+{
+  "sourceCommit": "published together with this report; identity sourceSha256",
+  "sourceSha256": "d3ce1a83d378d57ca9b83d0219b920f820ca64be0f92dbdedb15a5d370593a99",
+  "inputSha256": "e56e43784d0db2c4a8973448f1a03dfd7dcfbe915c2e825adf276a3cceb665e6",
+  "cutoff": "2026-10-31T15:10:00+07:00",
+  "totals": {
+    "trades": 145,
+    "tp": 74,
+    "sl": 71,
+    "winRate": 51.03448275862069
+  },
+  "baselineCommit": "9ed06d5",
+  "baseline": {
+    "trades": 153,
+    "tp": 79,
+    "sl": 74,
+    "winRate": 51.63398692810458
+  },
+  "months": [
+    {
+      "month": "2026-01",
+      "name": "Январь",
+      "status": "available",
+      "trades": 13,
+      "tp": 4,
+      "sl": 9,
+      "winRate": 30.76923076923077
+    },
+    {
+      "month": "2026-02",
+      "name": "Февраль",
+      "status": "available",
+      "trades": 11,
+      "tp": 6,
+      "sl": 5,
+      "winRate": 54.54545454545455
+    },
+    {
+      "month": "2026-03",
+      "name": "Март",
+      "status": "available",
+      "trades": 14,
+      "tp": 6,
+      "sl": 8,
+      "winRate": 42.857142857142854
+    },
+    {
+      "month": "2026-04",
+      "name": "Апрель",
+      "status": "available",
+      "trades": 23,
+      "tp": 9,
+      "sl": 14,
+      "winRate": 39.130434782608695
+    },
+    {
+      "month": "2026-05",
+      "name": "Май",
+      "status": "available",
+      "trades": 12,
+      "tp": 6,
+      "sl": 6,
+      "winRate": 50.0
+    },
+    {
+      "month": "2026-06",
+      "name": "Июнь",
+      "status": "available",
+      "trades": 10,
+      "tp": 6,
+      "sl": 4,
+      "winRate": 60.0
+    },
+    {
+      "month": "2026-07",
+      "name": "Июль",
+      "status": "available",
+      "trades": 13,
+      "tp": 10,
+      "sl": 3,
+      "winRate": 76.92307692307692
+    },
+    {
+      "month": "2026-08",
+      "name": "Август",
+      "status": "available",
+      "trades": 17,
+      "tp": 7,
+      "sl": 10,
+      "winRate": 41.1764705882353
+    },
+    {
+      "month": "2026-09",
+      "name": "Сентябрь",
+      "status": "available",
+      "trades": 15,
+      "tp": 6,
+      "sl": 9,
+      "winRate": 40.0
+    },
+    {
+      "month": "2026-10",
+      "name": "Октябрь",
+      "status": "available",
+      "trades": 17,
+      "tp": 14,
+      "sl": 3,
+      "winRate": 82.3529411764706
+    },
+    {
+      "month": "2026-11",
+      "name": "Ноябрь",
+      "status": "not_yet_occurred",
+      "trades": null,
+      "tp": null,
+      "sl": null,
+      "winRate": null
+    },
+    {
+      "month": "2026-12",
+      "name": "Декабрь",
+      "status": "not_yet_occurred",
+      "trades": null,
+      "tp": null,
+      "sl": null,
+      "winRate": null
+    }
+  ],
+  "changedDays": [
+    {
+      "day": "2026-03-23",
+      "before": [
+        {
+          "day": "2026-03-23",
+          "side": 1,
+          "entryAt": "2026-03-23T22:40:00.000+07:00",
+          "entry": 90.425,
+          "stop": 88.75,
+          "target": 92.1,
+          "rr": 1,
+          "status": "TP",
+          "exitAt": "2026-03-24T16:55:00.000+07:00",
+          "exitPrice": 92.1
+        }
+      ],
+      "after": []
+    },
+    {
+      "day": "2026-03-24",
+      "before": [
+        {
+          "day": "2026-03-24",
+          "side": 1,
+          "entryAt": "2026-03-24T20:40:00.000+07:00",
+          "entry": 90.08,
+          "stop": 88.75,
+          "target": 91.41,
+          "rr": 1,
+          "status": "SL",
+          "exitAt": "2026-03-25T00:40:00.000+07:00",
+          "exitPrice": 88.75
+        }
+      ],
+      "after": []
+    },
+    {
+      "day": "2026-04-10",
+      "before": [
+        {
+          "day": "2026-04-10",
+          "side": 1,
+          "entryAt": "2026-04-10T19:25:00.000+07:00",
+          "entry": 83.395,
+          "stop": 83.13,
+          "target": 83.66,
+          "rr": 1,
+          "status": "TP",
+          "exitAt": "2026-04-10T19:30:00.000+07:00",
+          "exitPrice": 83.66
+        }
+      ],
+      "after": []
+    },
+    {
+      "day": "2026-05-27",
+      "before": [
+        {
+          "day": "2026-05-27",
+          "side": -1,
+          "entryAt": "2026-05-27T21:00:00.000+07:00",
+          "entry": 83.68,
+          "stop": 84.34,
+          "target": 83.02,
+          "rr": 1,
+          "status": "SL",
+          "exitAt": "2026-05-27T22:15:00.000+07:00",
+          "exitPrice": 84.34
+        }
+      ],
+      "after": []
+    },
+    {
+      "day": "2026-06-15",
+      "before": [
+        {
+          "day": "2026-06-15",
+          "side": 1,
+          "entryAt": "2026-06-15T21:00:00.000+07:00",
+          "entry": 73.225,
+          "stop": 72.4,
+          "target": 74.05,
+          "rr": 1,
+          "status": "TP",
+          "exitAt": "2026-06-15T22:25:00.000+07:00",
+          "exitPrice": 74.05
+        }
+      ],
+      "after": []
+    },
+    {
+      "day": "2026-07-13",
+      "before": [
+        {
+          "day": "2026-07-13",
+          "side": -1,
+          "entryAt": "2026-07-13T21:15:00.000+07:00",
+          "entry": 75.865,
+          "stop": 76.49,
+          "target": 75.24,
+          "rr": 1,
+          "status": "TP",
+          "exitAt": "2026-07-13T23:35:00.000+07:00",
+          "exitPrice": 75.24
+        }
+      ],
+      "after": []
+    },
+    {
+      "day": "2026-07-30",
+      "before": [
+        {
+          "day": "2026-07-30",
+          "side": 1,
+          "entryAt": "2026-07-30T20:35:00.000+07:00",
+          "entry": 74.09,
+          "stop": 73.8,
+          "target": 74.38,
+          "rr": 1,
+          "status": "TP",
+          "exitAt": "2026-07-30T20:40:00.000+07:00",
+          "exitPrice": 74.38
+        }
+      ],
+      "after": []
+    },
+    {
+      "day": "2026-09-29",
+      "before": [
+        {
+          "day": "2026-09-29",
+          "side": 1,
+          "entryAt": "2026-09-29T21:05:00.000+07:00",
+          "entry": 120.355,
+          "stop": 119.2,
+          "target": 121.51,
+          "rr": 1,
+          "status": "SL",
+          "exitAt": "2026-09-29T22:15:00.000+07:00",
+          "exitPrice": 119.2
+        }
+      ],
+      "after": []
+    }
+  ]
+}

@@ -1,6 +1,12 @@
 //@version=5
 indicator("V1.2 London", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500, max_polylines_count=100, max_bars_back=600)
 
+string drawingMonth = input.string("Все месяцы", "Месяц разметки", options=["Все месяцы", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"])
+int drawingMonthNumber = drawingMonth == "Январь" ? 1 : drawingMonth == "Февраль" ? 2 : drawingMonth == "Март" ? 3 : drawingMonth == "Апрель" ? 4 : drawingMonth == "Май" ? 5 : drawingMonth == "Июнь" ? 6 : drawingMonth == "Июль" ? 7 : drawingMonth == "Август" ? 8 : drawingMonth == "Сентябрь" ? 9 : drawingMonth == "Октябрь" ? 10 : drawingMonth == "Ноябрь" ? 11 : drawingMonth == "Декабрь" ? 12 : 0
+
+monthVisible(int atTime) =>
+    drawingMonthNumber == 0 or month(atTime, "Asia/Krasnoyarsk") == drawingMonthNumber
+
 int minimumRetreatBars = 5
 
 // Уведомления на закрытии M5: касание зоны отдельно от исполнения входа.
@@ -653,7 +659,7 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
     previousBodyBarClose := time_close
     if showBodyRange and completeBodyHour and collectingDay == rangeDayKey and time_close >= bodyHourEnd - 1 and time_close <= bodyHourEnd and (na(lastBodyRangeDay) or lastBodyRangeDay != rangeDayKey)
         color rangeColor = close > hourBodyOpen ? bullishRange : close < hourBodyOpen ? bearishRange : flatColor
-        box dailyBodyRange = box.new(left=bodyHourStart, top=londonHourHigh, right=timestamp(localTimezone, year(bodyHourStart, localTimezone), month(bodyHourStart, localTimezone), dayofmonth(bodyHourStart, localTimezone), 20, 30), bottom=londonHourLow, xloc=xloc.bar_time, border_color=rangeColor, border_width=1, bgcolor=na)
+        box dailyBodyRange = monthVisible(bodyHourStart) ? box.new(left=bodyHourStart, top=londonHourHigh, right=timestamp(localTimezone, year(bodyHourStart, localTimezone), month(bodyHourStart, localTimezone), dayofmonth(bodyHourStart, localTimezone), 20, 30), bottom=londonHourLow, xloc=xloc.bar_time, border_color=rangeColor, border_width=1, bgcolor=na) : na
         activeRangeHigh := londonHourHigh
         activeRangeLow := londonHourLow
         activeRangeDay := rangeDayKey
@@ -765,7 +771,8 @@ if rangeWeekday and barstate.isconfirmed and time >= bodyHourStart and time < bo
         lowerRun := 0
         upperMarked := false
         lowerMarked := false
-        array.push(bodyRanges, dailyBodyRange)
+        if not na(dailyBodyRange)
+            array.push(bodyRanges, dailyBodyRange)
         lastBodyRangeDay := rangeDayKey
         if array.size(bodyRanges) > keepRanges
             box.delete(array.shift(bodyRanges))
@@ -822,7 +829,7 @@ swingClass(float price, float previousPrice, bool isHigh) =>
     na(previousPrice) ? (isHigh ? "H" : "L") : math.abs(price - previousPrice) <= 0.000000001 ? (isHigh ? "EH" : "EL") : isHigh ? (price > previousPrice ? "HH" : "LH") : (price > previousPrice ? "HL" : "LL")
 
 newSwingLabel(int atTime, float price, string caption, string pointStyle) =>
-    label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+    label number = monthVisible(atTime) ? label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small) : na
     array.push(classifiedSwingIds, number)
     array.push(classifiedSwingHighs, pointStyle == label.style_label_down)
     while array.size(classifiedSwingIds) > 180
@@ -1521,6 +1528,15 @@ var bool bodyGoalRetreated = false
 var bool bodyGoalLocked = false
 var int thirdSecondTime = na
 var float thirdPullback = na
+var bool counterCountActive = false
+var bool counterThirdCandidate = false
+var float counterCountPeak = na
+var float counterCountEdge = na
+var float counterCountSize = na
+var int counterCountTime = na
+var int counterCountBar = na
+var int counterCountBaseTime = na
+var int thirdCanceledSide = 0
 var bool thirdCanceled = false
 var float thirdStop = na
 var int thirdStopTime = na
@@ -1541,6 +1557,7 @@ var float v12Entry = na
 var int v12EntryTime = na
 var int v12EntryBar = na
 var int v12Entries = 0
+var int v12ActiveNumber = 0
 var bool v12Stopped = false
 var int v12StopBar = na
 var int v12FirstSide = 0
@@ -1602,6 +1619,8 @@ if barstate.isconfirmed and m5Chart
         bodyGoalLocked := false
         thirdSecondTime := na
         thirdPullback := na
+        counterCountActive := false
+        thirdCanceledSide := 0
         thirdCanceled := false
         thirdStop := na
         thirdStopTime := na
@@ -1717,6 +1736,7 @@ if barstate.isconfirmed and m5Chart
         if not v12SameType
             thirdPullback := na(thirdPullback) ? v12PivotPrice : (v12InitialSide == 1 ? math.min(thirdPullback,v12PivotPrice) : math.max(thirdPullback,v12PivotPrice))
     if v12CanFirst and not thirdCanceled and not na(thirdSecondTime) and bodyGoalEvent and bodyGoalTime > thirdSecondTime and v12State == 1 and v12PlanKind == 1 and (v12InitialSide == 1 ? bodyGoalPrice > v12FirstTarget : bodyGoalPrice < v12FirstTarget) and not (low <= v12Level and high >= v12Level)
+        thirdCanceledSide := v12InitialSide
         thirdCanceled := true
         thirdCancelEvent := true
         thirdStop := bodyGoalPrice
@@ -1734,7 +1754,48 @@ if barstate.isconfirmed and m5Chart
         v12A := na
         v12B := na
         v12C := na
-    if thirdCanceled and v12CanFirst and na(thirdBreakTime) and not na(thirdPullback) and (v12InitialSide == 1 ? thirdPullback-close >= firstPointOffset-0.000000001 : close-thirdPullback >= firstPointOffset-0.000000001)
+    // A pending countertrend triple has first and second HH/LL in A and C.
+    // Count its next distinct extreme in the actual plan direction, not the original0->1 side.
+    if counterCountActive and v12CanFirst and v12State == 1 and v12PlanKind == 2
+        float counterNow = v12Side == 1 ? bodyHigh : bodyLow
+        bool counterNew = v12Side == 1 ? counterNow > counterCountPeak : counterNow < counterCountPeak
+        bool counterWider = counterThirdCandidate and bar_index == counterCountBar+1 and time-time[1] == 300000 and math.abs(counterNow-counterCountPeak) <= 0.000000001 and math.abs(close-open) > counterCountSize+0.000000001
+        if counterNew or counterWider
+            counterThirdCandidate := true
+            counterCountPeak := counterNow
+            counterCountEdge := v12Side == 1 ? bodyLow : bodyHigh
+            counterCountSize := math.abs(close-open)
+            counterCountTime := time
+            counterCountBar := bar_index
+        else if counterThirdCandidate and bar_index > counterCountBar and (v12Side == 1 ? close < counterCountEdge : close > counterCountEdge) and not (low <= v12Level and high >= v12Level)
+            counterCountActive := false
+            thirdCanceledSide := v12Side
+            thirdCanceled := true
+            thirdCancelEvent := true
+            thirdStop := counterCountPeak
+            thirdStopTime := counterCountTime
+            thirdPullback := na
+            if array.size(retrySwingTimes)>0
+                for ci = 0 to array.size(retrySwingTimes)-1
+                    int ct = array.get(retrySwingTimes,ci)
+                    float cp = array.get(retrySwingPrices,ci)
+                    bool oppositeType = v12Side == 1 ? not array.get(retrySwingHighs,ci) : array.get(retrySwingHighs,ci)
+                    if array.get(retrySwingDays,ci)==rangeDayKey and ct>counterCountBaseTime and ct<counterCountTime and oppositeType
+                        thirdPullback := na(thirdPullback) ? cp : (v12Side==1?math.min(thirdPullback,cp):math.max(thirdPullback,cp))
+            v12ArchiveNoEntry(v12RiskBox,v12RewardBox,v12Info,v12StopInfo,v12TargetInfo,v12Side,v12Level,time,"третий экстремум отменил встречный вход")
+            v12State := 0
+            v12RiskBox := na
+            v12RewardBox := na
+            v12Info := na
+            v12StopInfo := na
+            v12TargetInfo := na
+            v12ResumeInitial := false
+            v12Stage := 0
+            v12SequenceSide := -thirdCanceledSide
+            v12A := na
+            v12B := na
+            v12C := na
+    if thirdCanceled and v12CanFirst and na(thirdBreakTime) and not na(thirdPullback) and (thirdCanceledSide == 1 ? thirdPullback-close >= firstPointOffset-0.000000001 : close-thirdPullback >= firstPointOffset-0.000000001)
         thirdBreakTime := time
         v12SequenceFrom := time
     bool v12CanRetry = v12Stopped and v12Entries == 1 and v12PlanDay == rangeDayKey and (v12State == 4 or v12State == 5) and firstPointWindow
@@ -1841,6 +1902,7 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
             else if v12Allowed and v12Touch
                 v12State := 2
                 v12Entries := v12Entries + 1
+                v12ActiveNumber := v12Entries
                 v12Entry := v12Level
                 v12EntryTime := time
                 v12EntryBar := bar_index
@@ -1848,7 +1910,8 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
                 if v12Entries == 1
                     v12FirstSide := v12Side
                     v12FirstGoal := v12Target
-                v1EntryMark(v1EntryMarks, time, v12Entry, v12Side, v12Entries)
+                if monthVisible(v12Anchor)
+                    v1EntryMark(v1EntryMarks, time, v12Entry, v12Side, v12Entries)
                 if notifyFilledEntry or notifyZoneTouch
                     alert(entryAlertText("V1.2 ВХОД — касание RR 1:1", v12Side, v12Entry, v12Stop, v12Target), alert.freq_once_per_bar)
     if barstate.isconfirmed and v12State == 2 and bar_index > v12EntryBar
@@ -1859,13 +1922,15 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
             v12VisualEnd := time+300000
             positionExitEvent := v12HitStop ? -1 : 1
             colorStopTime := time
-            v1ExitMark(v1ExitMarks, time, v12HitStop ? v12Stop : v12Target, v12HitStop, v12Side)
-            v1ExitTrace(v1ExitTraces, v12EntryTime, v12Entry, time, v12HitStop ? v12Stop : v12Target, v12HitStop, v12Side)
+            if monthVisible(v12Anchor)
+                v1ExitMark(v1ExitMarks, time, v12HitStop ? v12Stop : v12Target, v12HitStop, v12Side)
+            if monthVisible(v12Anchor)
+                v1ExitTrace(v1ExitTraces, v12EntryTime, v12Entry, time, v12HitStop ? v12Stop : v12Target, v12HitStop, v12Side)
             if not na(v12Info)
                 box.set_right(v12RiskBox,time+300000)
                 box.set_right(v12RewardBox,time+300000)
-                v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,"№"+str.tostring(v12Entries)+" · "+v1LevelCaption("Стоп: ",v12Entry,v12Stop,true)+(v12HitStop?" +":""),color.red)
-                v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,"№"+str.tostring(v12Entries)+" · "+v1LevelCaption("Тейк: ",v12Entry,v12Target,false)+(v12HitStop?"":" +"),color.teal)
+                v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,"№"+str.tostring(v12ActiveNumber)+" · "+v1LevelCaption("Стоп: ",v12Entry,v12Stop,true)+(v12HitStop?" +":""),color.red)
+                v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,"№"+str.tostring(v12ActiveNumber)+" · "+v1LevelCaption("Тейк: ",v12Entry,v12Target,false)+(v12HitStop?"":" +"),color.teal)
             if v12HitStop and v12Entries == 1 and v12PlanDay == rangeDayKey
                 v12Stopped := true
                 v12StopBar := bar_index
@@ -1959,33 +2024,40 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
         v12StopInfo := na
         v12TargetInfo := na
     if v12NewPlan
-        // Only the drawing starts after the preceding trade's frozen right edge.
-        int v12VisualLeft = na(v12VisualEnd) ? v12Anchor : math.max(v12Anchor,v12VisualEnd)
-        color v12ToolColor = v12Entries == 0 ? color.rgb(21,101,192) : color.rgb(123,31,162)
-        v12RiskBox := box.new(left=v12VisualLeft, top=math.max(v12Stop,v12Level), right=time+600000, bottom=math.min(v12Stop,v12Level), xloc=xloc.bar_time, border_color=v12ToolColor, border_width=1, border_style=v12Entries==0?line.style_solid:line.style_dashed, bgcolor=color.new(color.red,85))
-        v12RewardBox := box.new(left=v12VisualLeft, top=math.max(v12Target,v12Level), right=time+600000, bottom=math.min(v12Target,v12Level), xloc=xloc.bar_time, border_color=v12ToolColor, border_width=1, border_style=v12Entries==0?line.style_solid:line.style_dashed, bgcolor=color.new(color.teal,85))
-        v12Info := updatePositionPrice(na,time+600000,v12Level,"Ожидаем касания "+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
-        v12StopInfo := updatePositionPrice(na,time+600000,v12Stop,v1LevelCaption("Стоп: ",v12Level,v12Stop,true),color.red)
-        v12TargetInfo := updatePositionPrice(na,time+600000,v12Target,v1LevelCaption("Тейк: ",v12Level,v12Target,false),color.teal)
-        array.push(positionBoxes,v12RiskBox)
-        array.push(positionBoxes,v12RewardBox)
-        array.push(positionLabels,v12Info)
-        array.push(positionLabels,v12StopInfo)
-        array.push(positionLabels,v12TargetInfo)
-        while array.size(positionBoxes)>80
-            box.delete(array.shift(positionBoxes))
-        while array.size(positionLabels)>120
-            label.delete(array.shift(positionLabels))
+        counterCountActive := v12PlanKind == 2 and v12Entries == 0
+        counterThirdCandidate := false
+        counterCountPeak := v12Target
+        counterCountTime := v12CTime
+        counterCountBaseTime := v12CTime
+        counterCountBar := bar_index
+        if monthVisible(v12Anchor)
+            // Only the drawing starts after the preceding trade's frozen right edge.
+            int v12VisualLeft = na(v12VisualEnd) ? v12Anchor : math.max(v12Anchor,v12VisualEnd)
+            color v12ToolColor = v12Entries == 0 ? color.rgb(21,101,192) : color.rgb(123,31,162)
+            v12RiskBox := box.new(left=v12VisualLeft, top=math.max(v12Stop,v12Level), right=time+600000, bottom=math.min(v12Stop,v12Level), xloc=xloc.bar_time, border_color=v12ToolColor, border_width=1, border_style=v12Entries==0?line.style_solid:line.style_dashed, bgcolor=color.new(color.red,85))
+            v12RewardBox := box.new(left=v12VisualLeft, top=math.max(v12Target,v12Level), right=time+600000, bottom=math.min(v12Target,v12Level), xloc=xloc.bar_time, border_color=v12ToolColor, border_width=1, border_style=v12Entries==0?line.style_solid:line.style_dashed, bgcolor=color.new(color.teal,85))
+            v12Info := updatePositionPrice(na,time+600000,v12Level,"Ожидаем касания "+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
+            v12StopInfo := updatePositionPrice(na,time+600000,v12Stop,v1LevelCaption("Стоп: ",v12Level,v12Stop,true),color.red)
+            v12TargetInfo := updatePositionPrice(na,time+600000,v12Target,v1LevelCaption("Тейк: ",v12Level,v12Target,false),color.teal)
+            array.push(positionBoxes,v12RiskBox)
+            array.push(positionBoxes,v12RewardBox)
+            array.push(positionLabels,v12Info)
+            array.push(positionLabels,v12StopInfo)
+            array.push(positionLabels,v12TargetInfo)
+            while array.size(positionBoxes)>80
+                box.delete(array.shift(positionBoxes))
+            while array.size(positionLabels)>120
+                label.delete(array.shift(positionLabels))
     if not na(v12Info) and (v12State==1 or v12State==2 or positionEntryEvent or positionExitEvent!=0)
         int v12Right = positionExitEvent!=0 and not v12NewPlan ? time+300000 : time+600000
         box.set_right(v12RiskBox,v12Right)
         box.set_right(v12RewardBox,v12Right)
-        string v12ToolName = (v12State==1?"План №":"Сделка №")+str.tostring(v12State==1?v12Entries+1:v12Entries)+" · "
+        string v12ToolName = (v12State==1?"План №":"Сделка №")+str.tostring(v12State==1?v12Entries+1:v12ActiveNumber)+" · "
         v12Info := updatePositionPrice(v12Info,time+600000,v12Level,v12ToolName+(v12State==1?"Ожидаем касания ":"Точка входа в ")+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
-        v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,"№"+str.tostring(v12State==1?v12Entries+1:v12Entries)+" · "+v1LevelCaption("Стоп: ",v12Level,v12Stop,true)+(v12State==4?" +":""),color.red)
-        v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,"№"+str.tostring(v12State==1?v12Entries+1:v12Entries)+" · "+v1LevelCaption("Тейк: ",v12Level,v12Target,false)+(v12State==3?" +":""),color.teal)
+        v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,"№"+str.tostring(v12State==1?v12Entries+1:v12ActiveNumber)+" · "+v1LevelCaption("Стоп: ",v12Level,v12Stop,true)+(v12State==4?" +":""),color.red)
+        v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,"№"+str.tostring(v12State==1?v12Entries+1:v12ActiveNumber)+" · "+v1LevelCaption("Тейк: ",v12Level,v12Target,false)+(v12State==3?" +":""),color.teal)
         box.set_text(v12RewardBox,v12ToolName+(v12Side==1?"LONG":"SHORT")+"\nRR 1:1")
-        box.set_text_color(v12RewardBox,v12Entries==0 or (v12Entries==1 and v12State!=1)?color.rgb(21,101,192):color.rgb(123,31,162))
+        box.set_text_color(v12RewardBox,(v12State==1?v12Entries+1:v12ActiveNumber)==1?color.rgb(21,101,192):color.rgb(123,31,162))
         box.set_text_size(v12RewardBox,size.small)
 // Экспорт состояний для прежней разметки; старые расчётные планы не исполняются.
 positionState := v12State
@@ -2085,7 +2157,7 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
     bool counterColorReady = counterReversalReady and counterStopQualified and not na(counterStopPrice)
     int colorScopeIndex = array.indexof(anchorHistoryDays, structureDay)
     int colorScopeEnd = colorScopeIndex >= 0 ? array.get(anchorTakeProfitTimes, colorScopeIndex) : na
-    if positionExitEvent == 1 and positionPlanDay == structureDay
+    if positionExitEvent != 0 and (positionExitEvent == 1 or v12ActiveNumber >= 2) and positionPlanDay == structureDay
         colorScopeEnd := time
     // Цвет ориентируется на видимую исходную 0, а не на перенесённую расчётную опору.
     int colorOriginTime = colorScopeIndex >= 0 ? array.get(anchorZeroTimes, colorScopeIndex) : (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime)
@@ -2096,8 +2168,9 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
     // Освобождаем бюджет перед созданием новых участков.
     while array.size(colorSealedHistory) > 50
         polyline.delete(array.shift(colorSealedHistory))
-    drawColoredRuns(colorDayRedPoints, colorDayDrawings, colorSealedHistory, fallingTrendColor)
-    drawColoredRuns(colorDayGreenPoints, colorDayDrawings, colorSealedHistory, risingTrendColor)
+    if monthVisible(colorOriginTime)
+        drawColoredRuns(colorDayRedPoints, colorDayDrawings, colorSealedHistory, fallingTrendColor)
+        drawColoredRuns(colorDayGreenPoints, colorDayDrawings, colorSealedHistory, risingTrendColor)
     while array.size(colorSealedHistory) + array.size(colorDayDrawings) > 94
         if array.size(colorSealedHistory) > 0
             polyline.delete(array.shift(colorSealedHistory))
@@ -2206,11 +2279,12 @@ if barstate.isconfirmed and m5Chart and not na(v12Zero) and v12Day==rangeDayKey
         array.set(anchorOnePrices,v12Archive,v12One)
         array.set(anchorZeroHighs,v12Archive,v12InitialSide==-1)
 
-// SL не завершает разметку; TP первой либо второй сделки закрывает её окно.
-if barstate.isconfirmed and positionExitEvent == 1
+// First TP or the second actual exit ends structure; first SL alone does not.
+if barstate.isconfirmed and positionExitEvent != 0 and (positionExitEvent == 1 or v12ActiveNumber >= 2)
     int takeProfitIndex = array.indexof(anchorHistoryDays, positionPlanDay)
     if takeProfitIndex >= 0
-        array.set(anchorTakeProfitTimes, takeProfitIndex, time)
+        if na(array.get(anchorTakeProfitTimes,takeProfitIndex))
+            array.set(anchorTakeProfitTimes, takeProfitIndex, time)
 
 // На графике только 0/1 с H/L и структура HH/HL/LH/LL. Внутренние номера движка скрыты.
 if barstate.islast
@@ -2230,7 +2304,10 @@ if barstate.islast
             int historyScope = array.indexof(anchorHistoryDays, historyDay)
             int historyStart = historyScope >= 0 ? array.get(anchorZeroTimes, historyScope) : na
             int historyEnd = historyScope >= 0 ? array.get(anchorTakeProfitTimes, historyScope) : na
-            if historyTime >= viewportLeft and historyTime <= viewportRight and not na(historyStart) and historyTime >= historyStart and (na(historyEnd) or historyTime <= historyEnd)
+            int historyOneTime = historyScope >= 0 ? array.get(anchorOneTimes,historyScope) : na
+            bool historyZeroHigh = historyScope >= 0 ? array.get(anchorZeroHighs,historyScope) : false
+            bool historyFirstCandidate = not na(historyOneTime) and historyTime > historyStart and historyTime < historyOneTime and array.get(structureHistoryHighs,historyIndex) != historyZeroHigh
+            if monthVisible(historyTime) and not historyFirstCandidate and historyTime >= viewportLeft and historyTime <= viewportRight and not na(historyStart) and historyTime >= historyStart and (na(historyEnd) or historyTime <= historyEnd)
                 visibleSwingCount := visibleSwingCount + 1
     int visibleSwingSeen = 0
     float previousHigh = na
@@ -2238,6 +2315,8 @@ if barstate.islast
     int previousSwingDay = na
     int scopedStart = na
     int scopedEnd = na
+    int scopedOneTime = na
+    float scopedOnePrice = na
     float scopedZeroPrice = na
     bool scopedZeroHigh = false
     if showSwingClasses and array.size(structureHistoryTimes) > 0
@@ -2247,19 +2326,24 @@ if barstate.islast
                 int scopeIndex = array.indexof(anchorHistoryDays, swingDay)
                 scopedStart := scopeIndex >= 0 ? array.get(anchorZeroTimes, scopeIndex) : na
                 scopedEnd := scopeIndex >= 0 ? array.get(anchorTakeProfitTimes, scopeIndex) : na
+                scopedOneTime := scopeIndex >= 0 ? array.get(anchorOneTimes,scopeIndex) : na
+                scopedOnePrice := scopeIndex >= 0 ? array.get(anchorOnePrices,scopeIndex) : na
                 scopedZeroPrice := scopeIndex >= 0 ? array.get(anchorZeroPrices, scopeIndex) : na
                 scopedZeroHigh := scopeIndex >= 0 ? array.get(anchorZeroHighs, scopeIndex) : false
-                previousHigh := scopedZeroHigh ? scopedZeroPrice : na
-                previousLow := scopedZeroHigh ? na : scopedZeroPrice
+                previousHigh := scopedZeroHigh ? scopedZeroPrice : scopedOnePrice
+                previousLow := scopedZeroHigh ? scopedOnePrice : scopedZeroPrice
                 previousSwingDay := swingDay
             bool isHigh = array.get(structureHistoryHighs, swingIndex)
             float price = array.get(structureHistoryPrices, swingIndex)
             int swingTime = array.get(structureHistoryTimes, swingIndex)
-            bool inScope = not na(scopedStart) and swingTime >= scopedStart and (na(scopedEnd) or swingTime <= scopedEnd)
+            // Earlier same-side peaks belonged to the still-forming original1.
+            // Hide their captions and exclude them from the visible HH/LL count.
+            bool initialCandidate = not na(scopedOneTime) and swingTime > scopedStart and swingTime < scopedOneTime and isHigh != scopedZeroHigh
+            bool inScope = monthVisible(swingTime) and not initialCandidate and not na(scopedStart) and swingTime >= scopedStart and (na(scopedEnd) or swingTime <= scopedEnd)
             bool zeroMatchesSwing = swingTime == scopedStart and isHigh == scopedZeroHigh and math.abs(price - scopedZeroPrice) <= 0.000000001
             string classification = swingClass(price, zeroMatchesSwing ? na : isHigh ? previousHigh : previousLow, isHigh)
             string caption = classification == "H" ? "HH" : classification == "L" ? "LL" : classification
-            bool structuralCaption = isHigh ? na(previousHigh) or price > previousHigh : na(previousLow) or price < previousLow
+            bool structuralCaption = classification != "EH" and classification != "EL"
             bool inViewport = inScope and swingTime >= viewportLeft and swingTime <= viewportRight
             if inViewport
                 visibleSwingSeen := visibleSwingSeen + 1
@@ -2280,7 +2364,7 @@ if barstate.islast
                 float anchorPrice = anchorNumber == 0 ? array.get(anchorZeroPrices, anchorIndex) : array.get(anchorOnePrices, anchorIndex)
                 bool anchorHigh = anchorNumber == 0 ? array.get(anchorZeroHighs, anchorIndex) : not array.get(anchorZeroHighs, anchorIndex)
                 int anchorEnd = array.get(anchorTakeProfitTimes, anchorIndex)
-                if anchorTime >= viewportLeft and anchorTime <= viewportRight and (na(anchorEnd) or anchorTime <= anchorEnd)
+                if monthVisible(anchorTime) and anchorTime >= viewportLeft and anchorTime <= viewportRight and (na(anchorEnd) or anchorTime <= anchorEnd)
                     bool foundAnchor = false
                     if not foundAnchor and array.size(marketStructureLabels) > 0
                         for labelIndex = 0 to array.size(marketStructureLabels) - 1

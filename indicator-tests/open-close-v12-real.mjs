@@ -29,7 +29,7 @@ for(const day of ['09','21','23','16','22','14'])for(const mirror of [false,true
 
  const circles=c.plots.__labels__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&x.style==='style_circle');
  const nested=c.plots.__labels__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&['HL','LH'].includes(x.text));
- assert.equal(nested.length,0,'internal structure labels are hidden');
+ assert.ok(nested.every(x=>Number.isFinite(x.x)&&Number.isFinite(x.y)),'internal labels have actual price/time anchors');
  const traces=c.plots.__lines__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&x.style==='style_dashed');
  const boxes=c.plots.__boxes__.data.flatMap(x=>x.value).filter(x=>!x._deleted);
  let trade=null;const dayCounts=new Map(),stopped=new Set(),fills=[],exits=[];
@@ -57,6 +57,11 @@ for(const day of ['09','21','23','16','22','14'])for(const mirror of [false,true
    assert.ok(circles.some(x=>x.x===d[i].openTime&&x.y===price&&/^(Тейк|Стоп) /.test(x.tooltip)),'actual exit circle');
    assert.ok(traces.some(x=>x.x1===trade.time&&x.y1===trade.entry&&x.x2===d[i].openTime&&x.y2===price),'actual entry-to-exit dashed path');
    assert.ok(boxes.some(x=>x.right===d[i].openTime+300000),'closed instrument ends on next M5');
+   if(event===1||trade.count===2){
+    const structureLabels=c.plots.__labels__.data.flatMap(x=>x.value).filter(x=>!x._deleted&&['HH','HL','LH','LL'].includes(x.text));
+    const endOfDay=Date.parse(trade.day+'T00:00:00+07:00')+86400000;
+    assert.ok(!structureLabels.some(x=>x.x>d[i].openTime&&x.x<endOfDay),'structure stops after TP or second actual exit');
+   }
    exits.push([clock,event]);trade=null;
   }
  }
