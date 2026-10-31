@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "e7f6d3f",
+  "sourceSha256": "f81b1c8c495380f23c838d6e97daf1237e74259cf1d5c02e33fbf54336822f93",
+  "inputPath": "/workspace/backtests/v12-e7f6d3f-2026/input.json",
+  "inputSha256": "e56e43784d0db2c4a8973448f1a03dfd7dcfbe915c2e825adf276a3cceb665e6",
+  "sources": [
+    {
+      "path": "/workspace/backtests/v12-e7f6d3f-2026/start.json",
+      "sha256": "b9cf1be7b44a59c1fbd430015087e23fd04fca09b8b8319543e5b39678dc2455",
+      "start": "2025-12-25T00:00:00+07:00",
+      "endExclusive": "2026-01-02T00:00:00+07:00",
+      "count": 2304
+    },
+    {
+      "path": "/workspace/backtests/v72-2026-current/mexc-sol-usdt-m5-2026-ytd.json",
+      "sha256": "93a1e4d2d32ff92f80bac14ee70be0ed13b750c3a495a6d760130cc6a641d74f",
+      "start": "2026-01-01T14:00:00+07:00",
+      "endExclusive": "2026-10-26T00:00:00+07:00",
+      "count": 85656
+    },
+    {
+      "path": "/workspace/backtests/v12-e7f6d3f-2026/end.json",
+      "sha256": "0384d0b973fab4affa94c7995fe43cbeb7c7518ea7057e24106426ddf70fb93b",
+      "start": "2026-10-26T00:00:00+07:00",
+      "endExclusive": "2026-10-31T15:10:00+07:00",
+      "count": 1622
+    }
+  ],
+  "bars": 89462,
+  "missingCandles": 0,
+  "cutoff": "2026-10-31T15:10:00+07:00",
+  "knownIssue": "14 Oct: rejected countertrend triple remains at stage3; this published code is tested unchanged.",
+  "comparison": "V1.1 comparison deferred; use identical input and cutoff.",
+  "frozenInputGzipPath": "/workspace/backtests/v12-e7f6d3f-2026/input.json.gz",
+  "frozenInputGzipSha256": "b973b80c43e49d7672bddc99dc5d9170b9a5dd49679f11212c0516926908dd36"
+}

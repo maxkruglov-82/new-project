@@ -1,0 +1,12 @@
+{
+  "baselineVersion": "V1.2",
+  "baselineCommit": "e7f6d3f",
+  "sourceSha256": "f81b1c8c495380f23c838d6e97daf1237e74259cf1d5c02e33fbf54336822f93",
+  "inputSha256": "e56e43784d0db2c4a8973448f1a03dfd7dcfbe915c2e825adf276a3cceb665e6",
+  "inputGzipPath": "/workspace/backtests/v12-e7f6d3f-2026/input.json.gz",
+  "cutoff": "2026-10-31T15:10:00+07:00",
+  "timezone": "Asia/Krasnoyarsk",
+  "counting": "separate actual trades, TP/(TP+SL)",
+  "V1_1_comparison_run": false,
+  "knownIssue14OctPreserved": true
+}
