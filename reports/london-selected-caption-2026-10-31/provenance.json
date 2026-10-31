@@ -1,0 +1,22 @@
+{
+  "userSelected": "/workspace/drafts/london-cancel-captions-2026-10-31/draft-small.txt",
+  "financialBaseCommit": "920432f",
+  "byteIdentical": true,
+  "files": {
+    "KRYTES_V1_2_LONDON_STRUCTURE.txt": {
+      "selectedFile": "draft.pine",
+      "sha256": "75ea89d31b3047b4f628698e08d05cca9246d381a23cb891af19fb31711b7727",
+      "bytes": 139889
+    },
+    "KRYTES_V1_2_LONDON_STRUCTURE_MIN.txt": {
+      "selectedFile": "draft-min.txt",
+      "sha256": "b878334e31d3777ae689fd79c1fee1df55d283dbf4e337480759e0db8ba31405",
+      "bytes": 93244
+    },
+    "KRYTES_V1_2_LONDON_STRUCTURE_SMALL.txt": {
+      "selectedFile": "draft-small.txt",
+      "sha256": "9096c0a3fcf037ba05304f8793e58f7df9f76a2a64ef21baa957493c51275757",
+      "bytes": 76636
+    }
+  }
+}
