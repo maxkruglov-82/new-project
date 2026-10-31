@@ -9,8 +9,8 @@ const origin=s=>s.slice(s.indexOf('findRangeOrigin('),s.indexOf('// Опора �
 assert.equal(origin(full),origin(old),'original point0 finder preserved exactly');
 const normalize=x=>JSON.parse(JSON.stringify(x,(k,v)=>k==='id'?undefined:v));
 let fillCount=0,exitCount=0;
-for(const day of ['09','21','23','16'])for(const mirror of [false,true]){
- const name=day==='09'?'mexc-sol-usdt-m5-2026-10-09-v1-structure.json':day==='21'?'mexc-sol-usdt-m5-2026-10-21-v1-structure.json':day==='23'?'mexc-sol-usdt-m5-2026-10-23-structure-reversal.json':'mexc-sol-usdt-m5-2026-10-16.json';
+for(const day of ['09','21','23','16','22'])for(const mirror of [false,true]){
+ const name=day==='09'?'mexc-sol-usdt-m5-2026-10-09-v1-structure.json':day==='21'?'mexc-sol-usdt-m5-2026-10-21-v1-structure.json':day==='23'?'mexc-sol-usdt-m5-2026-10-23-structure-reversal.json':day==='16'?'mexc-sol-usdt-m5-2026-10-16.json':'mexc-sol-usdt-m5-2026-10-22-full.json';
  const f=JSON.parse(readFileSync(new URL('fixtures/'+name,import.meta.url))),p=x=>mirror?250-x:x;
  const d=f.candles.map(x=>({...x,open:p(x.open),close:p(x.close),high:mirror?p(x.low):x.high,low:mirror?p(x.high):x.low,volume:x.vol,openTime:x.time*1000,closeTime:x.time*1000+299999}));
 
@@ -80,6 +80,11 @@ for(const day of ['09','21','23','16'])for(const mirror of [false,true]){
   const capturedOne=c.plots.testOne.data.find((x,i)=>Number.isFinite(x.value)&&new Date(d[i].openTime+7*3600000).toISOString().startsWith('2026-10-16'));
   assert.ok(Math.abs(capturedOne.value-p(106.84))<1e-8,'106.84 is relocated1, not a new continuation HH');
   assert.ok(Math.abs(fills[1][4]-p(105.16))<1e-8,'countertrend target follows the third extreme before entry');
+ }
+ if(day==='22'){
+  const first=Object.values(c.plots.testOne.data).find((x,i)=>Number.isFinite(x.value)&&new Date(d[i].openTime+7*3600000).toISOString().startsWith('2026-10-22'));
+  assert.ok(Math.abs(first.value-p(103.64))<1e-8,'larger15:40 body prevents early confirmation of103.70');
+  assert.ok(!fills.some(x=>x[0]==='16:50'),'false SHORT from treating relocated1 as LL is removed');
  }
  console.log('PASS V1.2 MEXC',day,'mirror='+mirror,JSON.stringify({fills,exits}));
 }

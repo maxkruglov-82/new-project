@@ -15,7 +15,8 @@ for(const mirror of [false,true]){
  const c=await new PineTS(d,'SOLUSDT','5').run(full),compact=await new PineTS(d,'SOLUSDT','5').run(small);
  for(const n of Object.keys(compact.plots)){
   assert.deepEqual(norm(c.plots[n]),norm(compact.plots[n]),'FULL/SMALL '+n);
-  if(!n.startsWith('__'))assert.equal(hash(JSON.stringify(c.plots[n])),baseline.cases[String(mirror)][n],'archive cannot change trading outputs '+n);
+  // Point1 refinements may shift origin diagnostics; this baseline protects actual execution.
+  if(['Вход LONG/SHORT','Состояние позиции','Выход TP 1 / SL -1 / неизвестно 2','Стоп позиции','Цель позиции','Граница RR 1:1','Цена входа по close','RR входа','Входов за день'].includes(n))assert.equal(hash(JSON.stringify(c.plots[n])),baseline.cases[String(mirror)][n],'archive cannot change trading outputs '+n);
  }
  const labels=c.plots.__labels__.data.flatMap(x=>x.value).filter(x=>!x._deleted);
  const level=p(95.85),end=Date.parse('2026-10-31T00:00:00+07:00');

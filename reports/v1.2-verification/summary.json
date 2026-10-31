@@ -3,8 +3,8 @@
   "timezone": "Asia/Krasnoyarsk",
   "market": "MEXC SOL_USDT perpetual M5",
   "scope": "verification examples, not annual backtest",
-  "source_sha256": "a5637d0bb86403027b62a7837b4440f313e06d6d59220c0e5fda1d8b17a60fc0",
-  "small_bytes": 69684,
+  "source_sha256": "f81b1c8c495380f23c838d6e97daf1237e74259cf1d5c02e33fbf54336822f93",
+  "small_bytes": 69857,
   "cases": [
     {
       "fills": [
@@ -212,6 +212,66 @@
       ],
       "date": "2026-10-16",
       "mirrored": true
+    },
+    {
+      "fills": [
+        [
+          "21:30",
+          1,
+          104.65,
+          104.14,
+          105.16
+        ],
+        [
+          "22:15",
+          -1,
+          104.4,
+          105.16,
+          103.64
+        ]
+      ],
+      "exits": [
+        [
+          "22:10",
+          -1
+        ],
+        [
+          "23:45",
+          1
+        ]
+      ],
+      "date": "2026-10-22",
+      "mirrored": false
+    },
+    {
+      "fills": [
+        [
+          "21:30",
+          -1,
+          145.35,
+          145.86,
+          144.84
+        ],
+        [
+          "22:15",
+          1,
+          145.6,
+          144.84,
+          146.36
+        ]
+      ],
+      "exits": [
+        [
+          "22:10",
+          -1
+        ],
+        [
+          "23:45",
+          1
+        ]
+      ],
+      "date": "2026-10-22",
+      "mirrored": true
     }
   ],
   "notes": [
@@ -219,7 +279,8 @@
     "October16 point1 relocates to106.84 after body-retreat confirmation; early16:40 fill is removed.",
     "Timestamps label M5 opening times; exact intrabar execution seconds are unknown.",
     "Live KRYTES stream not verified.",
-    "Pivot confirmation retains extreme plus four closed M5 to the right."
+    "Pivot confirmation retains extreme plus four closed M5 to the right.",
+    "At equal body extremum, the next adjacent M5 replaces point1 candle only if its body is larger; retreat and five-candle count restart."
   ],
   "noEntryExample": {
     "date": "2026-10-30",

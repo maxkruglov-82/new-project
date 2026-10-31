@@ -923,7 +923,9 @@ if barstate.isconfirmed and firstPointWindow and m5Chart
 if barstate.isconfirmed and firstPointWindow and m5Chart and structureDay == rangeDayKey and structureSide != 0 and not firstSwingDisplayLocked
     float candidateFirst = structureSide == -1 ? bodyLow : bodyHigh
     bool extendsFirst = structureSide == -1 ? close < structureFirstPrice : close > structureFirstPrice
-    if extendsFirst
+    // При общем экстремуме следующая M5 заменяет свечу1 только большим телом.
+    bool widerEqualFirst = bar_index == firstExtremeBar + 1 and time - time[1] == 300000 and math.abs(candidateFirst - structureFirstPrice) <= 0.000000001 and math.abs(close - open) - math.abs(structureFirstPrice - firstExtremeOpen) > 0.000000001
+    if extendsFirst or widerEqualFirst
         structureFirstPrice := candidateFirst
         firstSwingDisplayPrice := candidateFirst
         firstExtremeTime := time
