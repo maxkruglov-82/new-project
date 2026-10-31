@@ -13,13 +13,13 @@ for(const mirror of [false,true]){
  // Internal structure and overnight captions intentionally change; numerical trading outputs above must remain identical.
  const labels=c=>c.plots.__labels__.data.flatMap(x=>x.value).filter(x=>!x._deleted);
  const old=labels(a),fresh=labels(b);
- assert.ok(fresh.some(x=>["HL","LH"].includes(x.text)),"confirmed internal swings are shown");
+ assert.ok(fresh.some(x=>/^(HL|LH)\d+$/.test(x.text)),"confirmed internal swings are shown");
  assert.ok(!fresh.some(x=>/№0/.test(x.text)),"overnight trade keeps its original number");
  assert.ok(old.some(x=>x.x>=t('16:30')&&x.x<=t('16:35')&&Math.abs(x.y-p(119.52))<1e-8&&x.text===(mirror?'LL':'HH')),'fixture previously showed the unconfirmed early extreme');
- assert.ok(!fresh.some(x=>x.x>=t('16:30')&&x.x<=t('16:35')&&Math.abs(x.y-p(119.52))<1e-8&&['HH','LL'].includes(x.text)),'early candidate swallowed by original1 is removed');
- assert.ok(!fresh.some(x=>x.x===t('17:35')&&['HH','LL'].includes(x.text)),'equal repeat must not duplicate original1');
+ assert.ok(!fresh.some(x=>x.x>=t('16:30')&&x.x<=t('16:35')&&Math.abs(x.y-p(119.52))<1e-8&&/^(HH|LL)\d+$/.test(x.text)),'early candidate swallowed by original1 is removed');
+ assert.ok(!fresh.some(x=>x.x===t('17:35')&&/^(HH|LL)\d+$/.test(x.text)),'equal repeat must not duplicate original1');
  assert.ok(fresh.some(x=>x.x===t('17:30')&&x.text.startsWith('1')),'confirmed original1 preserved');
- assert.ok(fresh.some(x=>x.x>=t('20:05')&&x.x<=t('20:10')&&Math.abs(x.y-p(122.62))<1e-8&&x.text===(mirror?'LL':'HH')),'next confirmed external extreme preserved');
+ assert.ok(fresh.some(x=>x.x>=t('20:05')&&x.x<=t('20:10')&&Math.abs(x.y-p(122.62))<1e-8&&new RegExp('^'+(mirror?'LL':'HH')+'\\d+$').test(x.text)),'next confirmed external extreme preserved');
  const marks=ls=>ls.filter(x=>x.style==='style_circle');assert.deepEqual(norm(marks(old)),norm(marks(fresh)),'actual trade markers unchanged');
  if(!mirror){
   const compact=await new PineTS(bars,'SOLUSDT','5').run(readFileSync(new URL('../KRYTES_V1_2_LONDON_STRUCTURE_SMALL.txt',import.meta.url),'utf8'));

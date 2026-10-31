@@ -420,6 +420,12 @@ v12ArchiveNoEntry(box risk, box reward, label info, label stopInfo, label target
         int rightTime = endTime + 300000
         box.set_right(risk, rightTime)
         box.set_right(reward, rightTime)
+        string cancellation = "ОТМЕНА " + (side == 1 ? "LONG" : "SHORT") + "\n" + reason
+        box.set_text(reward, cancellation)
+        box.set_text_color(reward, color.rgb(100, 100, 100))
+        box.set_text_size(reward, size.large)
+        box.set_text_halign(reward, text.align_center)
+        box.set_text_valign(reward, text.align_center)
         label.set_xy(info, rightTime, level)
         label.set_text(info, "Без входа " + (side == 1 ? "LONG: $" : "SHORT: $") + str.tostring(level, "#.#####") + " · " + reason)
         label.set_textcolor(info, color.gray)
@@ -1510,6 +1516,24 @@ if barstate.isconfirmed and retrySpanValid and rangeWeekday and time[4] >= zeroS
     else if retryHasLow
         recordMarketSwing(retrySwingTimes, retrySwingPrices, retrySwingHighs, retrySwingDays, time[4], retryPivotLow, false, rangeDayKey, 64)
 
+// Display archive of exact, confirmed extremums used by cancellation calculations.
+var array<int> countedTimes = array.new_int()
+var array<float> countedPrices = array.new_float()
+var array<bool> countedHighs = array.new_bool()
+var array<int> countedDays = array.new_int()
+rememberCountedPoint(int atTime, float price, bool isHigh, int dayKey) =>
+    if not na(atTime) and not na(price)
+        array.push(countedTimes, atTime)
+        array.push(countedPrices, price)
+        array.push(countedHighs, isHigh)
+        array.push(countedDays, dayKey)
+        if array.size(countedTimes) > 10000
+            array.shift(countedTimes)
+            array.shift(countedPrices)
+            array.shift(countedHighs)
+            array.shift(countedDays)
+    true
+
 // V1.2: исполнение отдельно от сохранённого поиска исходных0/1.
 var int v12Day = na
 var float v12Zero = na
@@ -1542,6 +1566,7 @@ var float thirdStop = na
 var int thirdStopTime = na
 var int thirdBreakTime = na
 bool thirdCancelEvent = false
+var bool v12FailedCounterReturn = false
 var bool v12ResumeInitial = false
 var int v12ResumeTime = na
 var int v12State = 0
@@ -1627,6 +1652,7 @@ if barstate.isconfirmed and m5Chart
         thirdBreakTime := na
         v12ResumeInitial := false
         v12ResumeTime := na
+        v12FailedCounterReturn := false
         v12Entries := 0
         v12Stopped := false
         v12Stage := 0
@@ -1663,10 +1689,22 @@ if barstate.isconfirmed and m5Chart
             v12A := na
             v12B := na
             v12C := na
+    // A countertrend A->B failed before a confirmed C: prepare the original side on its pullback.
+    bool failedCounterBreak = v12InitialSide == -1 ? v12One-close >= firstPointOffset-0.000000001 : close-v12One >= firstPointOffset-0.000000001
+    if not thirdCanceled and not v12FailedCounterReturn and v12CanFirst and v12State != 1 and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage == 2 and v12SequenceSide == -v12InitialSide and not na(v12A) and not na(v12B) and failedCounterBreak
+        v12FailedCounterReturn := true
+        v12ProposedKind := 5
+        v12ProposedSide := v12InitialSide
+        v12ProposedStop := v12A
+        v12ProposedTarget := v12InitialSide == 1 ? bodyHigh : bodyLow
+        v12ProposedAnchor := v12ATime
+        v12SequenceSide := 0
+        v12Stage := 0
+        v12ResumeInitial := false
     // Первая свеча равного экстремума; повтор тела на открытии не двигает опору.
     // Встречная тройка не состоялась: обновление исходной1 возвращает исходный тренд.
     bool v12RenewedOne = v12InitialSide==1?close-v12One>=firstPointOffset-0.000000001:v12One-close>=firstPointOffset-0.000000001
-    if not thirdCanceled and v12CanFirst and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage<3 and v12RenewedOne
+    if not thirdCanceled and not v12FailedCounterReturn and v12CanFirst and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage<3 and v12RenewedOne
         v12ResumeInitial := true
         v12ResumeTime := time
         v12FirstTarget := na
@@ -1724,6 +1762,7 @@ if barstate.isconfirmed and m5Chart
     bool v12BeyondOne = v12InitialSide == 1 ? v12PivotPrice > v12One : v12PivotPrice < v12One
     if not thirdCanceled and v12CanFirst and (na(v12ZeroBreakTime) or v12ResumeInitial) and na(v12FirstTarget) and bodyGoalEvent and (not v12ResumeInitial or bodyGoalTime>=v12ResumeTime-300000)
         v12FirstTarget := bodyGoalPrice
+        rememberCountedPoint(bodyGoalTime, bodyGoalPrice, v12InitialSide == 1, rangeDayKey)
         thirdSecondTime := bodyGoalTime
         thirdPullback := na
         v12ProposedKind := 1
@@ -1740,8 +1779,9 @@ if barstate.isconfirmed and m5Chart
         thirdCanceled := true
         thirdCancelEvent := true
         thirdStop := bodyGoalPrice
+        rememberCountedPoint(bodyGoalTime, bodyGoalPrice, v12InitialSide == 1, rangeDayKey)
         thirdStopTime := bodyGoalTime
-        v12ArchiveNoEntry(v12RiskBox,v12RewardBox,v12Info,v12StopInfo,v12TargetInfo,v12Side,v12Level,time,"третий экстремум отменил вход")
+        v12ArchiveNoEntry(v12RiskBox,v12RewardBox,v12Info,v12StopInfo,v12TargetInfo,v12Side,v12Level,time,v12Side == 1 ? "Третий HH до входа" : "Третий LL до входа")
         v12State := 0
         v12RiskBox := na
         v12RewardBox := na
@@ -1773,6 +1813,7 @@ if barstate.isconfirmed and m5Chart
             thirdCanceled := true
             thirdCancelEvent := true
             thirdStop := counterCountPeak
+            rememberCountedPoint(counterCountTime, counterCountPeak, v12Side == 1, rangeDayKey)
             thirdStopTime := counterCountTime
             thirdPullback := na
             if array.size(retrySwingTimes)>0
@@ -1782,7 +1823,7 @@ if barstate.isconfirmed and m5Chart
                     bool oppositeType = v12Side == 1 ? not array.get(retrySwingHighs,ci) : array.get(retrySwingHighs,ci)
                     if array.get(retrySwingDays,ci)==rangeDayKey and ct>counterCountBaseTime and ct<counterCountTime and oppositeType
                         thirdPullback := na(thirdPullback) ? cp : (v12Side==1?math.min(thirdPullback,cp):math.max(thirdPullback,cp))
-            v12ArchiveNoEntry(v12RiskBox,v12RewardBox,v12Info,v12StopInfo,v12TargetInfo,v12Side,v12Level,time,"третий экстремум отменил встречный вход")
+            v12ArchiveNoEntry(v12RiskBox,v12RewardBox,v12Info,v12StopInfo,v12TargetInfo,v12Side,v12Level,time,v12Side == 1 ? "Третий HH до входа" : "Третий LL до входа")
             v12State := 0
             v12RiskBox := na
             v12RewardBox := na
@@ -1869,7 +1910,7 @@ if barstate.isconfirmed and m5Chart
 
 // Встречная третья опора сопровождает незавершённый импульс до входа.
 // Первое продолжение0→1 и возврат к исходной1 остаются фиксированными.
-if barstate.isconfirmed and m5Chart and v12State==1 and (v12PlanKind==2 or v12PlanKind==4) and not (low<=v12Level and high>=v12Level)
+if barstate.isconfirmed and m5Chart and v12State==1 and (v12PlanKind==2 or v12PlanKind==4 or v12PlanKind==5) and not (low<=v12Level and high>=v12Level)
     v12Target := v12Side==1?math.max(v12Target,bodyHigh):math.min(v12Target,bodyLow)
     v12Level := (v12Stop+v12Target)/2.0
     if not na(v12RewardBox)
@@ -2024,6 +2065,9 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
         v12StopInfo := na
         v12TargetInfo := na
     if v12NewPlan
+        if v12PlanKind == 2 and v12Entries == 0
+            rememberCountedPoint(v12ATime, v12A, v12Side == 1, rangeDayKey)
+            rememberCountedPoint(v12CTime, v12C, v12Side == 1, rangeDayKey)
         counterCountActive := v12PlanKind == 2 and v12Entries == 0
         counterThirdCandidate := false
         counterCountPeak := v12Target
@@ -2294,6 +2338,28 @@ if barstate.islast
     if array.size(firstPointLabels) > 0
         for numberIndex = 0 to array.size(firstPointLabels) - 1
             label.set_text(array.get(firstPointLabels, numberIndex), "")
+    if array.size(countedTimes) > 0
+        for countedIndex = 0 to array.size(countedTimes) - 1
+            int exactTime = array.get(countedTimes, countedIndex)
+            float exactPrice = array.get(countedPrices, countedIndex)
+            bool exactHigh = array.get(countedHighs, countedIndex)
+            int exactDay = array.get(countedDays, countedIndex)
+            bool matched = false
+            int insertIndex = array.size(structureHistoryTimes)
+            if array.size(structureHistoryTimes) > 0
+                for historyIndex = 0 to array.size(structureHistoryTimes) - 1
+                    int rawTime = array.get(structureHistoryTimes, historyIndex)
+                    if rawTime > exactTime and insertIndex == array.size(structureHistoryTimes)
+                        insertIndex := historyIndex
+                    if array.get(structureHistoryDays, historyIndex) == exactDay and array.get(structureHistoryHighs, historyIndex) == exactHigh and math.abs(array.get(structureHistoryPrices, historyIndex) - exactPrice) <= 0.000000001 and math.abs(rawTime - exactTime) <= 300000
+                        array.set(structureHistoryTimes, historyIndex, exactTime)
+                        matched := true
+                        break
+            if not matched
+                array.insert(structureHistoryTimes, insertIndex, exactTime)
+                array.insert(structureHistoryPrices, insertIndex, exactPrice)
+                array.insert(structureHistoryHighs, insertIndex, exactHigh)
+                array.insert(structureHistoryDays, insertIndex, exactDay)
     int viewportLeft = chart.left_visible_bar_time
     int viewportRight = chart.right_visible_bar_time
     int visibleSwingCount = 0
@@ -2312,6 +2378,10 @@ if barstate.islast
     int visibleSwingSeen = 0
     float previousHigh = na
     float previousLow = na
+    int hhNumber = 0
+    int hlNumber = 0
+    int lhNumber = 0
+    int llNumber = 0
     int previousSwingDay = na
     int scopedStart = na
     int scopedEnd = na
@@ -2332,6 +2402,10 @@ if barstate.islast
                 scopedZeroHigh := scopeIndex >= 0 ? array.get(anchorZeroHighs, scopeIndex) : false
                 previousHigh := scopedZeroHigh ? scopedZeroPrice : scopedOnePrice
                 previousLow := scopedZeroHigh ? scopedOnePrice : scopedZeroPrice
+                hhNumber := scopedZeroHigh ? 0 : 1
+                llNumber := scopedZeroHigh ? 1 : 0
+                hlNumber := 0
+                lhNumber := 0
                 previousSwingDay := swingDay
             bool isHigh = array.get(structureHistoryHighs, swingIndex)
             float price = array.get(structureHistoryPrices, swingIndex)
@@ -2344,6 +2418,20 @@ if barstate.islast
             string classification = swingClass(price, zeroMatchesSwing ? na : isHigh ? previousHigh : previousLow, isHigh)
             string caption = classification == "H" ? "HH" : classification == "L" ? "LL" : classification
             bool structuralCaption = classification != "EH" and classification != "EL"
+            bool anchorPoint = zeroMatchesSwing or (swingTime == scopedOneTime and math.abs(price - scopedOnePrice) <= 0.000000001)
+            if inScope and structuralCaption and not anchorPoint
+                if caption == "HH"
+                    hhNumber := hhNumber + 1
+                    caption := "HH" + str.tostring(hhNumber)
+                else if caption == "HL"
+                    hlNumber := hlNumber + 1
+                    caption := "HL" + str.tostring(hlNumber)
+                else if caption == "LH"
+                    lhNumber := lhNumber + 1
+                    caption := "LH" + str.tostring(lhNumber)
+                else if caption == "LL"
+                    llNumber := llNumber + 1
+                    caption := "LL" + str.tostring(llNumber)
             bool inViewport = inScope and swingTime >= viewportLeft and swingTime <= viewportRight
             if inViewport
                 visibleSwingSeen := visibleSwingSeen + 1
@@ -2370,11 +2458,11 @@ if barstate.islast
                         for labelIndex = 0 to array.size(marketStructureLabels) - 1
                             label existingSwing = array.get(marketStructureLabels, labelIndex)
                             if label.get_x(existingSwing) == anchorTime and math.abs(label.get_y(existingSwing) - anchorPrice) <= 0.000000001
-                                label.set_text(existingSwing, str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L"))
+                                label.set_text(existingSwing, str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L") + (anchorNumber == 1 ? (anchorHigh ? " · HH1" : " · LL1") : ""))
                                 foundAnchor := true
                                 break
                     if not foundAnchor
-                        label anchorLabel = label.new(x=anchorTime, y=anchorPrice, text=str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L"), xloc=xloc.bar_time, yloc=yloc.price, style=anchorHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+                        label anchorLabel = label.new(x=anchorTime, y=anchorPrice, text=str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L") + (anchorNumber == 1 ? (anchorHigh ? " · HH1" : " · LL1") : ""), xloc=xloc.bar_time, yloc=yloc.price, style=anchorHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
                         array.push(marketStructureLabels, anchorLabel)
                         while array.size(marketStructureLabels) > 120
                             label.delete(array.shift(marketStructureLabels))
