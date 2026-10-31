@@ -1,0 +1,3773 @@
+[
+  {
+    "day": "2026-01-02",
+    "before": [
+      {
+        "createdAt": "2026-01-02T23:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 126.93,
+        "target": 131.53,
+        "level": 129.23,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-01-02T23:55:00.000+07:00"
+      }
+    ],
+    "after": []
+  },
+  {
+    "day": "2026-01-05",
+    "before": [
+      {
+        "createdAt": "2026-01-05T21:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 135.76,
+        "target": 133.38,
+        "level": 134.57,
+        "status": "FILLED",
+        "finishedAt": "2026-01-05T21:45:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-05T21:45:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 135.76,
+        "target": 133.38,
+        "level": 134.57,
+        "status": "FILLED",
+        "finishedAt": "2026-01-05T21:50:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-06",
+    "before": [
+      {
+        "createdAt": "2026-01-06T19:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 137.43,
+        "target": 139.58,
+        "level": 138.505,
+        "status": "FILLED",
+        "finishedAt": "2026-01-06T23:40:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-06T19:35:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 137.43,
+        "target": 139.58,
+        "level": 138.505,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-01-06T21:45:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-07",
+    "before": [
+      {
+        "createdAt": "2026-01-07T22:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 139.6,
+        "target": 135.48,
+        "level": 137.54,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-01-07T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-07T23:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 139.6,
+        "target": 135.48,
+        "level": 137.54,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-01-07T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-13",
+    "before": [
+      {
+        "createdAt": "2026-01-13T21:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 139.88,
+        "target": 142.9,
+        "level": 141.39,
+        "status": "FILLED",
+        "finishedAt": "2026-01-13T22:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-13T21:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 139.88,
+        "target": 142.9,
+        "level": 141.39,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-01-13T21:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-14",
+    "before": [
+      {
+        "createdAt": "2026-01-14T22:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 144.21,
+        "target": 147.46,
+        "level": 145.835,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-01-14T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-14T22:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 144.21,
+        "target": 147.46,
+        "level": 145.835,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-01-14T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-20",
+    "before": [
+      {
+        "createdAt": "2026-01-20T22:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 129.33,
+        "target": 127.25,
+        "level": 128.29,
+        "status": "FILLED",
+        "finishedAt": "2026-01-20T22:30:00.000+07:00"
+      }
+    ],
+    "after": []
+  },
+  {
+    "day": "2026-01-21",
+    "before": [
+      {
+        "createdAt": "2026-01-21T17:20:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 127,
+        "target": 127.78,
+        "level": 127.39,
+        "status": "FILLED",
+        "finishedAt": "2026-01-21T18:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-21T17:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 127,
+        "target": 128,
+        "level": 127.5,
+        "status": "FILLED",
+        "finishedAt": "2026-01-21T18:00:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-01-21T21:50:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 126.53,
+        "target": 129.31,
+        "level": 127.92,
+        "status": "FILLED",
+        "finishedAt": "2026-01-21T23:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-22",
+    "before": [
+      {
+        "createdAt": "2026-01-22T17:30:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 129.43,
+        "target": 130.21,
+        "level": 129.82,
+        "status": "FILLED",
+        "finishedAt": "2026-01-22T18:10:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-22T17:35:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 129.43,
+        "target": 130.21,
+        "level": 129.82,
+        "status": "FILLED",
+        "finishedAt": "2026-01-22T18:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-23",
+    "before": [
+      {
+        "createdAt": "2026-01-23T21:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 127.67,
+        "target": 125.51,
+        "level": 126.59,
+        "status": "FILLED",
+        "finishedAt": "2026-01-23T22:20:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-23T22:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 127.67,
+        "target": 125.51,
+        "level": 126.59,
+        "status": "FILLED",
+        "finishedAt": "2026-01-23T22:25:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-27",
+    "before": [
+      {
+        "createdAt": "2026-01-27T21:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 124.63,
+        "target": 123.12,
+        "level": 123.875,
+        "status": "FILLED",
+        "finishedAt": "2026-01-27T21:20:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-27T21:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 124.63,
+        "target": 123.12,
+        "level": 123.875,
+        "status": "FILLED",
+        "finishedAt": "2026-01-27T21:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-01-29",
+    "before": [
+      {
+        "createdAt": "2026-01-29T17:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 123.88,
+        "target": 122.96,
+        "level": 123.42,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-01-29T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-01-29T17:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 123.88,
+        "target": 122.96,
+        "level": 123.42,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-01-29T19:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-02",
+    "before": [
+      {
+        "createdAt": "2026-02-02T18:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 101.55,
+        "target": 103.24,
+        "level": 102.395,
+        "status": "FILLED",
+        "finishedAt": "2026-02-02T21:10:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-02T18:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 101.55,
+        "target": 103.24,
+        "level": 102.395,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-02T19:40:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-04",
+    "before": [
+      {
+        "createdAt": "2026-02-04T21:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 98.03,
+        "target": 93.98,
+        "level": 96.005,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-04T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-04T22:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 98.03,
+        "target": 92.97,
+        "level": 95.5,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-04T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-06",
+    "before": [
+      {
+        "createdAt": "2026-02-06T19:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.7,
+        "target": 81.82,
+        "level": 80.26,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-06T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-06T21:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.7,
+        "target": 83.66,
+        "level": 81.18,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-06T22:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-13",
+    "before": [
+      {
+        "createdAt": "2026-02-13T20:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.56,
+        "target": 80.64,
+        "level": 79.6,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-13T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-13T20:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.56,
+        "target": 80.64,
+        "level": 79.6,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-13T22:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-16",
+    "before": [
+      {
+        "createdAt": "2026-02-16T19:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.01,
+        "target": 86.32,
+        "level": 85.665,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-02-16T20:25:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-02-16T21:45:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 84.31,
+        "target": 83.62,
+        "level": 83.965,
+        "status": "FILLED",
+        "finishedAt": "2026-02-16T21:50:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-02-16T22:00:00.000+07:00",
+        "side": 1,
+        "kind": 5,
+        "stop": 83.62,
+        "target": 86.17,
+        "level": 84.895,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-02-16T22:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-02-16T23:50:00.000+07:00",
+        "side": -1,
+        "kind": 4,
+        "stop": 84.34,
+        "target": 83.33,
+        "level": 83.835,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-16T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-16T19:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.01,
+        "target": 86.32,
+        "level": 85.665,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-16T20:20:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-02-16T21:45:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 86.63,
+        "target": 83.62,
+        "level": 85.125,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-16T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-17",
+    "before": [
+      {
+        "createdAt": "2026-02-17T18:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 86.58,
+        "target": 84.81,
+        "level": 85.695,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-17T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-17T19:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 86.58,
+        "target": 84.81,
+        "level": 85.695,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-17T20:25:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-18",
+    "before": [
+      {
+        "createdAt": "2026-02-18T19:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.79,
+        "target": 82.78,
+        "level": 84.285,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-18T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-18T20:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.79,
+        "target": 82.45,
+        "level": 84.12,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-18T21:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-19",
+    "before": [
+      {
+        "createdAt": "2026-02-19T21:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.89,
+        "target": 79.73,
+        "level": 80.81,
+        "status": "FILLED",
+        "finishedAt": "2026-02-19T21:40:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-19T21:10:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.89,
+        "target": 79.73,
+        "level": 80.81,
+        "status": "FILLED",
+        "finishedAt": "2026-02-19T21:40:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-20",
+    "before": [
+      {
+        "createdAt": "2026-02-20T17:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.28,
+        "target": 84.67,
+        "level": 83.975,
+        "status": "FILLED",
+        "finishedAt": "2026-02-20T18:00:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-02-20T23:25:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 81.9,
+        "target": 84.68,
+        "level": 83.29,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-20T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-20T17:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.28,
+        "target": 84.67,
+        "level": 83.975,
+        "status": "FILLED",
+        "finishedAt": "2026-02-20T18:00:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-02-20T23:25:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 81.9,
+        "target": 84.68,
+        "level": 83.29,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-20T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-23",
+    "before": [
+      {
+        "createdAt": "2026-02-23T20:00:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.58,
+        "target": 80.71,
+        "level": 79.645,
+        "status": "FILLED",
+        "finishedAt": "2026-02-23T21:40:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-23T20:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.58,
+        "target": 80.71,
+        "level": 79.645,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-23T21:00:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-02-23T23:25:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 80.98,
+        "target": 78.79,
+        "level": 79.885,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-23T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-25",
+    "before": [
+      {
+        "createdAt": "2026-02-25T17:30:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 81.96,
+        "target": 82.78,
+        "level": 82.37,
+        "status": "FILLED",
+        "finishedAt": "2026-02-25T18:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-25T17:35:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 81.96,
+        "target": 82.78,
+        "level": 82.37,
+        "status": "FILLED",
+        "finishedAt": "2026-02-25T18:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-02-27",
+    "before": [
+      {
+        "createdAt": "2026-02-27T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 87.72,
+        "target": 82.3,
+        "level": 85.01,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-02-27T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-02-27T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 87.72,
+        "target": 82.3,
+        "level": 85.01,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-02-27T22:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-02",
+    "before": [
+      {
+        "createdAt": "2026-03-02T17:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 82.45,
+        "target": 84.02,
+        "level": 83.235,
+        "status": "FILLED",
+        "finishedAt": "2026-03-02T20:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-02T17:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 82.45,
+        "target": 84.02,
+        "level": 83.235,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-03-02T19:35:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-03-02T21:10:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 84.05,
+        "target": 82.99,
+        "level": 83.52,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-03-02T21:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-03",
+    "before": [
+      {
+        "createdAt": "2026-03-03T21:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.58,
+        "target": 83.26,
+        "level": 84.42,
+        "status": "FILLED",
+        "finishedAt": "2026-03-03T22:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-03T21:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.58,
+        "target": 83.26,
+        "level": 84.42,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-03-03T22:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-04",
+    "before": [
+      {
+        "createdAt": "2026-03-04T21:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.08,
+        "target": 91.41,
+        "level": 89.245,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-03-04T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-04T21:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.08,
+        "target": 91.41,
+        "level": 89.245,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-03-04T23:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-05",
+    "before": [
+      {
+        "createdAt": "2026-03-05T17:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 89.73,
+        "target": 92.74,
+        "level": 91.235,
+        "status": "FILLED",
+        "finishedAt": "2026-03-05T20:20:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-03-05T23:25:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 89.75,
+        "target": 87.96,
+        "level": 88.855,
+        "status": "FILLED",
+        "finishedAt": "2026-03-05T23:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-05T18:20:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 89.73,
+        "target": 92.74,
+        "level": 91.235,
+        "status": "FILLED",
+        "finishedAt": "2026-03-05T20:20:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-03-05T23:25:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 89.75,
+        "target": 87.96,
+        "level": 88.855,
+        "status": "FILLED",
+        "finishedAt": "2026-03-05T23:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-06",
+    "before": [
+      {
+        "createdAt": "2026-03-06T19:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 88.72,
+        "target": 86.4,
+        "level": 87.56,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-03-06T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-06T20:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 88.72,
+        "target": 86.2,
+        "level": 87.46,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-03-06T22:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-09",
+    "before": [
+      {
+        "createdAt": "2026-03-09T21:00:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.39,
+        "target": 85.47,
+        "level": 84.43,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-03-09T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-09T22:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.39,
+        "target": 85.57,
+        "level": 84.48,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-03-09T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-10",
+    "before": [
+      {
+        "createdAt": "2026-03-10T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 87.34,
+        "target": 85.88,
+        "level": 86.61,
+        "status": "FILLED",
+        "finishedAt": "2026-03-10T21:40:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-10T21:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 87.34,
+        "target": 85.14,
+        "level": 86.24,
+        "status": "FILLED",
+        "finishedAt": "2026-03-10T21:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-11",
+    "before": [
+      {
+        "createdAt": "2026-03-11T19:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.45,
+        "target": 84.41,
+        "level": 84.93,
+        "status": "FILLED",
+        "finishedAt": "2026-03-11T19:30:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-11T19:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.45,
+        "target": 84.41,
+        "level": 84.93,
+        "status": "FILLED",
+        "finishedAt": "2026-03-11T19:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-12",
+    "before": [
+      {
+        "createdAt": "2026-03-12T19:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.45,
+        "target": 87.19,
+        "level": 86.32,
+        "status": "FILLED",
+        "finishedAt": "2026-03-12T20:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-12T19:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.45,
+        "target": 87.19,
+        "level": 86.32,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-03-12T20:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-03-12T22:05:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 87.42,
+        "target": 85.33,
+        "level": 86.375,
+        "status": "FILLED",
+        "finishedAt": "2026-03-12T22:25:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-13",
+    "before": [
+      {
+        "createdAt": "2026-03-13T20:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 88.31,
+        "target": 91.15,
+        "level": 89.73,
+        "status": "FILLED",
+        "finishedAt": "2026-03-13T22:40:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-13T21:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 88.31,
+        "target": 92.8,
+        "level": 90.555,
+        "status": "FILLED",
+        "finishedAt": "2026-03-13T21:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-26",
+    "before": [
+      {
+        "createdAt": "2026-03-26T18:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 88.21,
+        "target": 87.49,
+        "level": 87.85,
+        "status": "FILLED",
+        "finishedAt": "2026-03-26T20:45:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-26T19:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 88.21,
+        "target": 87.47,
+        "level": 87.84,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-03-26T20:10:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-03-26T21:10:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 87.46,
+        "target": 88.07,
+        "level": 87.765,
+        "status": "FILLED",
+        "finishedAt": "2026-03-26T21:15:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-03-26T21:50:00.000+07:00",
+        "side": -1,
+        "kind": 5,
+        "stop": 88.07,
+        "target": 87.75,
+        "level": 87.91,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-03-26T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-27",
+    "before": [
+      {
+        "createdAt": "2026-03-27T20:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.12,
+        "target": 82.79,
+        "level": 83.955,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-03-27T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-27T21:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.12,
+        "target": 82.57,
+        "level": 83.845,
+        "status": "FILLED",
+        "finishedAt": "2026-03-27T22:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-03-30",
+    "before": [
+      {
+        "createdAt": "2026-03-30T20:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.4,
+        "target": 84.71,
+        "level": 84.055,
+        "status": "FILLED",
+        "finishedAt": "2026-03-30T20:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-03-30T20:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.4,
+        "target": 84.71,
+        "level": 84.055,
+        "status": "FILLED",
+        "finishedAt": "2026-03-30T20:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-01",
+    "before": [
+      {
+        "createdAt": "2026-04-01T17:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 84.66,
+        "target": 83.12,
+        "level": 83.89,
+        "status": "FILLED",
+        "finishedAt": "2026-04-01T23:20:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-01T17:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 84.66,
+        "target": 83.12,
+        "level": 83.89,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-04-01T17:50:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-01T22:40:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 83.08,
+        "target": 83.65,
+        "level": 83.365,
+        "status": "FILLED",
+        "finishedAt": "2026-04-01T23:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-02",
+    "before": [
+      {
+        "createdAt": "2026-04-02T17:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 79.58,
+        "target": 78.81,
+        "level": 79.195,
+        "status": "FILLED",
+        "finishedAt": "2026-04-02T21:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-02T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 79.58,
+        "target": 76.86,
+        "level": 78.22,
+        "status": "FILLED",
+        "finishedAt": "2026-04-02T21:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-07",
+    "before": [
+      {
+        "createdAt": "2026-04-07T16:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 79.31,
+        "target": 80.43,
+        "level": 79.87,
+        "status": "FILLED",
+        "finishedAt": "2026-04-07T17:05:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-07T19:25:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 79.28,
+        "target": 78.81,
+        "level": 79.045,
+        "status": "FILLED",
+        "finishedAt": "2026-04-07T19:30:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-07T17:00:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 79.31,
+        "target": 80.47,
+        "level": 79.89,
+        "status": "FILLED",
+        "finishedAt": "2026-04-07T17:05:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-07T19:25:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 79.28,
+        "target": 78.81,
+        "level": 79.045,
+        "status": "FILLED",
+        "finishedAt": "2026-04-07T19:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-09",
+    "before": [
+      {
+        "createdAt": "2026-04-09T17:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 81.96,
+        "target": 82.56,
+        "level": 82.26,
+        "status": "FILLED",
+        "finishedAt": "2026-04-09T18:10:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-09T23:20:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 81.55,
+        "target": 84.05,
+        "level": 82.8,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-04-09T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-09T17:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 81.96,
+        "target": 82.56,
+        "level": 82.26,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-04-09T18:05:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-09T19:40:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 82.6,
+        "target": 82.08,
+        "level": 82.34,
+        "status": "FILLED",
+        "finishedAt": "2026-04-09T20:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-13",
+    "before": [
+      {
+        "createdAt": "2026-04-13T18:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 82.18,
+        "target": 81.7,
+        "level": 81.94,
+        "status": "FILLED",
+        "finishedAt": "2026-04-13T18:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-13T21:15:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 82.36,
+        "target": 83.59,
+        "level": 82.975,
+        "status": "FILLED",
+        "finishedAt": "2026-04-13T21:20:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-13T18:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 82.18,
+        "target": 81.7,
+        "level": 81.94,
+        "status": "FILLED",
+        "finishedAt": "2026-04-13T18:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-13T21:15:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 82.36,
+        "target": 83.59,
+        "level": 82.975,
+        "status": "FILLED",
+        "finishedAt": "2026-04-13T21:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-14",
+    "before": [
+      {
+        "createdAt": "2026-04-14T17:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.78,
+        "target": 86.33,
+        "level": 86.055,
+        "status": "FILLED",
+        "finishedAt": "2026-04-14T17:55:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-14T19:45:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 85.94,
+        "target": 85.63,
+        "level": 85.785,
+        "status": "FILLED",
+        "finishedAt": "2026-04-14T19:50:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-14T17:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.78,
+        "target": 86.33,
+        "level": 86.055,
+        "status": "FILLED",
+        "finishedAt": "2026-04-14T18:15:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-14T19:45:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 85.94,
+        "target": 85.63,
+        "level": 85.785,
+        "status": "FILLED",
+        "finishedAt": "2026-04-14T19:50:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-15",
+    "before": [
+      {
+        "createdAt": "2026-04-15T17:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 82.69,
+        "target": 83.33,
+        "level": 83.01,
+        "status": "FILLED",
+        "finishedAt": "2026-04-15T17:30:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-15T17:30:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 82.69,
+        "target": 83.33,
+        "level": 83.01,
+        "status": "FILLED",
+        "finishedAt": "2026-04-15T17:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-16",
+    "before": [
+      {
+        "createdAt": "2026-04-16T16:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.54,
+        "target": 84.97,
+        "level": 85.255,
+        "status": "FILLED",
+        "finishedAt": "2026-04-16T16:15:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-16T16:10:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.54,
+        "target": 84.97,
+        "level": 85.255,
+        "status": "FILLED",
+        "finishedAt": "2026-04-16T16:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-17",
+    "before": [
+      {
+        "createdAt": "2026-04-17T16:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.97,
+        "target": 89.39,
+        "level": 88.68,
+        "status": "FILLED",
+        "finishedAt": "2026-04-17T16:55:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-17T20:40:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 87.4,
+        "target": 90.35,
+        "level": 88.875,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-04-17T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-17T16:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.97,
+        "target": 89.39,
+        "level": 88.68,
+        "status": "FILLED",
+        "finishedAt": "2026-04-17T16:55:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-17T20:40:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 87.4,
+        "target": 90.35,
+        "level": 88.875,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-04-17T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-21",
+    "before": [
+      {
+        "createdAt": "2026-04-21T18:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.43,
+        "target": 86.22,
+        "level": 85.825,
+        "status": "FILLED",
+        "finishedAt": "2026-04-21T18:15:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-21T22:00:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 85.2,
+        "target": 86.55,
+        "level": 85.875,
+        "status": "FILLED",
+        "finishedAt": "2026-04-21T22:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-21T18:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 85.43,
+        "target": 86.22,
+        "level": 85.825,
+        "status": "FILLED",
+        "finishedAt": "2026-04-21T18:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-21T22:00:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 85.2,
+        "target": 86.55,
+        "level": 85.875,
+        "status": "FILLED",
+        "finishedAt": "2026-04-21T22:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-24",
+    "before": [
+      {
+        "createdAt": "2026-04-24T16:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.5,
+        "target": 85,
+        "level": 85.25,
+        "status": "FILLED",
+        "finishedAt": "2026-04-24T16:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-24T18:45:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 85.49,
+        "target": 86.2,
+        "level": 85.845,
+        "status": "FILLED",
+        "finishedAt": "2026-04-24T19:50:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-24T16:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.5,
+        "target": 85,
+        "level": 85.25,
+        "status": "FILLED",
+        "finishedAt": "2026-04-24T16:50:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-04-24T18:45:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 85.49,
+        "target": 86.2,
+        "level": 85.845,
+        "status": "FILLED",
+        "finishedAt": "2026-04-24T19:50:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-27",
+    "before": [
+      {
+        "createdAt": "2026-04-27T19:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.96,
+        "target": 84.91,
+        "level": 85.435,
+        "status": "FILLED",
+        "finishedAt": "2026-04-27T21:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-27T20:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.96,
+        "target": 84.91,
+        "level": 85.435,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-04-27T21:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-04-29",
+    "before": [
+      {
+        "createdAt": "2026-04-29T19:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 84.77,
+        "target": 83.98,
+        "level": 84.375,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-04-29T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-04-29T19:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 84.77,
+        "target": 83.98,
+        "level": 84.375,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-04-29T21:25:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-01",
+    "before": [
+      {
+        "createdAt": "2026-05-01T19:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.64,
+        "target": 84.4,
+        "level": 84.02,
+        "status": "FILLED",
+        "finishedAt": "2026-05-01T21:30:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-01T20:35:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 83.64,
+        "target": 84.49,
+        "level": 84.065,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-05-01T21:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-06",
+    "before": [
+      {
+        "createdAt": "2026-05-06T17:35:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.15,
+        "target": 89.58,
+        "level": 88.365,
+        "status": "FILLED",
+        "finishedAt": "2026-05-06T20:25:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-06T17:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.15,
+        "target": 89.58,
+        "level": 88.365,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-05-06T18:45:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-07",
+    "before": [
+      {
+        "createdAt": "2026-05-07T21:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 90.24,
+        "target": 88.51,
+        "level": 89.375,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-05-07T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-07T21:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 90.24,
+        "target": 87.95,
+        "level": 89.095,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-05-07T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-08",
+    "before": [
+      {
+        "createdAt": "2026-05-08T16:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.7,
+        "target": 88.49,
+        "level": 88.095,
+        "status": "FILLED",
+        "finishedAt": "2026-05-08T20:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-08T16:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 87.7,
+        "target": 88.49,
+        "level": 88.095,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-05-08T16:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-05-08T21:00:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 88.59,
+        "target": 88.06,
+        "level": 88.325,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-05-08T21:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-11",
+    "before": [
+      {
+        "createdAt": "2026-05-11T21:25:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 94.7,
+        "target": 95.76,
+        "level": 95.23,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-05-11T21:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-05-11T22:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 95.32,
+        "target": 94.41,
+        "level": 94.865,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-05-11T22:15:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-05-11T22:25:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 94.41,
+        "target": 96.18,
+        "level": 95.295,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-05-11T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-11T21:25:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 94.7,
+        "target": 95.76,
+        "level": 95.23,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-05-11T21:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-05-11T22:10:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 95.32,
+        "target": 94.41,
+        "level": 94.865,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-05-11T22:15:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-05-11T22:25:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 94.41,
+        "target": 96.18,
+        "level": 95.295,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-05-11T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-14",
+    "before": [
+      {
+        "createdAt": "2026-05-14T19:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 91.24,
+        "target": 90.58,
+        "level": 90.91,
+        "status": "FILLED",
+        "finishedAt": "2026-05-14T19:25:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-05-14T22:40:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 90.74,
+        "target": 92.51,
+        "level": 91.625,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-05-14T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-14T19:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 91.24,
+        "target": 90.58,
+        "level": 90.91,
+        "status": "FILLED",
+        "finishedAt": "2026-05-14T19:25:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-05-14T22:40:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 90.74,
+        "target": 92.51,
+        "level": 91.625,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-05-14T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-15",
+    "before": [
+      {
+        "createdAt": "2026-05-15T21:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 91.6,
+        "target": 88.85,
+        "level": 90.225,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-05-15T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-15T21:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 91.6,
+        "target": 88.85,
+        "level": 90.225,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-05-15T23:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-19",
+    "before": [
+      {
+        "createdAt": "2026-05-19T18:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.48,
+        "target": 84.38,
+        "level": 84.93,
+        "status": "FILLED",
+        "finishedAt": "2026-05-19T20:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-19T18:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.48,
+        "target": 84.38,
+        "level": 84.93,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-05-19T19:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-20",
+    "before": [
+      {
+        "createdAt": "2026-05-20T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 85.09,
+        "target": 84.35,
+        "level": 84.72,
+        "status": "FILLED",
+        "finishedAt": "2026-05-20T21:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-20T23:25:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 85.39,
+        "target": 86.38,
+        "level": 85.885,
+        "status": "FILLED",
+        "finishedAt": "2026-05-20T23:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-22",
+    "before": [
+      {
+        "createdAt": "2026-05-22T19:30:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 86.54,
+        "target": 87.58,
+        "level": 87.06,
+        "status": "FILLED",
+        "finishedAt": "2026-05-22T20:30:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-22T20:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 86.54,
+        "target": 87.76,
+        "level": 87.15,
+        "status": "FILLED",
+        "finishedAt": "2026-05-22T20:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-26",
+    "before": [
+      {
+        "createdAt": "2026-05-26T21:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 84.11,
+        "target": 85.98,
+        "level": 85.045,
+        "status": "FILLED",
+        "finishedAt": "2026-05-26T22:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-26T21:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 84.11,
+        "target": 85.98,
+        "level": 85.045,
+        "status": "FILLED",
+        "finishedAt": "2026-05-26T22:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-05-28",
+    "before": [
+      {
+        "createdAt": "2026-05-28T19:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.23,
+        "target": 80.55,
+        "level": 80.89,
+        "status": "FILLED",
+        "finishedAt": "2026-05-28T20:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-05-28T19:45:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.23,
+        "target": 80.55,
+        "level": 80.89,
+        "status": "FILLED",
+        "finishedAt": "2026-05-28T20:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-01",
+    "before": [
+      {
+        "createdAt": "2026-06-01T20:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.22,
+        "target": 80.25,
+        "level": 80.735,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-06-01T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-01T21:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.22,
+        "target": 79.43,
+        "level": 80.325,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-06-01T23:45:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-02",
+    "before": [
+      {
+        "createdAt": "2026-06-02T19:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 79.82,
+        "target": 78.65,
+        "level": 79.235,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-06-02T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-02T19:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 79.82,
+        "target": 78.65,
+        "level": 79.235,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-06-02T22:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-04",
+    "before": [
+      {
+        "createdAt": "2026-06-04T16:45:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 69.87,
+        "target": 67.85,
+        "level": 68.86,
+        "status": "FILLED",
+        "finishedAt": "2026-06-04T17:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-04T16:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 69.87,
+        "target": 67.85,
+        "level": 68.86,
+        "status": "FILLED",
+        "finishedAt": "2026-06-04T17:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-05",
+    "before": [
+      {
+        "createdAt": "2026-06-05T17:20:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 64.06,
+        "target": 66.6,
+        "level": 65.33,
+        "status": "FILLED",
+        "finishedAt": "2026-06-05T19:30:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-05T17:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 64.06,
+        "target": 66.6,
+        "level": 65.33,
+        "status": "FILLED",
+        "finishedAt": "2026-06-05T19:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-09",
+    "before": [
+      {
+        "createdAt": "2026-06-09T17:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 67.3,
+        "target": 65.99,
+        "level": 66.645,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-06-09T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-09T17:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 67.3,
+        "target": 65.99,
+        "level": 66.645,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-06-09T18:50:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-10",
+    "before": [
+      {
+        "createdAt": "2026-06-10T18:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 64.64,
+        "target": 63.04,
+        "level": 63.84,
+        "status": "FILLED",
+        "finishedAt": "2026-06-10T19:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-06-10T23:10:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 64.68,
+        "target": 65.61,
+        "level": 65.145,
+        "status": "FILLED",
+        "finishedAt": "2026-06-10T23:15:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-10T19:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 64.64,
+        "target": 63.04,
+        "level": 63.84,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-06-10T20:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-06-10T23:10:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 64.68,
+        "target": 65.61,
+        "level": 65.145,
+        "status": "FILLED",
+        "finishedAt": "2026-06-10T23:15:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-06-10T23:45:00.000+07:00",
+        "side": -1,
+        "kind": 5,
+        "stop": 65.61,
+        "target": 63.18,
+        "level": 64.395,
+        "status": "FILLED",
+        "finishedAt": "2026-06-10T23:50:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-11",
+    "before": [
+      {
+        "createdAt": "2026-06-11T17:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 64.75,
+        "target": 65.47,
+        "level": 65.11,
+        "status": "FILLED",
+        "finishedAt": "2026-06-11T19:20:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-11T17:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 64.75,
+        "target": 65.47,
+        "level": 65.11,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-06-11T18:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-17",
+    "before": [
+      {
+        "createdAt": "2026-06-17T18:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 73.46,
+        "target": 71.86,
+        "level": 72.66,
+        "status": "FILLED",
+        "finishedAt": "2026-06-17T20:45:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-17T19:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 73.46,
+        "target": 71.86,
+        "level": 72.66,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-06-17T19:50:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-06-17T21:05:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 71.7,
+        "target": 72.62,
+        "level": 72.16,
+        "status": "FILLED",
+        "finishedAt": "2026-06-17T21:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-19",
+    "before": [
+      {
+        "createdAt": "2026-06-19T22:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 67.96,
+        "target": 69.37,
+        "level": 68.665,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-06-19T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-19T22:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 67.96,
+        "target": 69.37,
+        "level": 68.665,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-06-19T23:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-22",
+    "before": [
+      {
+        "createdAt": "2026-06-22T22:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 74.28,
+        "target": 73.38,
+        "level": 73.83,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-06-22T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-22T22:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 74.28,
+        "target": 73.38,
+        "level": 73.83,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-06-22T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-24",
+    "before": [
+      {
+        "createdAt": "2026-06-24T17:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 69.92,
+        "target": 68.93,
+        "level": 69.425,
+        "status": "FILLED",
+        "finishedAt": "2026-06-24T18:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-06-24T20:40:00.000+07:00",
+        "side": -1,
+        "kind": 4,
+        "stop": 70.18,
+        "target": 68.64,
+        "level": 69.41,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-06-24T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-24T18:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 69.92,
+        "target": 68.78,
+        "level": 69.35,
+        "status": "STOP_BEFORE_ENTRY",
+        "finishedAt": "2026-06-24T18:45:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-06-29",
+    "before": [
+      {
+        "createdAt": "2026-06-29T19:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 72.21,
+        "target": 74.08,
+        "level": 73.145,
+        "status": "FILLED",
+        "finishedAt": "2026-06-29T20:30:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-06-29T19:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 72.21,
+        "target": 74.08,
+        "level": 73.145,
+        "status": "FILLED",
+        "finishedAt": "2026-06-29T20:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-01",
+    "before": [
+      {
+        "createdAt": "2026-07-01T21:35:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 74.11,
+        "target": 76.9,
+        "level": 75.505,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-07-01T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-01T22:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 74.11,
+        "target": 77.5,
+        "level": 75.805,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-07-01T23:50:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-07",
+    "before": [
+      {
+        "createdAt": "2026-07-07T16:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.67,
+        "target": 81.22,
+        "level": 81.445,
+        "status": "FILLED",
+        "finishedAt": "2026-07-07T17:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-07T16:45:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 81.67,
+        "target": 81.14,
+        "level": 81.405,
+        "status": "FILLED",
+        "finishedAt": "2026-07-07T17:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-09",
+    "before": [
+      {
+        "createdAt": "2026-07-09T16:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 78.45,
+        "target": 77.91,
+        "level": 78.18,
+        "status": "FILLED",
+        "finishedAt": "2026-07-09T17:10:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-09T16:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 78.45,
+        "target": 77.91,
+        "level": 78.18,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-07-09T17:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-10",
+    "before": [
+      {
+        "createdAt": "2026-07-10T17:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.75,
+        "target": 79.57,
+        "level": 79.16,
+        "status": "FILLED",
+        "finishedAt": "2026-07-10T18:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-10T17:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 78.75,
+        "target": 79.57,
+        "level": 79.16,
+        "status": "FILLED",
+        "finishedAt": "2026-07-10T18:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-14",
+    "before": [
+      {
+        "createdAt": "2026-07-14T18:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 74.87,
+        "target": 75.43,
+        "level": 75.15,
+        "status": "FILLED",
+        "finishedAt": "2026-07-14T19:10:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-14T18:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 74.87,
+        "target": 75.56,
+        "level": 75.215,
+        "status": "FILLED",
+        "finishedAt": "2026-07-14T19:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-20",
+    "before": [
+      {
+        "createdAt": "2026-07-20T16:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 75.6,
+        "target": 76.62,
+        "level": 76.11,
+        "status": "FILLED",
+        "finishedAt": "2026-07-20T20:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-20T16:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 75.6,
+        "target": 76.62,
+        "level": 76.11,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-07-20T17:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-07-20T21:35:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 76.63,
+        "target": 75.98,
+        "level": 76.305,
+        "status": "FILLED",
+        "finishedAt": "2026-07-20T21:45:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-22",
+    "before": [
+      {
+        "createdAt": "2026-07-22T18:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 76.99,
+        "target": 77.7,
+        "level": 77.345,
+        "status": "FILLED",
+        "finishedAt": "2026-07-22T19:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-22T18:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 76.99,
+        "target": 77.7,
+        "level": 77.345,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-07-22T18:40:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-23",
+    "before": [
+      {
+        "createdAt": "2026-07-23T17:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 77.05,
+        "target": 77.75,
+        "level": 77.4,
+        "status": "FILLED",
+        "finishedAt": "2026-07-23T19:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-07-23T22:30:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 76.94,
+        "target": 75.9,
+        "level": 76.42,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-07-23T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-23T17:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 77.05,
+        "target": 77.75,
+        "level": 77.4,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-07-23T18:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-07-23T20:35:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 77.81,
+        "target": 76.64,
+        "level": 77.225,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-07-23T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-24",
+    "before": [
+      {
+        "createdAt": "2026-07-24T17:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 76.34,
+        "target": 75.38,
+        "level": 75.86,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-07-24T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-24T17:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 76.34,
+        "target": 75.38,
+        "level": 75.86,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-07-24T19:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-28",
+    "before": [
+      {
+        "createdAt": "2026-07-28T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 73.41,
+        "target": 72.47,
+        "level": 72.94,
+        "status": "FILLED",
+        "finishedAt": "2026-07-28T21:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-28T21:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 73.41,
+        "target": 72.47,
+        "level": 72.94,
+        "status": "FILLED",
+        "finishedAt": "2026-07-28T21:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-29",
+    "before": [
+      {
+        "createdAt": "2026-07-29T19:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 74.23,
+        "target": 73.49,
+        "level": 73.86,
+        "status": "FILLED",
+        "finishedAt": "2026-07-29T21:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-29T20:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 74.23,
+        "target": 73.45,
+        "level": 73.84,
+        "status": "FILLED",
+        "finishedAt": "2026-07-29T21:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-07-31",
+    "before": [
+      {
+        "createdAt": "2026-07-31T17:20:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 73.74,
+        "target": 73.41,
+        "level": 73.575,
+        "status": "FILLED",
+        "finishedAt": "2026-07-31T17:25:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-07-31T17:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 73.74,
+        "target": 73.41,
+        "level": 73.575,
+        "status": "FILLED",
+        "finishedAt": "2026-07-31T17:30:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-05",
+    "before": [
+      {
+        "createdAt": "2026-08-05T16:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 73.65,
+        "target": 74.16,
+        "level": 73.905,
+        "status": "FILLED",
+        "finishedAt": "2026-08-05T17:10:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-05T17:00:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 73.65,
+        "target": 74.16,
+        "level": 73.905,
+        "status": "FILLED",
+        "finishedAt": "2026-08-05T17:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-06",
+    "before": [
+      {
+        "createdAt": "2026-08-06T17:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 74.08,
+        "target": 73.16,
+        "level": 73.62,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-08-06T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-06T17:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 74.08,
+        "target": 73.16,
+        "level": 73.62,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-08-06T20:35:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-07",
+    "before": [
+      {
+        "createdAt": "2026-08-07T19:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 72.8,
+        "target": 73.95,
+        "level": 73.375,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-08-07T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-07T20:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 72.8,
+        "target": 73.97,
+        "level": 73.385,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-08-07T21:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-11",
+    "before": [
+      {
+        "createdAt": "2026-08-11T18:20:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 75.4,
+        "target": 76.25,
+        "level": 75.825,
+        "status": "FILLED",
+        "finishedAt": "2026-08-11T19:25:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-08-11T23:10:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 75.31,
+        "target": 74.65,
+        "level": 74.98,
+        "status": "FILLED",
+        "finishedAt": "2026-08-11T23:15:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-11T19:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 75.4,
+        "target": 76.25,
+        "level": 75.825,
+        "status": "FILLED",
+        "finishedAt": "2026-08-11T19:30:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-08-11T23:10:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 75.31,
+        "target": 74.65,
+        "level": 74.98,
+        "status": "FILLED",
+        "finishedAt": "2026-08-11T23:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-12",
+    "before": [
+      {
+        "createdAt": "2026-08-12T16:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 75.96,
+        "target": 76.74,
+        "level": 76.35,
+        "status": "FILLED",
+        "finishedAt": "2026-08-12T19:45:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-08-12T22:10:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 76.03,
+        "target": 75.43,
+        "level": 75.73,
+        "status": "FILLED",
+        "finishedAt": "2026-08-12T22:15:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-12T18:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 75.96,
+        "target": 76.8,
+        "level": 76.38,
+        "status": "FILLED",
+        "finishedAt": "2026-08-12T19:45:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-08-12T22:10:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 76.03,
+        "target": 75.43,
+        "level": 75.73,
+        "status": "FILLED",
+        "finishedAt": "2026-08-12T22:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-13",
+    "before": [
+      {
+        "createdAt": "2026-08-13T17:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 76.49,
+        "target": 75.66,
+        "level": 76.075,
+        "status": "FILLED",
+        "finishedAt": "2026-08-13T19:55:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-08-13T23:15:00.000+07:00",
+        "side": -1,
+        "kind": 4,
+        "stop": 76.52,
+        "target": 75.6,
+        "level": 76.06,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-08-13T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-13T18:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 76.49,
+        "target": 75.56,
+        "level": 76.025,
+        "status": "FILLED",
+        "finishedAt": "2026-08-13T19:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-18",
+    "before": [
+      {
+        "createdAt": "2026-08-18T17:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 76.16,
+        "target": 75.78,
+        "level": 75.97,
+        "status": "FILLED",
+        "finishedAt": "2026-08-18T18:10:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-08-18T18:55:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 76.24,
+        "target": 76.37,
+        "level": 76.305,
+        "status": "FILLED",
+        "finishedAt": "2026-08-18T19:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-18T18:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 76.16,
+        "target": 75.78,
+        "level": 75.97,
+        "status": "FILLED",
+        "finishedAt": "2026-08-18T18:10:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-08-18T18:55:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 76.24,
+        "target": 76.37,
+        "level": 76.305,
+        "status": "FILLED",
+        "finishedAt": "2026-08-18T19:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-19",
+    "before": [
+      {
+        "createdAt": "2026-08-19T18:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 76.92,
+        "target": 77.55,
+        "level": 77.235,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-08-19T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-19T18:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 76.92,
+        "target": 77.55,
+        "level": 77.235,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-08-19T22:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-25",
+    "before": [
+      {
+        "createdAt": "2026-08-25T19:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 101.67,
+        "target": 97.96,
+        "level": 99.815,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-08-25T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-25T19:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 101.67,
+        "target": 97.96,
+        "level": 99.815,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-08-25T21:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-27",
+    "before": [
+      {
+        "createdAt": "2026-08-27T21:20:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 100.96,
+        "target": 106.3,
+        "level": 103.63,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-08-27T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-27T21:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 100.96,
+        "target": 106.3,
+        "level": 103.63,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-08-27T22:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-08-28",
+    "before": [
+      {
+        "createdAt": "2026-08-28T17:25:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 107.7,
+        "target": 104.73,
+        "level": 106.215,
+        "status": "FILLED",
+        "finishedAt": "2026-08-28T18:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-08-28T17:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 107.7,
+        "target": 104.73,
+        "level": 106.215,
+        "status": "FILLED",
+        "finishedAt": "2026-08-28T18:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-02",
+    "before": [
+      {
+        "createdAt": "2026-09-02T17:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 100.23,
+        "target": 98.36,
+        "level": 99.295,
+        "status": "FILLED",
+        "finishedAt": "2026-09-02T20:40:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-02T18:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 100.23,
+        "target": 97.65,
+        "level": 98.94,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-09-02T18:40:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-09-02T21:00:00.000+07:00",
+        "side": 1,
+        "kind": 2,
+        "stop": 97.49,
+        "target": 99.61,
+        "level": 98.55,
+        "status": "FILLED",
+        "finishedAt": "2026-09-02T22:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-04",
+    "before": [
+      {
+        "createdAt": "2026-09-04T20:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 103.94,
+        "target": 101.27,
+        "level": 102.605,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-09-04T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-04T20:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 103.94,
+        "target": 101.06,
+        "level": 102.5,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-09-04T22:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-08",
+    "before": [
+      {
+        "createdAt": "2026-09-08T17:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 102.53,
+        "target": 103.81,
+        "level": 103.17,
+        "status": "FILLED",
+        "finishedAt": "2026-09-08T18:05:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-09-08T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 103.23,
+        "target": 101.95,
+        "level": 102.59,
+        "status": "FILLED",
+        "finishedAt": "2026-09-08T21:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-08T17:45:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 102.53,
+        "target": 103.81,
+        "level": 103.17,
+        "status": "FILLED",
+        "finishedAt": "2026-09-08T18:05:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-09-08T20:55:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 103.23,
+        "target": 101.95,
+        "level": 102.59,
+        "status": "FILLED",
+        "finishedAt": "2026-09-08T21:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-09",
+    "before": [
+      {
+        "createdAt": "2026-09-09T18:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 104.94,
+        "target": 103.28,
+        "level": 104.11,
+        "status": "FILLED",
+        "finishedAt": "2026-09-09T18:50:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-09T18:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 104.94,
+        "target": 103.28,
+        "level": 104.11,
+        "status": "FILLED",
+        "finishedAt": "2026-09-09T18:50:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-11",
+    "before": [
+      {
+        "createdAt": "2026-09-11T16:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 99.95,
+        "target": 99.09,
+        "level": 99.52,
+        "status": "FILLED",
+        "finishedAt": "2026-09-11T17:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-11T17:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 99.95,
+        "target": 99.09,
+        "level": 99.52,
+        "status": "FILLED",
+        "finishedAt": "2026-09-11T17:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-14",
+    "before": [
+      {
+        "createdAt": "2026-09-14T16:10:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 101.64,
+        "target": 101.34,
+        "level": 101.49,
+        "status": "FILLED",
+        "finishedAt": "2026-09-14T16:15:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-14T16:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 101.64,
+        "target": 101.34,
+        "level": 101.49,
+        "status": "FILLED",
+        "finishedAt": "2026-09-14T16:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-17",
+    "before": [
+      {
+        "createdAt": "2026-09-17T19:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 99.89,
+        "target": 101.21,
+        "level": 100.55,
+        "status": "FILLED",
+        "finishedAt": "2026-09-17T20:05:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-09-17T21:55:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 99.55,
+        "target": 101.64,
+        "level": 100.595,
+        "status": "FILLED",
+        "finishedAt": "2026-09-17T22:05:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-17T19:55:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 99.89,
+        "target": 101.21,
+        "level": 100.55,
+        "status": "FILLED",
+        "finishedAt": "2026-09-17T20:05:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-09-17T21:55:00.000+07:00",
+        "side": 1,
+        "kind": 4,
+        "stop": 99.55,
+        "target": 101.64,
+        "level": 100.595,
+        "status": "FILLED",
+        "finishedAt": "2026-09-17T22:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-21",
+    "before": [
+      {
+        "createdAt": "2026-09-21T17:00:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 111.46,
+        "target": 116.29,
+        "level": 113.875,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-09-21T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-21T17:05:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 111.46,
+        "target": 116.29,
+        "level": 113.875,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-09-21T19:05:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-23",
+    "before": [
+      {
+        "createdAt": "2026-09-23T17:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 119.12,
+        "target": 117.03,
+        "level": 118.075,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-09-23T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-23T17:40:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 119.12,
+        "target": 117.03,
+        "level": 118.075,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-09-23T19:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-25",
+    "before": [
+      {
+        "createdAt": "2026-09-25T16:50:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 115.92,
+        "target": 118.73,
+        "level": 117.325,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-09-25T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-25T17:00:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 115.92,
+        "target": 118.73,
+        "level": 117.325,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-09-25T19:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-09-30",
+    "before": [
+      {
+        "createdAt": "2026-09-30T20:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 117.9,
+        "target": 122.62,
+        "level": 120.26,
+        "status": "FILLED",
+        "finishedAt": "2026-09-30T20:40:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-09-30T20:30:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 117.9,
+        "target": 122.62,
+        "level": 120.26,
+        "status": "FILLED",
+        "finishedAt": "2026-09-30T20:40:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-01",
+    "before": [
+      {
+        "createdAt": "2026-10-01T20:30:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 118.02,
+        "target": 116.84,
+        "level": 117.43,
+        "status": "FILLED",
+        "finishedAt": "2026-10-01T20:35:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-01T20:35:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 118.02,
+        "target": 116.84,
+        "level": 117.43,
+        "status": "FILLED",
+        "finishedAt": "2026-10-01T21:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-02",
+    "before": [
+      {
+        "createdAt": "2026-10-02T20:20:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 121.06,
+        "target": 122.74,
+        "level": 121.9,
+        "status": "FILLED",
+        "finishedAt": "2026-10-02T20:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-02T20:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 121.06,
+        "target": 122.74,
+        "level": 121.9,
+        "status": "FILLED",
+        "finishedAt": "2026-10-02T20:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-06",
+    "before": [
+      {
+        "createdAt": "2026-10-06T21:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 119.18,
+        "target": 120.99,
+        "level": 120.085,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-10-06T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-06T21:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 119.18,
+        "target": 120.99,
+        "level": 120.085,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-10-06T22:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-07",
+    "before": [
+      {
+        "createdAt": "2026-10-07T18:05:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 118.98,
+        "target": 117.43,
+        "level": 118.205,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-10-07T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-07T18:10:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 118.98,
+        "target": 117.43,
+        "level": 118.205,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-10-07T19:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-09",
+    "before": [
+      {
+        "createdAt": "2026-10-09T21:00:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 110.64,
+        "target": 109.32,
+        "level": 109.98,
+        "status": "FILLED",
+        "finishedAt": "2026-10-09T21:15:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-09T21:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 110.64,
+        "target": 109.32,
+        "level": 109.98,
+        "status": "FILLED",
+        "finishedAt": "2026-10-09T21:20:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-12",
+    "before": [
+      {
+        "createdAt": "2026-10-12T16:15:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 112.97,
+        "target": 111.66,
+        "level": 112.315,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-10-12T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-12T17:10:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 112.97,
+        "target": 111.31,
+        "level": 112.14,
+        "status": "THIRD_EXTREME",
+        "finishedAt": "2026-10-12T19:10:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-15",
+    "before": [
+      {
+        "createdAt": "2026-10-15T22:20:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 101.82,
+        "target": 105.89,
+        "level": 103.855,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-10-15T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-15T23:25:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 101.82,
+        "target": 106.13,
+        "level": 103.975,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-10-15T23:55:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-16",
+    "before": [
+      {
+        "createdAt": "2026-10-16T18:30:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 106.08,
+        "target": 107.21,
+        "level": 106.645,
+        "status": "FILLED",
+        "finishedAt": "2026-10-16T18:35:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-10-16T20:25:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 107.21,
+        "target": 105.4,
+        "level": 106.305,
+        "status": "FILLED",
+        "finishedAt": "2026-10-16T21:15:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-16T18:40:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 106.08,
+        "target": 107.21,
+        "level": 106.645,
+        "status": "FILLED",
+        "finishedAt": "2026-10-16T18:45:00.000+07:00"
+      },
+      {
+        "createdAt": "2026-10-16T20:25:00.000+07:00",
+        "side": -1,
+        "kind": 2,
+        "stop": 107.21,
+        "target": 105.4,
+        "level": 106.305,
+        "status": "FILLED",
+        "finishedAt": "2026-10-16T21:15:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-26",
+    "before": [
+      {
+        "createdAt": "2026-10-26T19:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 100.17,
+        "target": 101.71,
+        "level": 100.94,
+        "status": "FILLED",
+        "finishedAt": "2026-10-26T20:25:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-26T20:00:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 100.17,
+        "target": 101.89,
+        "level": 101.03,
+        "status": "FILLED",
+        "finishedAt": "2026-10-26T20:25:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-29",
+    "before": [
+      {
+        "createdAt": "2026-10-29T18:10:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 99.69,
+        "target": 100.7,
+        "level": 100.195,
+        "status": "FILLED",
+        "finishedAt": "2026-10-29T19:00:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-29T18:15:00.000+07:00",
+        "side": 1,
+        "kind": 1,
+        "stop": 99.69,
+        "target": 100.7,
+        "level": 100.195,
+        "status": "FILLED",
+        "finishedAt": "2026-10-29T19:00:00.000+07:00"
+      }
+    ]
+  },
+  {
+    "day": "2026-10-30",
+    "before": [
+      {
+        "createdAt": "2026-10-30T21:50:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 97.54,
+        "target": 94.16,
+        "level": 95.85,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-10-30T23:55:00.000+07:00"
+      }
+    ],
+    "after": [
+      {
+        "createdAt": "2026-10-30T21:55:00.000+07:00",
+        "side": -1,
+        "kind": 1,
+        "stop": 97.54,
+        "target": 94.16,
+        "level": 95.85,
+        "status": "WINDOW_ENDED",
+        "finishedAt": "2026-10-30T23:55:00.000+07:00"
+      }
+    ]
+  }
+]

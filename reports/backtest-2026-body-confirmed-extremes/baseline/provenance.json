@@ -1,0 +1,39 @@
+{
+  "sourceCommit": "67698ad",
+  "sourceSha256": "e49ce5c247a904c4c13ca0ab8fe3f7093bdc39e0c198634b1576b51c1a48b9b8",
+  "inputPath": "/workspace/backtests/v12-e7f6d3f-2026/input.json",
+  "inputSha256": "e56e43784d0db2c4a8973448f1a03dfd7dcfbe915c2e825adf276a3cceb665e6",
+  "sources": [
+    {
+      "path": "/workspace/backtests/v12-e7f6d3f-2026/start.json",
+      "sha256": "b9cf1be7b44a59c1fbd430015087e23fd04fca09b8b8319543e5b39678dc2455",
+      "start": "2025-12-25T00:00:00+07:00",
+      "endExclusive": "2026-01-02T00:00:00+07:00",
+      "count": 2304
+    },
+    {
+      "path": "/workspace/backtests/v72-2026-current/mexc-sol-usdt-m5-2026-ytd.json",
+      "sha256": "93a1e4d2d32ff92f80bac14ee70be0ed13b750c3a495a6d760130cc6a641d74f",
+      "start": "2026-01-01T14:00:00+07:00",
+      "endExclusive": "2026-10-26T00:00:00+07:00",
+      "count": 85656
+    },
+    {
+      "path": "/workspace/backtests/v12-e7f6d3f-2026/end.json",
+      "sha256": "0384d0b973fab4affa94c7995fe43cbeb7c7518ea7057e24106426ddf70fb93b",
+      "start": "2026-10-26T00:00:00+07:00",
+      "endExclusive": "2026-10-31T15:10:00+07:00",
+      "count": 1622
+    }
+  ],
+  "bars": 89462,
+  "missingCandles": 0,
+  "cutoff": "2026-10-31T15:10:00+07:00",
+  "knownIssue": null,
+  "comparison": "Published67698ad with14Oct fix vs unapproved next-extreme draft",
+  "frozenInputGzipPath": "/workspace/backtests/v12-e7f6d3f-2026/input.json.gz",
+  "frozenInputGzipSha256": "b973b80c43e49d7672bddc99dc5d9170b9a5dd49679f11212c0516926908dd36",
+  "baselineCommit": "67698ad",
+  "notApproved": false,
+  "executionDiagnostics": "Four read-only plots: new-plan event, plan kind, side, entry-window state"
+}

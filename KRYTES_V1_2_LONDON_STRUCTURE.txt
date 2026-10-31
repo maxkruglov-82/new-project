@@ -1512,6 +1512,20 @@ var int v12OneTime = na
 var int v12InitialSide = 0
 var int v12ZeroBreakTime = na
 var float v12FirstTarget = na
+var float bodyGoalPrice = na
+var float bodyGoalEdge = na
+var float bodyGoalSize = na
+var int bodyGoalTime = na
+var int bodyGoalBar = na
+var bool bodyGoalRetreated = false
+var bool bodyGoalLocked = false
+var int thirdSecondTime = na
+var float thirdPullback = na
+var bool thirdCanceled = false
+var float thirdStop = na
+var int thirdStopTime = na
+var int thirdBreakTime = na
+bool thirdCancelEvent = false
 var bool v12ResumeInitial = false
 var int v12ResumeTime = na
 var int v12State = 0
@@ -1577,6 +1591,19 @@ if barstate.isconfirmed and m5Chart
         v12OneTime := na
         v12ZeroBreakTime := na
         v12FirstTarget := na
+        bodyGoalPrice := na
+        bodyGoalEdge := na
+        bodyGoalSize := na
+        bodyGoalTime := na
+        bodyGoalBar := na
+        bodyGoalRetreated := false
+        bodyGoalLocked := false
+        thirdSecondTime := na
+        thirdPullback := na
+        thirdCanceled := false
+        thirdStop := na
+        thirdStopTime := na
+        thirdBreakTime := na
         v12ResumeInitial := false
         v12ResumeTime := na
         v12Entries := 0
@@ -1593,12 +1620,14 @@ if barstate.isconfirmed and m5Chart
         v12InitialSide := v12One > v12Zero ? 1 : -1
     bool v12CanFirst = v12Entries == 0 and v12State != 2 and firstPointWindow and not na(v12Zero)
     // Первая встречная сделка требует закрепа за0, затем трёх опор.
-    if na(v12ZeroBreakTime) and not na(v12Zero) and time > v12OneTime and twoM5Break(v12Zero, v12InitialSide == -1, firstPointOffset, pointPairM5)
+    if not thirdCanceled and na(v12ZeroBreakTime) and not na(v12Zero) and time > v12OneTime and twoM5Break(v12Zero, v12InitialSide == -1, firstPointOffset, pointPairM5)
         v12ZeroBreakTime := time
         if v12CanFirst
             v12ResumeInitial := false
             v12ResumeTime := na
             v12FirstTarget := na
+            bodyGoalPrice := na
+            bodyGoalLocked := false
             if v12State == 1
                 v12ArchiveNoEntry(v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo, v12Side, v12Level, time, "закреп за исходной0 отменил сценарий")
             v12State := 0
@@ -1616,7 +1645,7 @@ if barstate.isconfirmed and m5Chart
     // Первая свеча равного экстремума; повтор тела на открытии не двигает опору.
     // Встречная тройка не состоялась: обновление исходной1 возвращает исходный тренд.
     bool v12RenewedOne = v12InitialSide==1?close-v12One>=firstPointOffset-0.000000001:v12One-close>=firstPointOffset-0.000000001
-    if v12CanFirst and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage<3 and v12RenewedOne
+    if not thirdCanceled and v12CanFirst and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12Stage<3 and v12RenewedOne
         v12ResumeInitial := true
         v12ResumeTime := time
         v12FirstTarget := na
@@ -1632,12 +1661,12 @@ if barstate.isconfirmed and m5Chart
     int v12PivotTime = time[4]
     // При возврате исходного направления сохраняем первый встречный LL/HH как контрольную опору.
     bool v12MiddleType = v12InitialSide==1?v12PivotHigh:not v12PivotHigh
-    if v12CanFirst and v12ResumeInitial and not na(v12A) and v12Pivot and v12MiddleType and v12PivotTime>v12ATime and (na(v12B) or (v12InitialSide==1?v12PivotPrice>v12B:v12PivotPrice<v12B))
+    if not thirdCanceled and v12CanFirst and v12ResumeInitial and not na(v12A) and v12Pivot and v12MiddleType and v12PivotTime>v12ATime and (na(v12B) or (v12InitialSide==1?v12PivotPrice>v12B:v12PivotPrice<v12B))
         v12B := v12PivotPrice
         v12BTime := v12PivotTime
         v12Stage := 2
     bool v12FailedResume = v12InitialSide==1?v12A-close>=firstPointOffset-0.000000001:close-v12A>=firstPointOffset-0.000000001
-    if v12CanFirst and v12ResumeInitial and not na(v12A) and not na(v12B) and v12FailedResume
+    if not thirdCanceled and v12CanFirst and v12ResumeInitial and not na(v12A) and not na(v12B) and v12FailedResume
         v12ResumeInitial := false
         v12FirstTarget := na
         v12Stage := 3
@@ -1648,18 +1677,66 @@ if barstate.isconfirmed and m5Chart
         v12ProposedStop := v12B
         v12ProposedTarget := v12C
         v12ProposedAnchor := v12BTime
+    // Draft: each continuation HH/LL needs a close beyond its opposite body edge.
+    // Until retreat plus four right candles, a new extreme extends this same point.
+    bool bodyGoalEvent = false
+    if not thirdCanceled and v12CanFirst and (na(v12ZeroBreakTime) or v12ResumeInitial)
+        float bodyGoalNow = v12InitialSide == 1 ? bodyHigh : bodyLow
+        bool bodyGoalBeyondOne = v12InitialSide == 1 ? bodyGoalNow > v12One : bodyGoalNow < v12One
+        bool bodyGoalNew = na(bodyGoalPrice) or (v12InitialSide == 1 ? bodyGoalNow > bodyGoalPrice : bodyGoalNow < bodyGoalPrice)
+        bool bodyGoalWider = not bodyGoalLocked and bar_index == bodyGoalBar+1 and time-time[1] == 300000 and math.abs(bodyGoalNow-bodyGoalPrice) <= 0.000000001 and math.abs(close-open) > bodyGoalSize+0.000000001
+        if time > v12OneTime and bodyGoalBeyondOne and (bodyGoalNew or bodyGoalWider)
+            bodyGoalPrice := bodyGoalNow
+            bodyGoalEdge := v12InitialSide == 1 ? bodyLow : bodyHigh
+            bodyGoalSize := math.abs(close-open)
+            bodyGoalTime := time
+            bodyGoalBar := bar_index
+            bodyGoalRetreated := false
+            bodyGoalLocked := false
+        else if not na(bodyGoalPrice) and not bodyGoalLocked and bar_index > bodyGoalBar
+            bodyGoalRetreated := bodyGoalRetreated or (v12InitialSide == 1 ? close < bodyGoalEdge : close > bodyGoalEdge)
+            if bodyGoalRetreated and bar_index-bodyGoalBar >= 4
+                bodyGoalLocked := true
+                bodyGoalEvent := true
     // Продолжение: первый подтверждённый HH/LL. Последующие цель не сдвигают.
     bool v12SameType = v12InitialSide == 1 ? v12PivotHigh : not v12PivotHigh
     bool v12BeyondOne = v12InitialSide == 1 ? v12PivotPrice > v12One : v12PivotPrice < v12One
-    if v12CanFirst and (na(v12ZeroBreakTime) or v12ResumeInitial) and na(v12FirstTarget) and v12Pivot and v12SameType and v12PivotTime > v12OneTime and (not v12ResumeInitial or v12PivotTime>=v12ResumeTime-300000) and v12BeyondOne
-        v12FirstTarget := v12PivotPrice
+    if not thirdCanceled and v12CanFirst and (na(v12ZeroBreakTime) or v12ResumeInitial) and na(v12FirstTarget) and bodyGoalEvent and (not v12ResumeInitial or bodyGoalTime>=v12ResumeTime-300000)
+        v12FirstTarget := bodyGoalPrice
+        thirdSecondTime := bodyGoalTime
+        thirdPullback := na
         v12ProposedKind := 1
         v12ProposedSide := v12InitialSide
         v12ProposedStop := v12Zero
         v12ProposedTarget := v12FirstTarget
         v12ProposedAnchor := v12ZeroTime
+    // Unapproved draft: original 1 is high/low #1, continuation target is #2.
+    if v12CanFirst and not thirdCanceled and not na(thirdSecondTime) and v12Pivot and v12PivotTime > thirdSecondTime
+        if not v12SameType
+            thirdPullback := na(thirdPullback) ? v12PivotPrice : (v12InitialSide == 1 ? math.min(thirdPullback,v12PivotPrice) : math.max(thirdPullback,v12PivotPrice))
+    if v12CanFirst and not thirdCanceled and not na(thirdSecondTime) and bodyGoalEvent and bodyGoalTime > thirdSecondTime and v12State == 1 and v12PlanKind == 1 and (v12InitialSide == 1 ? bodyGoalPrice > v12FirstTarget : bodyGoalPrice < v12FirstTarget) and not (low <= v12Level and high >= v12Level)
+        thirdCanceled := true
+        thirdCancelEvent := true
+        thirdStop := bodyGoalPrice
+        thirdStopTime := bodyGoalTime
+        v12ArchiveNoEntry(v12RiskBox,v12RewardBox,v12Info,v12StopInfo,v12TargetInfo,v12Side,v12Level,time,"третий экстремум отменил вход")
+        v12State := 0
+        v12RiskBox := na
+        v12RewardBox := na
+        v12Info := na
+        v12StopInfo := na
+        v12TargetInfo := na
+        v12ResumeInitial := false
+        v12Stage := 0
+        v12SequenceSide := -v12InitialSide
+        v12A := na
+        v12B := na
+        v12C := na
+    if thirdCanceled and v12CanFirst and na(thirdBreakTime) and not na(thirdPullback) and (v12InitialSide == 1 ? thirdPullback-close >= firstPointOffset-0.000000001 : close-thirdPullback >= firstPointOffset-0.000000001)
+        thirdBreakTime := time
+        v12SequenceFrom := time
     bool v12CanRetry = v12Stopped and v12Entries == 1 and v12PlanDay == rangeDayKey and (v12State == 4 or v12State == 5) and firstPointWindow
-    bool v12CanSequence = (v12CanFirst and not na(v12ZeroBreakTime) and not v12ResumeInitial and v12State != 1) or v12CanRetry
+    bool v12CanSequence = (v12CanFirst and v12State != 1 and (thirdCanceled ? not na(thirdBreakTime) : not na(v12ZeroBreakTime) and not v12ResumeInitial)) or v12CanRetry
     if v12CanSequence and v12SequenceSide != 0 and v12Pivot and v12PivotTime >= v12SequenceFrom
         [v12NextStage, v12NextA, v12NextATime, v12NextB, v12NextBTime, v12NextC, v12NextCTime] = v12Advance(v12SequenceSide, v12Stage, v12A, v12ATime, v12B, v12BTime, v12C, v12CTime, v12PivotPrice, v12PivotTime, v12PivotHigh)
         bool v12CompletedNow = v12Stage != 3 and v12NextStage == 3
@@ -1673,10 +1750,10 @@ if barstate.isconfirmed and m5Chart
         if v12CompletedNow
             v12ProposedKind := v12CanRetry and v12SequenceSide==v12InitialSide ? 3 : 2
             v12ProposedSide := v12SequenceSide
-            v12ProposedStop := v12B
+            v12ProposedStop := thirdCanceled and v12CanFirst ? thirdStop : v12B
             // Возврат после SL в исходное направление: цель исходная1.
             v12ProposedTarget := v12CanRetry and v12SequenceSide == v12InitialSide ? v12One : v12C
-            v12ProposedAnchor := v12BTime
+            v12ProposedAnchor := thirdCanceled and v12CanFirst ? thirdStopTime : v12BTime
     // Сохраняем исключение V1: продолжение после манипуляции и нового LL/HH.
     if v12CanRetry
         float v12ManipCandidate = v12FirstSide == -1 ? bodyHigh : bodyLow
@@ -1694,7 +1771,7 @@ if barstate.isconfirmed and m5Chart
             v12ProposedStop := v12Manipulation
             v12ProposedTarget := v12PivotPrice
             v12ProposedAnchor := v12ManipulationTime
-    bool v12ProposalValid = v12ProposedSide != 0 and (v12ProposedSide==v12InitialSide or not na(v12ZeroBreakTime)) and (v12ProposedSide == 1 ? v12ProposedTarget > v12ProposedStop and bodyLow > v12ProposedStop : v12ProposedTarget < v12ProposedStop and bodyHigh < v12ProposedStop)
+    bool v12ProposalValid = v12ProposedSide != 0 and (v12ProposedSide==v12InitialSide or not na(v12ZeroBreakTime) or not na(thirdBreakTime)) and (v12ProposedSide == 1 ? v12ProposedTarget > v12ProposedStop and bodyLow > v12ProposedStop : v12ProposedTarget < v12ProposedStop and bodyHigh < v12ProposedStop)
     // Отклонённая тройка не блокирует следующие внешние опоры.
     // Её последний экстремум становится первой опорой нового подтверждения.
     if v12ProposedKind == 2 and v12ProposedSide == v12SequenceSide and v12Stage == 3 and not v12ProposalValid and v12State != 2

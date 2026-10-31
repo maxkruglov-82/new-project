@@ -70,11 +70,11 @@ for(const day of ['09','21','23','16','22','14'])for(const mirror of [false,true
   assert.deepEqual(exits,[['18:45',-1],['20:40',1]]);assert.ok(Math.abs(fills[1][4]-p(104.8))<1e-8,'immediate return target is original1');
  }
  if(day==='09'&&!mirror){
-  assert.deepEqual(fills.map(x=>x.slice(0,2)),[['21:15',-1]],'no false LONG before failed countertrend resolves');
+  assert.deepEqual(fills.map(x=>x.slice(0,2)),[['21:20',-1]],'no false LONG before failed countertrend resolves');
   assert.deepEqual(exits,[['22:30',1]]);
  }
  if(day==='16'){
-  assert.deepEqual(fills.map(x=>x.slice(0,2)),[['18:35',mirror?-1:1],['21:15',mirror?1:-1]]);
+  assert.deepEqual(fills.map(x=>x.slice(0,2)),[['18:45',mirror?-1:1],['21:15',mirror?1:-1]]);
   assert.deepEqual(exits,[['19:10',-1],['22:05',1]],'point1 relocation removes the premature continuation entry');
   assert.ok(Math.abs(fills[0][3]-p(106.08))<1e-8);
   const capturedOne=c.plots.testOne.data.find((x,i)=>Number.isFinite(x.value)&&new Date(d[i].openTime+7*3600000).toISOString().startsWith('2026-10-16'));
