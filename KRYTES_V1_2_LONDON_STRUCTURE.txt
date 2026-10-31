@@ -422,6 +422,19 @@ removePendingPlan(array<box> boxes, array<label> labels, box riskBox, box reward
     deletePositionPrice(labels, stopInfo)
     deletePositionPrice(labels, targetInfo)
 
+// Неисполненный готовый сетап остаётся в архиве отдельно от реальных сделок.
+v12ArchiveNoEntry(box risk, box reward, label info, label stopInfo, label targetInfo, int side, float level, int endTime, string reason) =>
+    if not na(info)
+        int rightTime = endTime + 300000
+        box.set_right(risk, rightTime)
+        box.set_right(reward, rightTime)
+        label.set_xy(info, rightTime, level)
+        label.set_text(info, "Без входа " + (side == 1 ? "LONG: $" : "SHORT: $") + str.tostring(level, "#.#####") + " · " + reason)
+        label.set_textcolor(info, color.gray)
+        label.set_xy(stopInfo, rightTime, label.get_y(stopInfo))
+        label.set_xy(targetInfo, rightTime, label.get_y(targetInfo))
+    true
+
 // Подберите цвет точно под фон графика KRYTES.
 color backgroundColor = input.color(color.rgb(245, 246, 248), "Цвет фона графика (маска теней)")
 color flatColor = color.black
@@ -1561,7 +1574,7 @@ int v12ProposedAnchor = na
 if barstate.isconfirmed and m5Chart
     if na(v12Day) or v12Day != rangeDayKey
         if v12State == 1
-            removePendingPlan(positionBoxes, positionLabels, v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo)
+            v12ArchiveNoEntry(v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo, v12Side, v12Level, time, "торговый день завершён")
         if v12State != 2
             v12State := 0
             v12RiskBox := na
@@ -1599,7 +1612,7 @@ if barstate.isconfirmed and m5Chart
             v12ResumeTime := na
             v12FirstTarget := na
             if v12State == 1
-                removePendingPlan(positionBoxes, positionLabels, v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo)
+                v12ArchiveNoEntry(v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo, v12Side, v12Level, time, "закреп за исходной0 отменил сценарий")
             v12State := 0
             v12RiskBox := na
             v12RewardBox := na
@@ -1696,7 +1709,7 @@ if barstate.isconfirmed and m5Chart
     bool v12ProposalValid = v12ProposedSide != 0 and (v12ProposedSide==v12InitialSide or not na(v12ZeroBreakTime)) and (v12ProposedSide == 1 ? v12ProposedTarget > v12ProposedStop and bodyLow > v12ProposedStop : v12ProposedTarget < v12ProposedStop and bodyHigh < v12ProposedStop)
     if v12ProposalValid and v12State != 2 and v12Entries < 2 and firstPointWindow
         if v12State == 1
-            removePendingPlan(positionBoxes, positionLabels, v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo)
+            v12ArchiveNoEntry(v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo, v12Side, v12Level, time, "заменён новым подтверждённым сетапом")
         v12PlanKind := v12ProposedKind
         v12Side := v12ProposedSide
         v12Stop := v12ProposedStop
@@ -1853,7 +1866,7 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
                         v12TargetInfo := na
                         v12NewPlan := true
     if v12State == 5 and not na(v12Info)
-        removePendingPlan(positionBoxes, positionLabels, v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo)
+        v12ArchiveNoEntry(v12RiskBox, v12RewardBox, v12Info, v12StopInfo, v12TargetInfo, v12Side, v12Level, time, (firstPointWindow and v12PlanDay == rangeDayKey) ? "стоп нарушен до входа" : "окно входа завершено; касания RR не было")
         v12RiskBox := na
         v12RewardBox := na
         v12Info := na
@@ -1862,7 +1875,7 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
     if v12NewPlan
         v12RiskBox := box.new(left=v12Anchor, top=math.max(v12Stop,v12Level), right=time+600000, bottom=math.min(v12Stop,v12Level), xloc=xloc.bar_time, border_color=color.new(color.red,100), bgcolor=color.new(color.red,85))
         v12RewardBox := box.new(left=v12Anchor, top=math.max(v12Target,v12Level), right=time+600000, bottom=math.min(v12Target,v12Level), xloc=xloc.bar_time, border_color=color.new(color.teal,100), bgcolor=color.new(color.teal,85))
-        v12Info := updatePositionPrice(na,time+600000,v12Level,"Точка входа в "+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
+        v12Info := updatePositionPrice(na,time+600000,v12Level,"Ожидаем касания "+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
         v12StopInfo := updatePositionPrice(na,time+600000,v12Stop,v1LevelCaption("Стоп: ",v12Level,v12Stop,true),color.red)
         v12TargetInfo := updatePositionPrice(na,time+600000,v12Target,v1LevelCaption("Тейк: ",v12Level,v12Target,false),color.teal)
         array.push(positionBoxes,v12RiskBox)
@@ -1878,7 +1891,7 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
         int v12Right = positionExitEvent!=0 and not v12NewPlan ? time+300000 : time+600000
         box.set_right(v12RiskBox,v12Right)
         box.set_right(v12RewardBox,v12Right)
-        v12Info := updatePositionPrice(v12Info,time+600000,v12Level,"Точка входа в "+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
+        v12Info := updatePositionPrice(v12Info,time+600000,v12Level,(v12State==1?"Ожидаем касания ":"Точка входа в ")+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
         v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,v1LevelCaption("Стоп: ",v12Level,v12Stop,true)+(v12State==4?" +":""),color.red)
         v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,v1LevelCaption("Тейк: ",v12Level,v12Target,false)+(v12State==3?" +":""),color.teal)
         box.set_text(v12RewardBox,"R:R 1:1")
@@ -2003,7 +2016,7 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
 plot(activeStructuralTrend, "Действующий цвет тренда", display=display.data_window)
 
 // Линии следуют за сохранёнными инструментами, включая ожидающий вход.
-// После исполнения цены инструмента фиксированы; отменённый план удаляется.
+// Исполненные и неисполненные инструменты остаются с отдельными подписями.
 var array<line> positionLevelLines = array.new_line()
 if barstate.islast
     while array.size(positionLevelLines) > 0

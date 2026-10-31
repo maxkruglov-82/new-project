@@ -3,8 +3,8 @@
   "timezone": "Asia/Krasnoyarsk",
   "market": "MEXC SOL_USDT perpetual M5",
   "scope": "verification examples, not annual backtest",
-  "source_sha256": "e35145b64a37ac225336215ac2d00f2257fbc9195fc898457afa28cf724917eb",
-  "small_bytes": 68675,
+  "source_sha256": "a5637d0bb86403027b62a7837b4440f313e06d6d59220c0e5fda1d8b17a60fc0",
+  "small_bytes": 69684,
   "cases": [
     {
       "fills": [
@@ -220,5 +220,16 @@
     "Timestamps label M5 opening times; exact intrabar execution seconds are unknown.",
     "Live KRYTES stream not verified.",
     "Pivot confirmation retains extreme plus four closed M5 to the right."
-  ]
+  ],
+  "noEntryExample": {
+    "date": "2026-10-30",
+    "side": "SHORT",
+    "stop": 97.54,
+    "target": 94.16,
+    "RR": 95.85,
+    "retraceHigh": 95.82,
+    "fills": 0,
+    "archiveRight": "2026-10-31T00:00:00+07:00",
+    "reason": "окно входа завершено; касания RR не было"
+  }
 }

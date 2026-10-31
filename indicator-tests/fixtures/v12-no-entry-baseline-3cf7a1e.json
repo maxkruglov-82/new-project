@@ -1,0 +1,45 @@
+{
+  "sourceCommit": "3cf7a1e",
+  "sourceSha256": "e35145b64a37ac225336215ac2d00f2257fbc9195fc898457afa28cf724917eb",
+  "inputSha256": "d8206e0ba33d429d248abfa8037d0c4c3bb9c3cfb67401edd788e8879cd88caa",
+  "cases": {
+    "false": {
+      "plot": "68d2f940a2c4ee5905099691b1cbc8519639458caff7249f2522f77f0762faad",
+      "Чёрные бары без теней": "154c39eb9c8785b65d0a100ee7da0507ab52947b63b6a847119af2f7991f115d",
+      "Вход LONG/SHORT": "bf335bc4376dcae3cdfbfb84c72f387af3d84cdaa4b9295981ddd156b195fbbd",
+      "Состояние позиции": "a8af50c30b395ace9de9789007edaa546c262816225b7291e6187864e6eb3582",
+      "Выход TP 1 / SL -1 / неизвестно 2": "66a6bc25b6d3f88499bab537f1a43e53ffc5849b9224b00d413c471e7f411e21",
+      "Стоп позиции": "ad77aaba880d5772d2562fb78eecd88f52c725a66a9fc14b765e35631ea12118",
+      "Цель позиции": "3e08719b3d03d311052b6dfdf0f67b2c704b29e9bccd7211b9abf4192a62c758",
+      "Граница RR 1:1": "65681fd5f170670091ebb273683522fe6a1cb39bdab7d8535e9d08120412b59d",
+      "Цена входа по close": "6a759ee0bdaa635cf8c5d36f336a9f1186646c0fb423094cae162a125e9026c8",
+      "RR входа": "2f9ef0f1a4dedf3ec654ef7fad16a3ae762d8d5501c092d4c99833318a0b2bd1",
+      "Входов за день": "22e79a165653b2d99d8eb7772e63cd7754914ef2de30cc1e0666a3ab62cd944d",
+      "Первая позиция по нулевому условию": "b2fbca77da8abffc1a8e6c88a9b769d22fd7a1a8db94a0dd03cdeda152e96a64",
+      "Нулевой сценарий отменён": "504afa200b6b320bec8a22a0b99c842fdd194df425b6782ecb33bc206b7f2440",
+      "Разворот закреплён за 0": "4a73702fcfa735fe6758a667ad4122e8c040edfd0fb9c469b833bacdc35b6569",
+      "Цена точки 0": "0d72591666cd5085f74a6cb7e70ffd03d94eceb7376c576811aa3a86d8a23cfe",
+      "Продолжение после пробоя 3": "5ea081cc23c3eafb088306fdd792d533cbb70b14c22140484761b23094f7897e",
+      "Действующий цвет тренда": "7ad2b174065fa75d7a0087d9ced1c6b7c425bec897cf4287165706e546c7ccef"
+    },
+    "true": {
+      "plot": "68d2f940a2c4ee5905099691b1cbc8519639458caff7249f2522f77f0762faad",
+      "Чёрные бары без теней": "cc3a77021a58b5fb830c650bf5672642fd8a813c020d2658cabb30569b758e51",
+      "Вход LONG/SHORT": "a0ed43a0a19931bb33e8406051504a670c58f59020d2be0ea1d81db632b534df",
+      "Состояние позиции": "a8af50c30b395ace9de9789007edaa546c262816225b7291e6187864e6eb3582",
+      "Выход TP 1 / SL -1 / неизвестно 2": "66a6bc25b6d3f88499bab537f1a43e53ffc5849b9224b00d413c471e7f411e21",
+      "Стоп позиции": "f734a55e49f459f947f142d572ed8d7b7462605ce21974d622a8156edec5ce5b",
+      "Цель позиции": "7daf00464b745af9887a640531a21fb3f3bc7603e888d9f6d5a2c446c2c73244",
+      "Граница RR 1:1": "e97c7a9778a468d0073853957ab97ae036a2c897a7cdc853a7beea19b307274a",
+      "Цена входа по close": "d5cc59a2153f2702d38a2ea2f14bcd4e6b3e93326690cf22398e799bd357325a",
+      "RR входа": "2f9ef0f1a4dedf3ec654ef7fad16a3ae762d8d5501c092d4c99833318a0b2bd1",
+      "Входов за день": "22e79a165653b2d99d8eb7772e63cd7754914ef2de30cc1e0666a3ab62cd944d",
+      "Первая позиция по нулевому условию": "b2fbca77da8abffc1a8e6c88a9b769d22fd7a1a8db94a0dd03cdeda152e96a64",
+      "Нулевой сценарий отменён": "504afa200b6b320bec8a22a0b99c842fdd194df425b6782ecb33bc206b7f2440",
+      "Разворот закреплён за 0": "4a73702fcfa735fe6758a667ad4122e8c040edfd0fb9c469b833bacdc35b6569",
+      "Цена точки 0": "7b398d1a9e7df2405eac2f0006b1174e55ab3e3ffa91223b3721534fdc9882b2",
+      "Продолжение после пробоя 3": "5ea081cc23c3eafb088306fdd792d533cbb70b14c22140484761b23094f7897e",
+      "Действующий цвет тренда": "dece4beb318ea69ee598239f35cbefa369fec22a547b9fd0ca5c72546116bbfb"
+    }
+  }
+}
