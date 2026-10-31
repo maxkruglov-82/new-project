@@ -3,6 +3,10 @@ import {readFileSync} from 'node:fs';
 import {PineTS} from '../new-project-2/node_modules/pinets/dist/pinets.min.es.js';
 const root=new URL('../',import.meta.url),source=readFileSync(new URL('KRYTES_V1_LONDON_STRUCTURE.txt',root),'utf8');
 const mini=readFileSync(new URL('KRYTES_V1_LONDON_STRUCTURE_SMALL.txt',root),'utf8');
+const selectedBaseline=readFileSync(new URL('reports/backtest-2026-v1-hour-15-16/baseline-indicator.txt',root),'utf8');
+const calendarOnly=selectedBaseline.replace('int bodyHourStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 14, 0)','int bodyHourStart = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 8, 0)').replace('int bodyHourEnd = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 15, 0)','int bodyHourEnd = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 9, 0)').replace('int zeroSearchStart = timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 13, 0)','int zeroSearchStart = bodyHourStart - 3600000');
+assert.equal(source,calendarOnly,'selected e14ff8e baseline: only the three London clock lines may differ');
+
 const diagnostic='\nplot(bodyHourStart,"LondonStart")\nplot(bodyHourEnd,"LondonEnd")\nplot(zeroSearchStart,"ZeroStart")\nplot(activeRangeHigh,"RangeHigh")\nplot(activeRangeLow,"RangeLow")';
 for(const [day,h] of [['2026-01-15',15],['2026-03-27',15],['2026-03-30',14],['2026-07-15',14],['2026-10-23',14],['2026-10-26',15],['2025-12-15',15]]){
  const start=Date.parse(day+'T12:00:00+07:00');

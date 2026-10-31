@@ -7,29 +7,6 @@ int minimumRetreatBars = 5
 bool notifyZoneTouch = input.bool(true, "Уведомлять о касании зоны входа")
 bool notifyFilledEntry = input.bool(true, "Уведомлять об исполненном входе")
 
-// Для разворота нужны три подтверждённые опоры: HH-HL-HH либо LL-LH-LL.
-originalCounterTriple(array<int> times, array<float> prices, array<bool> highs, array<int> days, int dayKey, int fromTime, int side, float originalFirst) =>
-    bool ready = false
-    float stop = na
-    float target = na
-    int stopTime = na
-    int count = array.size(times)
-    if count >= 3 and not na(fromTime)
-        for i = 0 to count - 3
-            bool sameDay = array.get(days, i) == dayKey and array.get(days, i + 1) == dayKey and array.get(days, i + 2) == dayKey
-            bool types = side == 1 ? array.get(highs, i) and not array.get(highs, i + 1) and array.get(highs, i + 2) : not array.get(highs, i) and array.get(highs, i + 1) and not array.get(highs, i + 2)
-            float first = array.get(prices, i)
-            float middle = array.get(prices, i + 1)
-            float third = array.get(prices, i + 2)
-            float priorBase = i > 0 and array.get(days, i - 1) == dayKey ? array.get(prices, i - 1) : originalFirst
-            bool progression = side == 1 ? third > first and middle > priorBase and middle < first : third < first and middle < priorBase and middle > first
-            if sameDay and types and array.get(times, i) >= fromTime and progression
-                ready := true
-                stop := middle
-                target := third
-                stopTime := array.get(times, i + 1)
-    [ready, stop, target, stopTime]
-
 entryAlertText(string eventName, int side, float entryPrice, float stopPrice, float targetPrice) =>
     eventName + " | " + (side == 1 ? "LONG" : "SHORT") + " | " + syminfo.tickerid + " | M5" + " | Вход: $" + str.tostring(entryPrice, "#.#####") + " | Стоп: $" + str.tostring(stopPrice, "#.#####") + " | Тейк: $" + str.tostring(targetPrice, "#.#####") + " | RR 1:1"
 
@@ -329,7 +306,7 @@ rebuildColoredDay(array<chart.point> redPoints, array<chart.point> greenPoints, 
                                 latestHigh := pivotPrice
                             else
                                 latestLow := pivotPrice
-                if initialZeroBroken and reverseStage == 3
+                if reverseStage == 3
                     bool wantUp = trend == -1
                     bool anchorBreak = false
                     bool middleBreak = false
@@ -496,18 +473,10 @@ var bool fifthLocked = false
 var int positionSide = 0
 var int positionState = 0
 var int positionSetupBar = na
-var int originalRuleDay = na
-var float originalRuleZero = na
-var float originalRuleOne = na
-var bool originalOneBroken = false
-var int originalZeroBreakTime = na
-var bool originalStopViolated = false
-var int zoneVisitSetup = na
-var int zoneVisitBar = na
-var float zoneVisitTarget = na
-var float zoneVisitLevel = na
-varip int liveEntrySignalBar = na
-varip int liveEntrySignalSetup = na
+var int rrTouchBar = na
+var int rrTouchTime = na
+var int rrTouchSetupBar = na
+var float rrTouchLevel = na
 var int positionAnchorTime = na
 var int zeroReversalTime = na
 var int positionEntryBar = na
@@ -617,7 +586,6 @@ int rangeYear = year(time, rangeTimezone)
 int rangeMonth = month(time, rangeTimezone)
 int rangeDay = dayofmonth(time, rangeTimezone)
 int rangeDayKey = rangeYear * 10000 + rangeMonth * 100 + rangeDay
-// Первый час Лондона08:00–09:00; Europe/London сам учитывает летнее время.
 int bodyHourStart = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 8, 0)
 int bodyHourEnd = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 9, 0)
 
@@ -821,9 +789,8 @@ int pointSearchEnd = timestamp(localTimezone, rangeYear, rangeMonth, rangeDay + 
 bool firstPointWindow = rangeWeekday and activeRangeDay == rangeDayKey and not na(activeRangeEnd) and time >= bodyHourEnd and time + 300000 < pointSearchEnd
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
 bool pointPairM5 = m5Chart and rangeDayKey == rangeDayKey[1]
-// Окно0 следует Лондону: за час до открытия до первоначальной1.
 int zeroSearchStart = bodyHourStart - 3600000
-// История дня нужна для окраски; начало поиска0 учитывает сезонное время Лондона.
+// История дня нужна для окраски; поиск обоих типов 0 начинается с 13:00.
 if barstate.isconfirmed and m5Chart and time >= timestamp(rangeTimezone, rangeYear, rangeMonth, rangeDay, 0, 0)
     if na(zeroTrackingDay) or zeroTrackingDay != rangeDayKey
         if array.size(colorDayDrawings) > 0
@@ -1485,138 +1452,17 @@ if barstate.isconfirmed and retrySpanValid and rangeWeekday and time[4] >= zeroS
     else if retryHasLow
         recordMarketSwing(retrySwingTimes, retrySwingPrices, retrySwingHighs, retrySwingDays, time[4], retryPivotLow, false, rangeDayKey, 64)
 
-// Финансовые опоры первой сделки: исходные видимые 0 и 1, а не поздние локальные точки.
-int originalScope = array.indexof(anchorHistoryDays, rangeDayKey)
-bool originalAvailable = originalScope >= 0
-float originalZero = originalAvailable ? array.get(anchorZeroPrices, originalScope) : na
-float originalOne = originalAvailable ? array.get(anchorOnePrices, originalScope) : na
-int originalOneTime = originalAvailable ? array.get(anchorOneTimes, originalScope) : na
-int originalZeroTime = originalAvailable ? array.get(anchorZeroTimes, originalScope) : na
-int originalSide = originalOne > originalZero ? 1 : -1
-if barstate.isconfirmed and m5Chart and originalAvailable
-    if na(originalRuleDay) or originalRuleDay != rangeDayKey or originalRuleZero != originalZero or originalRuleOne != originalOne
-        originalRuleDay := rangeDayKey
-        originalRuleZero := originalZero
-        originalRuleOne := originalOne
-        originalOneBroken := false
-        originalZeroBreakTime := na
-        originalStopViolated := false
-    if time > originalOneTime
-        if originalSide == 1 ? bodyHigh > originalOne : bodyLow < originalOne
-            originalOneBroken := true
-        if na(originalZeroBreakTime) and twoM5Break(originalZero, originalSide == -1, firstPointOffset, pointPairM5)
-            originalZeroBreakTime := time
-        if originalSide == 1 ? bodyLow <= originalZero : bodyHigh >= originalZero
-            originalStopViolated := true
-// Обновление исходной1 в её направлении сразу готовит диапазон0–1, без дополнительного закрепа.
-if barstate.isconfirmed and m5Chart and firstPointWindow and originalAvailable and originalOneBroken and not originalStopViolated and dailyPositionEntries == 0 and not positionIsSecond and positionState != 2
-    if positionState != 1 or positionSide != originalSide
-        if positionState == 1 and not na(positionInfo)
-            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
-        positionSide := originalSide
-        positionState := 1
-        positionPlanDay := rangeDayKey
-        positionSetupBar := bar_index
-        positionEntry := na
-        positionEntryBar := na
-        positionRR := na
-        positionRiskBox := na
-        positionRewardBox := na
-        positionInfo := na
-        positionStopInfo := na
-        positionTargetInfo := na
-        newPositionPlan := true
-[originalCounterReady, originalCounterStop, originalCounterTarget, originalCounterStopTime] = originalCounterTriple(retrySwingTimes, retrySwingPrices, retrySwingHighs, retrySwingDays, rangeDayKey, originalZeroBreakTime, -originalSide, originalOne)
-// Старую встречную тройку нельзя повторно использовать после нарушения её HL/LH.
-if originalCounterReady
-    int counterMiddleIndex = array.indexof(retrySwingTimes, originalCounterStopTime)
-    int counterThirdTime = counterMiddleIndex >= 0 and counterMiddleIndex + 1 < array.size(retrySwingTimes) ? array.get(retrySwingTimes, counterMiddleIndex + 1) : na
-    int savedCount = array.size(zeroSavedTimes)
-    if not na(counterThirdTime) and savedCount > 0
-        for si = 0 to savedCount - 1
-            if array.get(zeroSavedTimes, si) >= counterThirdTime
-                float edge = originalSide == -1 ? math.min(array.get(zeroSavedOpens, si), array.get(zeroSavedCloses, si)) : math.max(array.get(zeroSavedOpens, si), array.get(zeroSavedCloses, si))
-                if originalSide == -1 ? edge <= originalCounterStop : edge >= originalCounterStop
-                    originalCounterReady := false
-// Встречный план появляется только после закрепа за0 и готовой подтверждённой тройки.
-if barstate.isconfirmed and m5Chart and firstPointWindow and originalAvailable and originalCounterReady and not na(originalZeroBreakTime) and dailyPositionEntries == 0 and not positionIsSecond and positionState != 2
-    if positionState != 1 or positionSide != -originalSide
-        if positionState == 1 and not na(positionInfo)
-            removePendingPlan(positionBoxes, positionLabels, positionRiskBox, positionRewardBox, positionInfo, positionStopInfo, positionTargetInfo)
-        positionSide := -originalSide
-        positionIsZero := true
-        firstPositionIsZero := true
-        positionUsesFifth := false
-        firstPositionUsesFifth := false
-        positionUsesFourth := false
-        firstPositionUsesFourth := false
-        zeroReversalStop := originalCounterTarget
-        zeroReversalTime := time
-        positionState := 1
-        positionPlanDay := rangeDayKey
-        positionSetupBar := bar_index
-        positionEntry := na
-        positionEntryBar := na
-        positionRR := na
-        positionRiskBox := na
-        positionRewardBox := na
-        positionInfo := na
-        positionStopInfo := na
-        positionTargetInfo := na
-        newPositionPlan := true
-bool firstOriginalDirection = originalAvailable and positionSide == originalSide
-bool firstScenarioReady = originalAvailable and (firstOriginalDirection ? originalOneBroken and not originalStopViolated : not na(originalZeroBreakTime) and originalCounterReady)
-bool originalFixedRange = originalAvailable and not positionIsSecond and dailyPositionEntries == 0 and firstOriginalDirection
-if barstate.isconfirmed and m5Chart and positionState == 1 and not positionIsSecond and dailyPositionEntries == 0 and originalAvailable
-    float chosenStop = firstOriginalDirection ? originalZero : originalCounterStop
-    float chosenTarget = firstOriginalDirection ? originalOne : originalCounterTarget
-    if firstOriginalDirection or originalCounterReady
-        bool changedRange = positionStop != chosenStop or positionTarget != chosenTarget
-        positionStop := chosenStop
-        positionTarget := chosenTarget
-        positionThreshold := (positionStop + positionTarget) / 2.0
-        positionAnchorTime := firstOriginalDirection ? originalZeroTime : originalCounterStopTime
-        firstPositionStop := positionStop
-        firstPositionSide := positionSide
-        if firstOriginalDirection
-            positionIsZero := false
-            firstPositionIsZero := false
-            positionUsesFifth := false
-            firstPositionUsesFifth := false
-            positionUsesFourth := false
-            firstPositionUsesFourth := false
-        if changedRange
-            positionSetupBar := bar_index
-        if firstScenarioReady and na(positionInfo)
-            newPositionPlan := true
-
-// Вход: первое касание RR1 разрешённого сценария, без дополнительных свечных фильтров.
-// State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired, 7 worked without entry.
+// Все сценарии: две последовательные закрытые M5 касаются одного RR1 по high/low.
+// Вход по RR1 на второй свече; новая структура или изменение уровня сбрасывают пару.
+// State: 0 none, 1 waiting, 2 entered, 3 TP, 4 SL, 5 cancelled/expired.
 // Если TP тенью и SL телом на одной M5 — приоритет SL.
 // После первого SL, включая пятницу, нужна новая структура 1–2–3 и ретест.
 int positionExitEvent = 0
 bool positionEntryEvent = false
-// На живой M5 сигнал появляется сразу при первом касании RR1.
-if barstate.isrealtime and not barstate.isconfirmed and m5Chart and positionState == 1
-    bool liveAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
-    bool liveDirectionAllowed = (not liveAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and liveAgainstTrend and not positionIsSecond)
-    if not positionIsSecond and dailyPositionEntries == 0
-        liveDirectionAllowed := firstScenarioReady
-    bool liveStopIntact = positionSide == 1 ? bodyLow > positionStop : bodyHigh < positionStop
-    if liveDirectionAllowed and liveStopIntact and positionPlanDay == rangeDayKey and firstPointWindow and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and bar_index > positionSetupBar and low <= positionThreshold and high >= positionThreshold
-        liveEntrySignalBar := bar_index
-        liveEntrySignalSetup := positionSetupBar
-    if liveEntrySignalBar == bar_index and liveEntrySignalSetup == positionSetupBar
-        v1EntryMark(v1EntryMarks, time, positionThreshold, positionSide, dailyPositionEntries + 1)
-        if notifyFilledEntry
-            alert(entryAlertText("ВХОД — касание RR 1:1", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar)
 if barstate.isconfirmed and m5Chart
     bool pendingAgainstTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     bool waitingForCounterBreak = counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
     bool pendingDirectionAllowed = (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not waitingForCounterBreak
-    if not positionIsSecond and dailyPositionEntries == 0
-        pendingDirectionAllowed := firstScenarioReady
-        waitingForCounterBreak := false
     // Новая самостоятельная 3–5 заменяет старое неисполненное ожидание за 1.
     if positionState == 1 and waitingForCounterBreak
         if positionIsZero
@@ -1636,12 +1482,11 @@ if barstate.isconfirmed and m5Chart
         if positionPlanDay != rangeDayKey or not firstPointWindow
             positionState := 5
         else
-            bool liveFillLatched = not na(liveEntrySignalBar) and liveEntrySignalBar == bar_index and liveEntrySignalSetup == positionSetupBar
-            bool stopBeforeEntry = not liveFillLatched and (positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop)
-            bool workedWithoutEntry = zoneVisitSetup == positionSetupBar and bar_index > zoneVisitBar and (positionSide == 1 ? high >= zoneVisitTarget : low <= zoneVisitTarget)
-            bool touchesExistingRR = low <= positionThreshold and high >= positionThreshold
+            bool stopBeforeEntry = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
+            // Второе касание уже действующего RR имеет приоритет над новым экстремумом.
+            bool fillsExistingRR = pendingDirectionAllowed and not stopBeforeEntry and bar_index > positionSetupBar and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold and low <= positionThreshold and high >= positionThreshold
             float currentTarget = positionIsSecond or positionIsZero ? (positionSide == 1 ? bodyHigh : bodyLow) : (positionIsSecond or positionUsesFifth) ? confirmedFifthPrice : positionUsesFourth ? confirmedFourthPrice : confirmedThirdPrice
-            if not originalFixedRange and not (not positionIsSecond and dailyPositionEntries == 0 and originalAvailable and originalCounterReady) and not (touchesExistingRR and pendingDirectionAllowed and not stopBeforeEntry)
+            if not fillsExistingRR
                 positionTarget := positionSide == 1 ? math.max(positionTarget, currentTarget) : math.min(positionTarget, currentTarget)
                 positionThreshold := (positionStop + positionTarget) / 2.0
             if bar_index > positionSetupBar and stopBeforeEntry
@@ -1650,17 +1495,18 @@ if barstate.isconfirmed and m5Chart
                 float riskAtLevel = positionSide == 1 ? positionThreshold - positionStop : positionStop - positionThreshold
                 float rewardAtLevel = positionSide == 1 ? positionTarget - positionThreshold : positionThreshold - positionTarget
                 bool touchedRRZone = low <= positionThreshold and high >= positionThreshold
-                if touchedRRZone and pendingDirectionAllowed and (na(zoneVisitSetup) or zoneVisitSetup != positionSetupBar)
-                    zoneVisitSetup := positionSetupBar
-                    zoneVisitBar := bar_index
-                    zoneVisitTarget := positionTarget
-                    zoneVisitLevel := positionThreshold
                 bool againstInitialTrend = not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
                 bool originConfirmed = (not againstInitialTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not (counterModeActive and counterHasFive and not counterReversalReady and againstInitialTrend and not positionIsSecond)
-                if not positionIsSecond and dailyPositionEntries == 0
-                    originConfirmed := firstScenarioReady
-                bool confirmedRREntry = touchedRRZone and originConfirmed and pendingDirectionAllowed
-                if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and confirmedRREntry
+                bool validTouch = touchedRRZone and originConfirmed and pendingDirectionAllowed
+                bool secondRRTouch = validTouch and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and rrTouchSetupBar == positionSetupBar and rrTouchLevel == positionThreshold
+                rrTouchBar := validTouch ? bar_index : na
+                rrTouchTime := validTouch ? time : na
+                rrTouchSetupBar := validTouch ? positionSetupBar : na
+                rrTouchLevel := validTouch ? positionThreshold : na
+                bool eligibleAlertTouch = validTouch and dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0
+                if eligibleAlertTouch and not secondRRTouch and notifyZoneTouch
+                    alert(entryAlertText("КАСАНИЕ ЗОНЫ — ждём вторую M5", positionSide, positionThreshold, positionStop, positionTarget), alert.freq_once_per_bar_close)
+                if dailyPositionEntries < dailyEntryLimit and (not positionIsSecond or firstStopped) and riskAtLevel > 0 and rewardAtLevel > 0 and secondRRTouch
                     dailyPositionEntries := dailyPositionEntries + 1
                     positionEntry := positionThreshold
                     positionRR := rewardAtLevel / riskAtLevel
@@ -1668,14 +1514,10 @@ if barstate.isconfirmed and m5Chart
                     positionEntryTime := time
                     positionEntryEvent := true
                     v1EntryMark(v1EntryMarks, time, positionEntry, positionSide, dailyPositionEntries)
-                    if notifyFilledEntry and not liveFillLatched
-                        alert(entryAlertText("ВХОД ИСПОЛНЕН — касание RR 1:1", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
+                    if notifyFilledEntry
+                        alert(entryAlertText("ВХОД ИСПОЛНЕН — второе касание", positionSide, positionEntry, positionStop, positionTarget), alert.freq_once_per_bar_close)
                     colorStopTime := na
                     positionState := 2
-            if positionState == 1 and workedWithoutEntry and not stopBeforeEntry
-                positionState := 7
-                positionTarget := zoneVisitTarget
-                positionThreshold := zoneVisitLevel
     // На свече подтверждения касания выход не моделируем: порядок high/low неизвестен.
     if positionState == 2 and bar_index > positionEntryBar
         bool hitStop = positionSide == 1 ? bodyLow <= positionStop : bodyHigh >= positionStop
@@ -1878,6 +1720,10 @@ if barstate.isconfirmed and m5Chart
         positionEntryBar := na
         positionEntry := na
         positionRR := na
+        rrTouchBar := na
+        rrTouchTime := na
+        rrTouchSetupBar := na
+        rrTouchLevel := na
         positionRiskBox := na
         positionRewardBox := na
         positionInfo := na
@@ -1907,8 +1753,6 @@ if barstate.isconfirmed and m5Chart
     pendingAgainstTrend := not na(confirmedZeroPrice) and (structureFirstPrice > confirmedZeroPrice ? positionSide == -1 : positionSide == 1)
     waitingForCounterBreak := counterModeActive and counterHasFive and not counterReversalReady and pendingAgainstTrend and not positionIsSecond
     pendingDirectionAllowed := (not pendingAgainstTrend or zeroTrendReversed or (positionIsSecond and firstStopped)) and not waitingForCounterBreak
-    if not positionIsSecond and dailyPositionEntries == 0
-        pendingDirectionAllowed := firstScenarioReady
     if newPositionPlan and pendingDirectionAllowed
         positionRiskBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime), top=math.max(positionStop, positionThreshold), right=time + 600000, bottom=math.min(positionStop, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.red, 100), bgcolor=color.new(color.red, 85))
         positionRewardBox := box.new(left=(na(positionAnchorTime) ? time : positionAnchorTime), top=math.max(positionTarget, positionThreshold), right=time + 600000, bottom=math.min(positionTarget, positionThreshold), xloc=xloc.bar_time, border_color=color.new(color.teal, 100), bgcolor=color.new(color.teal, 85))
@@ -1931,12 +1775,12 @@ if barstate.isconfirmed and m5Chart
         box.set_bottom(positionRiskBox, math.min(positionStop, drawnEntry))
         box.set_top(positionRewardBox, math.max(positionTarget, drawnEntry))
         box.set_bottom(positionRewardBox, math.min(positionTarget, drawnEntry))
-        int positionDrawRight = (positionState == 4 or positionState == 3 or positionState == 7) ? time + 300000 : time + 600000
+        int positionDrawRight = (positionState == 4 or positionState == 3) ? time + 300000 : time + 600000
         box.set_right(positionRiskBox, positionDrawRight)
         box.set_right(positionRewardBox, positionDrawRight)
         float entryCaptionRisk = math.abs(drawnEntry - positionStop)
         string entryCaptionRR = entryCaptionRisk > 0 ? " · RR 1:" + str.tostring(math.abs(positionTarget - drawnEntry) / entryCaptionRisk, "#.##") : ""
-        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, (positionState == 7 ? "Отработал без входа " : "Точка входа в ") + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
+        positionInfo := updatePositionPrice(positionInfo, time + 600000, drawnEntry, "Точка входа в " + (positionSide == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + entryCaptionRR + (positionState == 6 ? " · TP/SL?" : ""), color.blue)
         positionStopInfo := updatePositionPrice(positionStopInfo, time + 600000, positionStop, v1LevelCaption("Стоп: ", na(positionEntry) ? positionThreshold : positionEntry, positionStop, true) + (positionState == 4 ? " +" : ""), color.red)
         positionTargetInfo := updatePositionPrice(positionTargetInfo, time + 600000, positionTarget, v1LevelCaption("Тейк: ", na(positionEntry) ? positionThreshold : positionEntry, positionTarget, false) + (positionState == 3 ? " +" : ""), color.teal)
         float displayedRisk = math.abs(drawnEntry - positionStop)
@@ -2027,9 +1871,7 @@ if barstate.isconfirmed and m5Chart and structureDay == rangeDayKey and firstSwi
     // Цвет ориентируется на видимую исходную 0, а не на перенесённую расчётную опору.
     int colorOriginTime = colorScopeIndex >= 0 ? array.get(anchorZeroTimes, colorScopeIndex) : (na(zeroColorStartTime) ? confirmedZeroTime : zeroColorStartTime)
     float colorOriginPrice = colorScopeIndex >= 0 ? array.get(anchorZeroPrices, colorScopeIndex) : confirmedZeroPrice
-    float colorFirstPrice = colorScopeIndex >= 0 ? array.get(anchorOnePrices, colorScopeIndex) : structureFirstPrice
-    int colorFirstTime = colorScopeIndex >= 0 ? array.get(anchorOneTimes, colorScopeIndex) : firstExtremeTime
-    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, colorOriginTime, colorOriginPrice, colorFirstPrice, colorFirstTime, firstPointOffset, colorScopeEnd)
+    activeStructuralTrend := rebuildColoredDay(colorDayRedPoints, colorDayGreenPoints, zeroSavedOpens, zeroSavedCloses, zeroSavedTimes, colorOriginTime, colorOriginPrice, structureFirstPrice, firstExtremeTime, firstPointOffset, colorScopeEnd)
     while array.size(colorDayDrawings) > 0
         polyline.delete(array.pop(colorDayDrawings))
     // Освобождаем бюджет перед созданием новых участков.
@@ -2127,16 +1969,14 @@ if barstate.isconfirmed and m5Chart and firstSwingDisplayLocked and structureDay
     else
         // Расчётная опора V1 может переноситься после 1, но это уже не начало 0→1.
         // Видимая 0 сохраняет противоположный тип и строго предшествует точке 1.
-        int originalOneTime = array.get(anchorOneTimes, anchorCount - 1)
-        float originalOnePrice = array.get(anchorOnePrices, anchorCount - 1)
-        bool originalZeroHigh = array.get(anchorZeroHighs, anchorCount - 1)
-        bool chronologicalZero = confirmedZeroTime < originalOneTime
-        bool oppositeZero = originalZeroHigh ? confirmedZeroPrice > originalOnePrice : confirmedZeroPrice < originalOnePrice
+        bool chronologicalZero = confirmedZeroTime < firstExtremeTime
+        bool oppositeZero = structureSide == 1 ? confirmedZeroPrice < structureFirstPrice : confirmedZeroPrice > structureFirstPrice
         if chronologicalZero and oppositeZero
             array.set(anchorZeroTimes, anchorCount - 1, confirmedZeroTime)
             array.set(anchorZeroPrices, anchorCount - 1, confirmedZeroPrice)
-            array.set(anchorZeroHighs, anchorCount - 1, originalZeroHigh)
-        // Первая подтверждённая видимая1 фиксирована. Последующие вершины — HH/LH/HL/LL.
+            array.set(anchorZeroHighs, anchorCount - 1, structureSide == -1)
+        array.set(anchorOneTimes, anchorCount - 1, firstExtremeTime)
+        array.set(anchorOnePrices, anchorCount - 1, structureFirstPrice)
 
 // SL не завершает разметку; TP первой либо второй сделки закрывает её окно.
 if barstate.isconfirmed and positionExitEvent == 1
@@ -2154,19 +1994,7 @@ if barstate.islast
             label.set_text(array.get(firstPointLabels, numberIndex), "")
     int viewportLeft = chart.left_visible_bar_time
     int viewportRight = chart.right_visible_bar_time
-    // Сначала резервируем места для всех видимых 0/1, затем распределяем
-    // оставшиеся метки структуры между днями, а не только последними свечами.
-    int visibleAnchorCount = 0
-    if array.size(anchorHistoryDays) > 0
-        for anchorIndex = 0 to array.size(anchorHistoryDays) - 1
-            int anchorEnd = array.get(anchorTakeProfitTimes, anchorIndex)
-            for anchorNumber = 0 to 1
-                int anchorTime = anchorNumber == 0 ? array.get(anchorZeroTimes, anchorIndex) : array.get(anchorOneTimes, anchorIndex)
-                if anchorTime >= viewportLeft and anchorTime <= viewportRight and (na(anchorEnd) or anchorTime <= anchorEnd)
-                    visibleAnchorCount := visibleAnchorCount + 1
-    int structuralLabelBudget = math.max(0, 120 - visibleAnchorCount)
-    array<int> visibleStructureDays = array.new_int()
-    array<int> visibleStructureCounts = array.new_int()
+    int visibleSwingCount = 0
     if array.size(structureHistoryTimes) > 0
         for historyIndex = 0 to array.size(structureHistoryTimes) - 1
             int historyTime = array.get(structureHistoryTimes, historyIndex)
@@ -2175,16 +2003,8 @@ if barstate.islast
             int historyStart = historyScope >= 0 ? array.get(anchorZeroTimes, historyScope) : na
             int historyEnd = historyScope >= 0 ? array.get(anchorTakeProfitTimes, historyScope) : na
             if historyTime >= viewportLeft and historyTime <= viewportRight and not na(historyStart) and historyTime >= historyStart and (na(historyEnd) or historyTime <= historyEnd)
-                int visibleDayIndex = array.indexof(visibleStructureDays, historyDay)
-                if visibleDayIndex < 0
-                    array.push(visibleStructureDays, historyDay)
-                    array.push(visibleStructureCounts, 1)
-                else
-                    array.set(visibleStructureCounts, visibleDayIndex, array.get(visibleStructureCounts, visibleDayIndex) + 1)
-    int visibleDayCount = array.size(visibleStructureDays)
-    int labelsPerDay = visibleDayCount > 0 ? int(math.floor(structuralLabelBudget / visibleDayCount)) : 0
-    int extraDayLabels = visibleDayCount > 0 ? structuralLabelBudget % visibleDayCount : 0
-    array<int> visibleStructureSeen = array.new_int(visibleDayCount, 0)
+                visibleSwingCount := visibleSwingCount + 1
+    int visibleSwingSeen = 0
     float previousHigh = na
     float previousLow = na
     int previousSwingDay = na
@@ -2213,15 +2033,9 @@ if barstate.islast
             string caption = classification == "H" ? "HH" : classification == "L" ? "LL" : classification
             bool structuralCaption = caption == "HH" or caption == "HL" or caption == "LH" or caption == "LL"
             bool inViewport = inScope and swingTime >= viewportLeft and swingTime <= viewportRight
-            bool renderSwing = false
             if inViewport
-                int visibleDayIndex = array.indexof(visibleStructureDays, swingDay)
-                if visibleDayIndex >= 0
-                    int seenForDay = array.get(visibleStructureSeen, visibleDayIndex) + 1
-                    array.set(visibleStructureSeen, visibleDayIndex, seenForDay)
-                    int dayQuota = labelsPerDay + (visibleDayIndex >= visibleDayCount - extraDayLabels ? 1 : 0)
-                    renderSwing := seenForDay > math.max(0, array.get(visibleStructureCounts, visibleDayIndex) - dayQuota)
-            if renderSwing
+                visibleSwingSeen := visibleSwingSeen + 1
+            if inViewport and visibleSwingSeen > math.max(0, visibleSwingCount - 116)
                 if structuralCaption
                     label structureLabel = label.new(x=swingTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=isHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
                     array.push(marketStructureLabels, structureLabel)

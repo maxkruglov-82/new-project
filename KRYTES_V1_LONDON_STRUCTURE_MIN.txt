@@ -1,53 +1,32 @@
 //@version=5
 indicator("V1 London", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500, max_polylines_count=100, max_bars_back=600)
-int q201 = 5
-bool q212 = input.bool(true, "Уведомлять о касании зоны входа")
-bool q211 = input.bool(true, "Уведомлять об исполненном входе")
-q218(array<int> times, array<float> prices, array<bool> highs, array<int> days, int dayKey, int fromTime, int side, float q219) =>
-    bool ready = false
-    float stop = na
-    float target = na
-    int stopTime = na
-    int count = array.size(times)
-    if count >= 3 and not na(fromTime)
-        for i = 0 to count - 3
-            bool sameDay = array.get(days, i) == dayKey and array.get(days, i + 1) == dayKey and array.get(days, i + 2) == dayKey
-            bool types = side == 1 ? array.get(highs, i) and not array.get(highs, i + 1) and array.get(highs, i + 2) : not array.get(highs, i) and array.get(highs, i + 1) and not array.get(highs, i + 2)
-            float first = array.get(prices, i)
-            float middle = array.get(prices, i + 1)
-            float third = array.get(prices, i + 2)
-            float priorBase = i > 0 and array.get(days, i - 1) == dayKey ? array.get(prices, i - 1) : q219
-            bool progression = side == 1 ? third > first and middle > priorBase and middle < first : third < first and middle < priorBase and middle > first
-            if sameDay and types and array.get(times, i) >= fromTime and progression
-                ready := true
-                stop := middle
-                target := third
-                stopTime := array.get(times, i + 1)
-    [ready, stop, target, stopTime]
-q116(string eventName, int side, float entryPrice, float stopPrice, float targetPrice) =>
+int q186 = 5
+bool q197 = input.bool(true, "Уведомлять о касании зоны входа")
+bool q196 = input.bool(true, "Уведомлять об исполненном входе")
+q110(string eventName, int side, float entryPrice, float stopPrice, float targetPrice) =>
     eventName + " | " + (side == 1 ? "LONG" : "SHORT") + " | " + syminfo.tickerid + " | M5" + " | Вход: $" + str.tostring(entryPrice, "#.#####") + " | Стоп: $" + str.tostring(stopPrice, "#.#####") + " | Тейк: $" + str.tostring(targetPrice, "#.#####") + " | RR 1:1"
-q209(int q270, bool contiguous, float candleOpen, float candleClose, bool upward) =>
-    contiguous ? q270 + 1 : 1
+q194(int q238, bool contiguous, float candleOpen, float candleClose, bool upward) =>
+    contiguous ? q238 + 1 : 1
 twoM5Break(float level, bool upward, float offset, bool q5) =>
-    bool q108 = upward ? close - level >= offset - 0.000000001 : level - close >= offset - 0.000000001
-    bool q266 = upward ? close[1] - level >= offset - 0.000000001 : level - close[1] >= offset - 0.000000001
-    q5 and q108 and q266
-q302(array<float> closes, array<int> times, float level, bool upward, float offset, int afterTime) =>
+    bool q101 = upward ? close - level >= offset - 0.000000001 : level - close >= offset - 0.000000001
+    bool q234 = upward ? close[1] - level >= offset - 0.000000001 : level - close[1] >= offset - 0.000000001
+    q5 and q101 and q234
+q270(array<float> closes, array<int> times, float level, bool upward, float offset, int afterTime) =>
     bool confirmed = false
-    bool q266 = false
-    int q277 = na
+    bool q234 = false
+    int q245 = na
     if array.size(times) > 0
         for i = 0 to array.size(times) - 1
             int atTime = array.get(times, i)
             if atTime >= afterTime
                 float atClose = array.get(closes, i)
                 bool beyond = upward ? atClose - level >= offset - 0.000000001 : level - atClose >= offset - 0.000000001
-                if beyond and q266 and atTime - q277 == 300000
+                if beyond and q234 and atTime - q245 == 300000
                     confirmed := true
-                q266 := beyond
-                q277 := atTime
+                q234 := beyond
+                q245 := atTime
     confirmed
-q379(string prefix, float entry, float level, bool stopLevel) =>
+q348(string prefix, float entry, float level, bool stopLevel) =>
     float percent = not na(entry) and entry > 0 ? math.abs(level - entry) / entry * 100.0 : na
     prefix + str.tostring(level, "#.#####") + (not na(percent) ? " (" + (stopLevel ? "-" : "+") + str.tostring(percent, "0.##") + "%)" : "")
 v1EntryMark(array<label> marks, int atTime, float price, int side, int number) =>
@@ -71,7 +50,7 @@ v1ExitTrace(array<line> traces, int entryTime, float entryPrice, int exitTime, f
     while array.size(traces) > 60
         line.delete(array.shift(traces))
     trace
-q130(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
+q124(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int wantedSide, int fromTime, int beforeFirst) =>
     float foundPrice = na
     int foundTime = na
     int bestSpan = -1
@@ -84,13 +63,13 @@ q130(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, i
             float anchorPrice = wantedSide == 1 ? math.min(anchorOpen, anchorClose) : math.max(anchorOpen, anchorClose)
             bool localAnchor = anchorIndex == 0
             if anchorIndex > 0
-                float q274 = array.get(savedOpens, anchorIndex - 1)
-                float q269 = array.get(savedCloses, anchorIndex - 1)
-                localAnchor := wantedSide == 1 ? anchorPrice < math.min(q274, q269) : anchorPrice > math.max(q274, q269)
+                float q242 = array.get(savedOpens, anchorIndex - 1)
+                float q237 = array.get(savedCloses, anchorIndex - 1)
+                localAnchor := wantedSide == 1 ? anchorPrice < math.min(q242, q237) : anchorPrice > math.max(q242, q237)
             float nextClose = array.get(savedCloses, anchorIndex + 1)
-            bool q349 = array.get(savedTimes, anchorIndex + 1) - anchorTime == 300000 and (wantedSide == 1 ? nextClose >= anchorPrice : nextClose <= anchorPrice)
-            if anchorTime >= fromTime and anchorTime < beforeFirst and localAnchor and q349
-                float q297 = anchorPrice
+            bool q320 = array.get(savedTimes, anchorIndex + 1) - anchorTime == 300000 and (wantedSide == 1 ? nextClose >= anchorPrice : nextClose <= anchorPrice)
+            if anchorTime >= fromTime and anchorTime < beforeFirst and localAnchor and q320
+                float q265 = anchorPrice
                 int retreatTime = anchorTime
                 int retreatSpan = 1
                 bool following = true
@@ -102,17 +81,17 @@ q130(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, i
                         else
                             float rightOpen = array.get(savedOpens, rightIndex)
                             float rightClose = array.get(savedCloses, rightIndex)
-                            float q337 = wantedSide == 1 ? math.max(rightOpen, rightClose) : math.min(rightOpen, rightClose)
-                            bool q288 = wantedSide == 1 ? q337 >= q297 : q337 <= q297
-                            if q288
-                                q297 := q337
+                            float q305 = wantedSide == 1 ? math.max(rightOpen, rightClose) : math.min(rightOpen, rightClose)
+                            bool q256 = wantedSide == 1 ? q305 >= q265 : q305 <= q265
+                            if q256
+                                q265 := q305
                                 retreatTime := rightTime
                                 retreatSpan := rightIndex - anchorIndex + 1
                             if wantedSide == 1 ? rightClose < anchorPrice : rightClose > anchorPrice
                                 following := false
-                bool betterPrice = na(foundPrice) or (wantedSide == 1 ? q297 > foundPrice : q297 < foundPrice)
-                if q297 > anchorPrice and retreatSpan >= 5 and (retreatSpan > bestSpan or (retreatSpan == bestSpan and betterPrice))
-                    foundPrice := q297
+                bool betterPrice = na(foundPrice) or (wantedSide == 1 ? q265 > foundPrice : q265 < foundPrice)
+                if q265 > anchorPrice and retreatSpan >= 5 and (retreatSpan > bestSpan or (retreatSpan == bestSpan and betterPrice))
+                    foundPrice := q265
                     foundTime := retreatTime
                     bestSpan := retreatSpan
     if wantedSide == -1 and count > 1
@@ -143,12 +122,12 @@ q130(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, i
                     foundTime := q32
                     bestSpan := span
     [foundPrice, foundTime]
-q299(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int anchorTime, float stopPrice, bool lowerStop, int minimumBars) =>
+q267(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int anchorTime, float stopPrice, bool lowerStop, int minimumBars) =>
     bool started = false
     bool finished = false
     bool qualified = false
     int span = 0
-    int q277 = na
+    int q245 = na
     int count = array.size(savedTimes)
     if count > 0 and not na(anchorTime) and not na(stopPrice)
         for si = 0 to count - 1
@@ -158,14 +137,14 @@ q299(array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, i
                     if st == anchorTime
                         started := true
                         span := 1
-                        q277 := st
+                        q245 := st
                     else
                         finished := true
-                else if st - q277 != 300000
+                else if st - q245 != 300000
                     finished := true
                 else
                     span := span + 1
-                    q277 := st
+                    q245 := st
                     float so = array.get(savedOpens, si)
                     float sc = array.get(savedCloses, si)
                     float edge = lowerStop ? math.min(so, sc) : math.max(so, sc)
@@ -179,46 +158,46 @@ q14(array<chart.point> points, int candleTime, float candleOpen, float candleClo
     array.push(points, chart.point.from_time(candleTime, candleClose))
     array.push(points, chart.point.from_time(candleTime + 60000, candleClose))
     array.push(points, chart.point.from_time(candleTime + 120000, na))
-q340(array<chart.point> run, array<polyline> drawings, array<polyline> history, color ink) =>
+q310(array<chart.point> run, array<polyline> drawings, array<polyline> history, color ink) =>
     while array.size(history) + array.size(drawings) >= 94
         if array.size(history) > 0
             polyline.delete(array.shift(history))
         else
             polyline.delete(array.shift(drawings))
     array.push(drawings, polyline.new(run, xloc=xloc.bar_time, line_color=ink, line_width=2))
-q115(array<chart.point> points, array<polyline> drawings, array<polyline> history, color ink) =>
+q108(array<chart.point> points, array<polyline> drawings, array<polyline> history, color ink) =>
     array<chart.point> run = array.new<chart.point>()
-    int q268 = na
+    int q236 = na
     int count = array.size(points)
     if count >= 5
         for candleIndex = 0 to int(count / 5) - 1
             int base = candleIndex * 5
             chart.point firstPoint = array.get(points, base)
             int candleStart = firstPoint.time
-            if not na(q268) and candleStart - q268 != 300000
-                q340(run, drawings, history, ink)
+            if not na(q236) and candleStart - q236 != 300000
+                q310(run, drawings, history, ink)
                 array.clear(run)
             for component = 0 to 3
                 array.push(run, array.get(points, base + component))
-            q268 := candleStart
+            q236 := candleStart
         if array.size(run) > 0
-            q340(run, drawings, history, ink)
+            q310(run, drawings, history, ink)
     array.size(drawings)
-q290(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int firstTime, float offset, int endTime) =>
+q258(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> savedOpens, array<float> savedCloses, array<int> savedTimes, int zeroTime, float zeroPrice, float firstPrice, int firstTime, float offset, int endTime) =>
     array.clear(redPoints)
     array.clear(greenPoints)
     int trend = firstPrice > zeroPrice ? 1 : -1
-    int q177 = trend
-    bool q179 = false
-    int q396 = na
+    int q169 = trend
+    bool q171 = false
+    int q360 = na
     float latestHigh = trend == -1 ? zeroPrice : na
     float latestLow = trend == 1 ? zeroPrice : na
-    int q335 = 0
-    float q331 = na
-    int q332 = na
+    int q303 = 0
+    float q299 = na
+    int q300 = na
     float reverseBase = na
-    float q333 = na
-    int q334 = na
+    float q301 = na
+    int q302 = na
     int result = 0
     int count = array.size(savedTimes)
     array<int> q33 = array.new_int(count, 0)
@@ -228,21 +207,21 @@ q290(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> 
             float candleOpen = array.get(savedOpens, candleIndex)
             float candleClose = array.get(savedCloses, candleIndex)
             if candleTime >= zeroTime and (na(endTime) or candleTime <= endTime)
-                if not q179 and candleIndex > 0 and candleTime > firstTime
+                if not q171 and candleIndex > 0 and candleTime > firstTime
                     int priorTime = array.get(savedTimes, candleIndex - 1)
                     float priorClose = array.get(savedCloses, candleIndex - 1)
-                    bool q19 = q177 == 1 ? zeroPrice - candleClose >= offset - 0.000000001 : candleClose - zeroPrice >= offset - 0.000000001
-                    bool q18 = q177 == 1 ? zeroPrice - priorClose >= offset - 0.000000001 : priorClose - zeroPrice >= offset - 0.000000001
+                    bool q19 = q169 == 1 ? zeroPrice - candleClose >= offset - 0.000000001 : candleClose - zeroPrice >= offset - 0.000000001
+                    bool q18 = q169 == 1 ? zeroPrice - priorClose >= offset - 0.000000001 : priorClose - zeroPrice >= offset - 0.000000001
                     if priorTime > firstTime and candleTime - priorTime == 300000 and q19 and q18
-                        trend := -q177
-                        q179 := true
-                        q396 := candleTime
-                        q335 := 0
+                        trend := -q169
+                        q171 := true
+                        q360 := candleTime
+                        q303 := 0
                 if candleIndex >= 5
                     int pivotIndex = candleIndex - 4
                     int pivotTime = array.get(savedTimes, pivotIndex)
-                    bool q72 = candleTime - array.get(savedTimes, pivotIndex - 1) == 1500000
-                    if pivotTime >= zeroTime and q72
+                    bool q67 = candleTime - array.get(savedTimes, pivotIndex - 1) == 1500000
+                    if pivotTime >= zeroTime and q67
                         float pivotHigh = math.max(array.get(savedOpens, pivotIndex), array.get(savedCloses, pivotIndex))
                         float pivotLow = math.min(array.get(savedOpens, pivotIndex), array.get(savedCloses, pivotIndex))
                         float leftHigh = math.max(array.get(savedOpens, pivotIndex - 1), array.get(savedCloses, pivotIndex - 1))
@@ -260,56 +239,56 @@ q290(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> 
                             bool wantUp = trend == -1
                             bool firstType = pivotIsHigh == wantUp
                             float priorSame = pivotIsHigh ? latestHigh : latestLow
-                            float q278 = pivotIsHigh ? latestLow : latestHigh
+                            float q246 = pivotIsHigh ? latestLow : latestHigh
                             if pivotTime > firstTime
                                 if firstType
-                                    bool newFirst = not na(priorSame) and not na(q278) and (wantUp ? pivotPrice > priorSame : pivotPrice < priorSame)
-                                    if q335 == 0 and newFirst
-                                        q331 := pivotPrice
-                                        q332 := pivotTime
-                                        reverseBase := q278
-                                        q335 := 1
-                                    else if q335 == 1 and (wantUp ? pivotPrice > q331 : pivotPrice < q331)
-                                        q331 := pivotPrice
-                                        q332 := pivotTime
-                                    else if q335 >= 2 and pivotTime > q334 and (wantUp ? pivotPrice > q331 : pivotPrice < q331)
-                                        q335 := 3
-                                else if q335 >= 1 and pivotTime > q332
-                                    bool validMiddle = wantUp ? pivotPrice > reverseBase and pivotPrice < q331 : pivotPrice < reverseBase and pivotPrice > q331
+                                    bool newFirst = not na(priorSame) and not na(q246) and (wantUp ? pivotPrice > priorSame : pivotPrice < priorSame)
+                                    if q303 == 0 and newFirst
+                                        q299 := pivotPrice
+                                        q300 := pivotTime
+                                        reverseBase := q246
+                                        q303 := 1
+                                    else if q303 == 1 and (wantUp ? pivotPrice > q299 : pivotPrice < q299)
+                                        q299 := pivotPrice
+                                        q300 := pivotTime
+                                    else if q303 >= 2 and pivotTime > q302 and (wantUp ? pivotPrice > q299 : pivotPrice < q299)
+                                        q303 := 3
+                                else if q303 >= 1 and pivotTime > q300
+                                    bool validMiddle = wantUp ? pivotPrice > reverseBase and pivotPrice < q299 : pivotPrice < reverseBase and pivotPrice > q299
                                     if validMiddle
-                                        q333 := pivotPrice
-                                        q334 := pivotTime
-                                        q335 := 2
+                                        q301 := pivotPrice
+                                        q302 := pivotTime
+                                        q303 := 2
                                     else
-                                        q335 := 0
+                                        q303 := 0
                             if pivotIsHigh
                                 latestHigh := pivotPrice
                             else
                                 latestLow := pivotPrice
-                if q179 and q335 == 3
+                if q303 == 3
                     bool wantUp = trend == -1
                     bool anchorBreak = false
                     bool middleBreak = false
-                    bool q265 = false
-                    bool q273 = false
-                    int q279 = na
+                    bool q233 = false
+                    bool q241 = false
+                    int q247 = na
                     for proofIndex = 0 to candleIndex
                         int proofTime = array.get(savedTimes, proofIndex)
-                        if proofTime >= q334
+                        if proofTime >= q302
                             float proofClose = array.get(savedCloses, proofIndex)
-                            bool atAnchor = wantUp ? proofClose - q331 >= offset - 0.000000001 : q331 - proofClose >= offset - 0.000000001
-                            bool atMiddle = wantUp ? q333 - proofClose >= offset - 0.000000001 : proofClose - q333 >= offset - 0.000000001
-                            if proofTime - q279 == 300000
-                                anchorBreak := anchorBreak or (atAnchor and q265)
-                                middleBreak := middleBreak or (atMiddle and q273)
-                            q265 := atAnchor
-                            q273 := atMiddle
-                            q279 := proofTime
+                            bool atAnchor = wantUp ? proofClose - q299 >= offset - 0.000000001 : q299 - proofClose >= offset - 0.000000001
+                            bool atMiddle = wantUp ? q301 - proofClose >= offset - 0.000000001 : proofClose - q301 >= offset - 0.000000001
+                            if proofTime - q247 == 300000
+                                anchorBreak := anchorBreak or (atAnchor and q233)
+                                middleBreak := middleBreak or (atMiddle and q241)
+                            q233 := atAnchor
+                            q241 := atMiddle
+                            q247 := proofTime
                     if middleBreak
-                        q335 := 0
+                        q303 := 0
                     else if anchorBreak
                         trend := -trend
-                        q335 := 0
+                        q303 := 0
                 array.set(q33, candleIndex, trend)
                 result := trend
     if count > 0
@@ -317,14 +296,14 @@ q290(array<chart.point> redPoints, array<chart.point> greenPoints, array<float> 
             int paintTrend = array.get(q33, paintIndex)
             int paintTime = array.get(savedTimes, paintIndex)
             if paintTrend != 0
-                if q179 and paintTime > firstTime and paintTime <= q396
-                    paintTrend := -q177
+                if q171 and paintTime > firstTime and paintTime <= q360
+                    paintTrend := -q169
                 if paintTrend == 1
                     q14(greenPoints, paintTime, array.get(savedOpens, paintIndex), array.get(savedCloses, paintIndex))
                 else
                     q14(redPoints, paintTime, array.get(savedOpens, paintIndex), array.get(savedCloses, paintIndex))
     result
-q374(label id, int atTime, float price, string caption, color ink) =>
+q343(label id, int atTime, float price, string caption, color ink) =>
     label result = id
     if na(result)
         result := label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_left, color=color.new(color.white, 100), textcolor=ink, size=size.small)
@@ -332,12 +311,12 @@ q374(label id, int atTime, float price, string caption, color ink) =>
         label.set_xy(result, atTime, price)
         label.set_text(result, caption)
     result
-q113(array<label> labels, label info) =>
+q106(array<label> labels, label info) =>
     int infoIndex = array.indexof(labels, info)
     if infoIndex >= 0
         array.remove(labels, infoIndex)
     label.delete(info)
-q296(array<box> boxes, array<label> labels, box riskBox, box rewardBox, label info, label stopInfo, label targetInfo) =>
+q264(array<box> boxes, array<label> labels, box riskBox, box rewardBox, label info, label stopInfo, label targetInfo) =>
     int riskIndex = array.indexof(boxes, riskBox)
     if riskIndex >= 0
         array.remove(boxes, riskIndex)
@@ -346,9 +325,9 @@ q296(array<box> boxes, array<label> labels, box riskBox, box rewardBox, label in
         array.remove(boxes, rewardIndex)
     box.delete(riskBox)
     box.delete(rewardBox)
-    q113(labels, info)
-    q113(labels, stopInfo)
-    q113(labels, targetInfo)
+    q106(labels, info)
+    q106(labels, stopInfo)
+    q106(labels, targetInfo)
 color backgroundColor = input.color(color.rgb(245, 246, 248), "Цвет фона графика (маска теней)")
 color flatColor = color.black
 barcolor(backgroundColor)
@@ -356,9 +335,9 @@ float bodyHigh = math.max(open, close)
 float bodyLow = math.min(open, close)
 color bodyColor = color.black
 plotbar(open, bodyHigh, bodyLow, close, title="Чёрные бары без теней", color=bodyColor)
-string q286 = "Asia/Krasnoyarsk"
-string q188 = "Asia/Krasnoyarsk"
-bool q345 = input.bool(true, "Показывать диапазон H1 как в v83")
+string q254 = "Asia/Krasnoyarsk"
+string q173 = "Asia/Krasnoyarsk"
+bool q316 = input.bool(true, "Показывать диапазон H1 как в v83")
 color bullishRange = input.color(color.teal, "Диапазон растущей H1")
 color bearishRange = input.color(color.red, "Диапазон падающей H1")
 int keepRanges = input.int(100, "Хранить диапазонов", minval=1, maxval=350)
@@ -371,342 +350,334 @@ var int upperRun = 0
 var int lowerRun = 0
 var bool upperMarked = false
 var bool lowerMarked = false
-var label q162 = na
-var float q161 = na
-var bool q160 = false
-var int q200 = na
+var label q154 = na
+var float q153 = na
+var bool q152 = false
+var int q185 = na
 var float q28 = na
-var float q284 = na
+var float q252 = na
 var float q29 = na
 var int q26 = na
-var int q280 = 0
-var bool q344 = false
-var float q285 = na
-var int q282 = na
-var float q281 = na
-var int q283 = na
-var label q343 = na
-var label q203 = na
-var float q368 = na
-var int q367 = na
-var int q370 = 0
+var int q248 = 0
+var bool q314 = false
+var float q253 = na
+var int q250 = na
+var float q249 = na
+var int q251 = na
+var label q313 = na
+var label q188 = na
+var float q338 = na
+var int q337 = na
+var int q340 = 0
 var bool thirdLocked = false
-var bool q371 = true
-var int q140 = na
-var int q138 = na
-var float q139 = na
-var int q155 = 0
-var int q137 = na
-bool q205 = false
-var int q112 = 0
-var bool q409 = false
-var bool q400 = false
-var bool q412 = false
-var bool q249 = false
-var bool q149 = false
-var float q404 = na
-var bool q248 = false
+var bool q341 = true
+var int q134 = na
+var int q132 = na
+var float q133 = na
+var int q148 = 0
+var int q131 = na
+bool q190 = false
+var int q105 = 0
+var bool q373 = false
+var bool q364 = false
+var bool q376 = false
+var bool q217 = false
+var bool q142 = false
+var float q368 = na
+var bool q216 = false
 var array<label> v1ExitMarks = array.new_label()
-var array<label> q377 = array.new_label()
-var array<line> q378 = array.new_line()
-var bool q159 = false
-var float q300 = na
-var int q301 = na
-var int q303 = na
-var bool q307 = false
-var int q308 = na
-var int q314 = na
-var float q317 = na
-var int q323 = na
-var int q324 = 0
-var array<int> q322 = array.new_int()
-var array<float> q321 = array.new_float()
-var array<bool> q320 = array.new_bool()
-var array<int> q319 = array.new_int()
-var float q151 = na
-var int q150 = 0
-var int q158 = na
-var bool q153 = false
-var bool q152 = false
-var bool q73 = false
-var float q63 = na
+var array<label> q346 = array.new_label()
+var array<line> q347 = array.new_line()
+var bool q151 = false
+var float q268 = na
+var int q269 = na
+var int q271 = na
+var bool q275 = false
+var int q276 = na
+var int q282 = na
+var float q285 = na
+var int q291 = na
+var int q292 = 0
+var array<int> q290 = array.new_int()
+var array<float> q289 = array.new_float()
+var array<bool> q288 = array.new_bool()
+var array<int> q287 = array.new_int()
+var float q144 = na
+var int q143 = 0
+var int q150 = na
+var bool q146 = false
+var bool q145 = false
+var bool q68 = false
+var float q59 = na
 var label fifthLabel = na
-var float q125 = na
-var int q128 = na
-var int q129 = 1
+var float q118 = na
+var int q121 = na
+var int q122 = 1
 var bool fifthLocked = false
-var int q256 = 0
-var int q257 = 0
-var int q255 = na
-var int q224 = na
+var int q224 = 0
+var int q225 = 0
+var int q223 = na
+var int rrTouchBar = na
+var int rrTouchTime = na
+var int q307 = na
+var float q306 = na
+var int q207 = na
+var int q369 = na
+var int q211 = na
+var int q213 = na
+var int q220 = na
+var bool q232 = false
+var bool q231 = false
 var float q226 = na
-var float q225 = na
-var bool q221 = false
-var int q231 = na
-var bool q229 = false
-var int q415 = na
-var int q413 = na
-var float q416 = na
-var float q414 = na
-varip int q184 = na
-varip int q185 = na
-var int q239 = na
-var int q405 = na
-var int q243 = na
-var int q245 = na
-var int q252 = na
-var bool q264 = false
-var bool q263 = false
-var float q258 = na
-var float q260 = na
-var float q262 = na
-var float q242 = na
+var float q228 = na
+var float q230 = na
+var float q210 = na
 var float positionRR = na
-var box q254 = na
-var box q253 = na
-var label q247 = na
-var label q259 = na
-var label q261 = na
-var array<box> q240 = array.new_box()
-var array<label> q250 = array.new_label()
+var box q222 = na
+var box q221 = na
+var label q215 = na
+var label q227 = na
+var label q229 = na
+var array<box> q208 = array.new_box()
+var array<label> q218 = array.new_label()
 color risingTrendColor = input.color(color.lime, "Восходящее движение между точками")
 color fallingTrendColor = input.color(color.red, "Нисходящее движение между точками")
-var int q366 = na
-var int q165 = na
-var int q127 = na
-var int q51 = na
-var int q58 = na
-var int q52 = na
+var int q336 = na
+var int q157 = na
+var int q120 = na
+var int q47 = na
+var int q54 = na
+var int q48 = na
 var int q4 = 0
-var array<chart.point> q48 = array.new<chart.point>()
-var array<chart.point> q47 = array.new<chart.point>()
-var array<chart.point> q44 = array.new<chart.point>()
+var array<chart.point> q46 = array.new<chart.point>()
+var array<chart.point> q45 = array.new<chart.point>()
 var array<chart.point> q42 = array.new<chart.point>()
-var array<polyline> q57 = array.new<polyline>()
-var array<polyline> q45 = array.new<polyline>()
+var array<chart.point> q40 = array.new<chart.point>()
+var array<polyline> q53 = array.new<polyline>()
+var array<polyline> q43 = array.new<polyline>()
 var polyline colorDayRed = na
-var polyline q46 = na
-var polyline q43 = na
+var polyline q44 = na
 var polyline q41 = na
-var float q68 = na
-var int q69 = na
-var bool q397 = false
-var float q393 = na
-var int q395 = na
-var int q392 = na
-var float q394 = na
-var bool q141 = false
-var bool q135 = false
-var float q132 = na
-var int q134 = na
-var int q131 = na
-var float q133 = na
-var bool q216 = false
-var int q399 = na
-var bool q156 = false
-var bool q146 = false
-var float q85 = na
-var int q87 = na
-var int q86 = na
-var int q95 = 1
-var bool q97 = false
-var float q93 = na
-var int q94 = na
-var bool q83 = false
-var float q80 = na
-var int q81 = na
-var bool q91 = false
-var bool q89 = false
-var bool q82 = false
-var bool q96 = false
-var int q98 = na
-var bool q101 = false
-var float q100 = na
-var int q102 = na
-var label q103 = na
-var label q88 = na
-var label q99 = na
-var label zeroLabel = na
-var array<float> q407 = array.new_float()
-var array<float> q406 = array.new_float()
-var array<int> q408 = array.new_int()
-var int q411 = na
-var int q363 = 0
+var polyline q39 = na
+var float q63 = na
+var int q64 = na
+var bool q361 = false
 var float q357 = na
+var int q359 = na
 var int q356 = na
-var int q355 = na
+var float q358 = na
+var bool q135 = false
+var bool q129 = false
+var float q126 = na
+var int q128 = na
+var int q125 = na
+var float q127 = na
+var bool q201 = false
+var int q363 = na
+var bool q149 = false
+var bool q139 = false
+var float q80 = na
+var int q82 = na
+var int q81 = na
+var int q89 = 1
+var bool q91 = false
+var float q87 = na
+var int q88 = na
+var bool q78 = false
+var float q75 = na
+var int q76 = na
+var bool q85 = false
+var bool q84 = false
+var bool q77 = false
+var bool q90 = false
+var int q92 = na
+var bool q95 = false
+var float q94 = na
+var int q96 = na
+var label q97 = na
+var label q83 = na
+var label q93 = na
+var label zeroLabel = na
+var array<float> q371 = array.new_float()
+var array<float> q370 = array.new_float()
+var array<int> q372 = array.new_int()
+var int q375 = na
+var int q333 = 0
+var float q327 = na
+var int q326 = na
+var int q325 = na
 var float middlePrice = na
 var int middleTime = na
-var bool q354 = false
-var label q202 = na
-var float q163 = na
-var int q166 = na
-var int q171 = 0
-var bool q167 = false
-var float q64 = na
-var float q67 = na
-var float q66 = na
-var float q176 = na
-var float q189 = na
-var float q190 = na
-var int q40 = na
-var int q181 = na
-var int q267 = na
-var bool q59 = false
-int rangeYear = year(time, q286)
-int rangeMonth = month(time, q286)
-int rangeDay = dayofmonth(time, q286)
+var bool q324 = false
+var label q187 = na
+var float q155 = na
+var int q158 = na
+var int q163 = 0
+var bool q159 = false
+var float q60 = na
+var float q62 = na
+var float q61 = na
+var float q168 = na
+var float q174 = na
+var float q175 = na
+var int q38 = na
+var int q172 = na
+var int q235 = na
+var bool q55 = false
+int rangeYear = year(time, q254)
+int rangeMonth = month(time, q254)
+int rangeDay = dayofmonth(time, q254)
 int rangeDayKey = rangeYear * 10000 + rangeMonth * 100 + rangeDay
 int q20 = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 8, 0)
 int bodyHourEnd = timestamp("Europe/London", rangeYear, rangeMonth, rangeDay, 9, 0)
-bool rangeFriday = dayofweek(time, q286) == dayofweek.friday
-int q111 = 2
-bool q287 = dayofweek(time, q286) != dayofweek.saturday and dayofweek(time, q286) != dayofweek.sunday
-if q287 and barstate.isconfirmed and time >= q20 and time < bodyHourEnd
+bool rangeFriday = dayofweek(time, q254) == dayofweek.friday
+int q104 = 2
+bool q255 = dayofweek(time, q254) != dayofweek.saturday and dayofweek(time, q254) != dayofweek.sunday
+if q255 and barstate.isconfirmed and time >= q20 and time < bodyHourEnd
     if time == q20
-        q176 := open
-        q189 := high
-        q190 := low
-        q40 := rangeDayKey
-        q267 := na
-        q59 := true
-    else if q40 != rangeDayKey or na(q267) or (time != q267 and time != q267 + 1)
-        q59 := false
-    q189 := math.max(q189, high)
-    q190 := math.min(q190, low)
-    q267 := time_close
-    if q345 and q59 and q40 == rangeDayKey and time_close >= bodyHourEnd - 1 and time_close <= bodyHourEnd and (na(q181) or q181 != rangeDayKey)
-        color rangeColor = close > q176 ? bullishRange : close < q176 ? bearishRange : flatColor
-        box q110 = box.new(left=q20, top=q189, right=timestamp(q188, year(q20, q188), month(q20, q188), dayofmonth(q20, q188), 20, 30), bottom=q190, xloc=xloc.bar_time, border_color=rangeColor, border_width=1, bgcolor=na)
-        q2 := q189
-        q3 := q190
+        q168 := open
+        q174 := high
+        q175 := low
+        q38 := rangeDayKey
+        q235 := na
+        q55 := true
+    else if q38 != rangeDayKey or na(q235) or (time != q235 and time != q235 + 1)
+        q55 := false
+    q174 := math.max(q174, high)
+    q175 := math.min(q175, low)
+    q235 := time_close
+    if q316 and q55 and q38 == rangeDayKey and time_close >= bodyHourEnd - 1 and time_close <= bodyHourEnd and (na(q172) or q172 != rangeDayKey)
+        color rangeColor = close > q168 ? bullishRange : close < q168 ? bearishRange : flatColor
+        box q103 = box.new(left=q20, top=q174, right=timestamp(q173, year(q20, q173), month(q20, q173), dayofmonth(q20, q173), 20, 30), bottom=q175, xloc=xloc.bar_time, border_color=rangeColor, border_width=1, bgcolor=na)
+        q2 := q174
+        q3 := q175
         q0 := rangeDayKey
-        q1 := timestamp(q188, rangeYear, rangeMonth, rangeDay, 20, 30)
-        q409 := false
-        q400 := false
-        q412 := false
-        q149 := false
-        q404 := na
-        q112 := 0
-        q159 := false
-        q300 := na
-        q301 := na
-        q303 := na
-        q307 := false
-        q308 := na
-        q314 := na
-        q317 := na
-        q323 := na
-        q324 := 0
-        array.clear(q322)
-        array.clear(q321)
-        array.clear(q320)
-        array.clear(q319)
-        q151 := na
-        q150 := 0
-        q158 := na
-        q153 := false
-        q152 := false
-        q73 := false
-        q63 := na
+        q1 := timestamp(q173, rangeYear, rangeMonth, rangeDay, 20, 30)
+        q373 := false
+        q364 := false
+        q376 := false
+        q142 := false
+        q368 := na
+        q105 := 0
+        q151 := false
+        q268 := na
+        q269 := na
+        q271 := na
+        q275 := false
+        q276 := na
+        q282 := na
+        q285 := na
+        q291 := na
+        q292 := 0
+        array.clear(q290)
+        array.clear(q289)
+        array.clear(q288)
+        array.clear(q287)
+        q144 := na
+        q143 := 0
+        q150 := na
+        q146 := false
+        q145 := false
+        q68 := false
+        q59 := na
         fifthLabel := na
         fifthLocked := false
-        q162 := na
-        q161 := na
-        q160 := false
-        q200 := na
+        q154 := na
+        q153 := na
+        q152 := false
+        q185 := na
         q29 := na
         q26 := na
-        q280 := 1
-        q344 := false
-        q281 := na
-        q283 := na
-        q343 := na
-        q203 := na
-        q368 := na
-        q367 := na
-        q370 := 1
+        q248 := 1
+        q314 := false
+        q249 := na
+        q251 := na
+        q313 := na
+        q188 := na
+        q338 := na
+        q337 := na
+        q340 := 1
         thirdLocked := false
-        q371 := true
-        q140 := na
-        q138 := na
-        q139 := na
-        q155 := 1
-        q137 := na
-        q366 := na
-        q165 := na
-        q127 := na
+        q341 := true
+        q134 := na
+        q132 := na
+        q133 := na
+        q148 := 1
+        q131 := na
+        q336 := na
+        q157 := na
+        q120 := na
         q4 := 0
-        q51 := na
-        q52 := na
-        q58 := na
-        q68 := na
-        q69 := na
-        q397 := false
+        q47 := na
+        q48 := na
+        q54 := na
+        q63 := na
+        q64 := na
+        q361 := false
+        q129 := false
         q135 := false
-        q141 := false
-        q216 := false
-        q399 := na
-        q156 := false
-        q146 := false
-        q85 := na
-        q87 := na
-        q86 := na
-        q95 := 1
-        q97 := false
-        q93 := na
-        q94 := na
-        q83 := false
+        q201 := false
+        q363 := na
+        q149 := false
+        q139 := false
+        q80 := na
+        q82 := na
+        q81 := na
+        q89 := 1
         q91 := false
-        q89 := false
-        q82 := false
-        q96 := false
-        q98 := na
-        q101 := false
-        q100 := na
-        q102 := na
-        q103 := na
+        q87 := na
         q88 := na
-        q99 := na
+        q78 := false
+        q85 := false
+        q84 := false
+        q77 := false
+        q90 := false
+        q92 := na
+        q95 := false
+        q94 := na
+        q96 := na
+        q97 := na
+        q83 := na
+        q93 := na
         zeroLabel := na
-        q363 := 0
-        q357 := na
-        q356 := na
-        q355 := na
+        q333 := 0
+        q327 := na
+        q326 := na
+        q325 := na
         middlePrice := na
         middleTime := na
-        q354 := false
-        q202 := na
-        q163 := na
-        q166 := na
-        q171 := 1
-        q167 := false
-        q64 := na
-        q67 := na
-        q66 := na
+        q324 := false
+        q187 := na
+        q155 := na
+        q158 := na
+        q163 := 1
+        q159 := false
+        q60 := na
+        q62 := na
+        q61 := na
         upperRun := 0
         lowerRun := 0
         upperMarked := false
         lowerMarked := false
-        array.push(bodyRanges, q110)
-        q181 := rangeDayKey
+        array.push(bodyRanges, q103)
+        q172 := rangeDayKey
         if array.size(bodyRanges) > keepRanges
             box.delete(array.shift(bodyRanges))
-bool q347 = input.bool(true, "Показывать точки 1 за H1 (график M5)")
-float q144 = input.float(0.01, "Минимальный отступ закрепа за часом и точками", minval=0.01, step=0.01)
-bool q238 = false
-bool q348 = true
-var array<label> q39 = array.new_label()
-var array<bool> q38 = array.new_bool()
-var array<int> q198 = array.new_int()
-var array<float> q197 = array.new_float()
-var array<bool> q196 = array.new_bool()
-var array<int> q195 = array.new_int()
-var array<label> q194 = array.new_label()
-var array<int> q361 = array.new_int()
-var array<float> q360 = array.new_float()
-var array<bool> q359 = array.new_bool()
-var array<int> q358 = array.new_int()
+bool q318 = input.bool(true, "Показывать точки 1 за H1 (график M5)")
+float q137 = input.float(0.01, "Минимальный отступ закрепа за часом и точками", minval=0.01, step=0.01)
+bool q206 = false
+bool q319 = true
+var array<label> q37 = array.new_label()
+var array<bool> q36 = array.new_bool()
+var array<int> q183 = array.new_int()
+var array<float> q182 = array.new_float()
+var array<bool> q181 = array.new_bool()
+var array<int> q180 = array.new_int()
+var array<label> q179 = array.new_label()
+var array<int> q331 = array.new_int()
+var array<float> q330 = array.new_float()
+var array<bool> q329 = array.new_bool()
+var array<int> q328 = array.new_int()
 var array<int> q7 = array.new_int()
 var array<int> q13 = array.new_int()
 var array<float> q12 = array.new_float()
@@ -714,7 +685,7 @@ var array<int> q9 = array.new_int()
 var array<float> q8 = array.new_float()
 var array<bool> q11 = array.new_bool()
 var array<int> q10 = array.new_int()
-q291(array<int> times, array<float> prices, array<bool> highs, array<int> days, int atTime, float price, bool isHigh, int dayKey, int q173 = 120) =>
+q259(array<int> times, array<float> prices, array<bool> highs, array<int> days, int atTime, float price, bool isHigh, int dayKey, int q165 = 120) =>
     int count = array.size(times)
     bool sameDay = count > 0 ? array.get(days, count - 1) == dayKey : false
     bool sameType = sameDay ? array.get(highs, count - 1) == isHigh : false
@@ -728,1209 +699,1088 @@ q291(array<int> times, array<float> prices, array<bool> highs, array<int> days, 
         array.push(prices, price)
         array.push(highs, isHigh)
         array.push(days, dayKey)
-    while array.size(times) > q173
+    while array.size(times) > q165
         array.shift(times)
         array.shift(prices)
         array.shift(highs)
         array.shift(days)
     array.size(times)
-swingClass(float price, float q275, bool isHigh) =>
-    na(q275) ? (isHigh ? "H" : "L") : math.abs(price - q275) <= 0.000000001 ? (isHigh ? "EH" : "EL") : isHigh ? (price > q275 ? "HH" : "LH") : (price > q275 ? "HL" : "LL")
-q207(int atTime, float price, string caption, string pointStyle) =>
+swingClass(float price, float q243, bool isHigh) =>
+    na(q243) ? (isHigh ? "H" : "L") : math.abs(price - q243) <= 0.000000001 ? (isHigh ? "EH" : "EL") : isHigh ? (price > q243 ? "HH" : "LH") : (price > q243 ? "HL" : "LL")
+q192(int atTime, float price, string caption, string pointStyle) =>
     label number = label.new(x=atTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=pointStyle, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
-    array.push(q39, number)
-    array.push(q38, pointStyle == label.style_label_down)
-    while array.size(q39) > 180
-        array.shift(q39)
-        array.shift(q38)
+    array.push(q37, number)
+    array.push(q36, pointStyle == label.style_label_down)
+    while array.size(q37) > 180
+        array.shift(q37)
+        array.shift(q36)
     number
-var array<label> q143 = array.new_label()
-int q237 = timestamp(q188, rangeYear, rangeMonth, rangeDay + 1, 0, 0)
-bool q148 = q287 and q0 == rangeDayKey and not na(q1) and time >= bodyHourEnd and time + 300000 < q237
+var array<label> q136 = array.new_label()
+int q205 = timestamp(q173, rangeYear, rangeMonth, rangeDay + 1, 0, 0)
+bool q141 = q255 and q0 == rangeDayKey and not na(q1) and time >= bodyHourEnd and time + 300000 < q205
 bool m5Chart = not na(time[1]) and time - time[1] == 300000 and time_close - time >= 299999 and time_close - time <= 300000
 bool pointPairM5 = m5Chart and rangeDayKey == rangeDayKey[1]
-int q410 = q20 - 3600000
-if barstate.isconfirmed and m5Chart and time >= timestamp(q286, rangeYear, rangeMonth, rangeDay, 0, 0)
-    if na(q411) or q411 != rangeDayKey
-        if array.size(q45) > 0
-            for drawingIndex = 0 to array.size(q45) - 1
-                array.push(q57, array.get(q45, drawingIndex))
+int q374 = q20 - 3600000
+if barstate.isconfirmed and m5Chart and time >= timestamp(q254, rangeYear, rangeMonth, rangeDay, 0, 0)
+    if na(q375) or q375 != rangeDayKey
+        if array.size(q43) > 0
+            for drawingIndex = 0 to array.size(q43) - 1
+                array.push(q53, array.get(q43, drawingIndex))
+        array.clear(q43)
+        while array.size(q53) > 90
+            polyline.delete(array.shift(q53))
+        array.clear(q46)
         array.clear(q45)
-        while array.size(q57) > 90
-            polyline.delete(array.shift(q57))
-        array.clear(q48)
-        array.clear(q47)
-        q411 := rangeDayKey
-        array.clear(q407)
-        array.clear(q406)
-        array.clear(q408)
-    array.push(q407, open)
-    array.push(q406, close)
-    array.push(q408, time)
-if barstate.isconfirmed and q148 and m5Chart
-    bool q71 = time[1] >= bodyHourEnd and time - time[1] == 300000
-    bool q60 = close - q2 >= q144 - 0.000000001
-    bool q61 = q3 - close >= q144 - 0.000000001
+        q375 := rangeDayKey
+        array.clear(q371)
+        array.clear(q370)
+        array.clear(q372)
+    array.push(q371, open)
+    array.push(q370, close)
+    array.push(q372, time)
+if barstate.isconfirmed and q141 and m5Chart
+    bool q66 = time[1] >= bodyHourEnd and time - time[1] == 300000
+    bool q56 = close - q2 >= q137 - 0.000000001
+    bool q57 = q3 - close >= q137 - 0.000000001
     if close < q2
         upperRun := 0
     if close > q3
         lowerRun := 0
-    bool q375 = not upperMarked and not lowerMarked
-    bool q191 = not upperMarked and not lowerMarked
-    if q347 and ((q60 and q375) or (q61 and q191))
-        bool upperPoint = q60 and q375
+    bool q344 = not upperMarked and not lowerMarked
+    bool q176 = not upperMarked and not lowerMarked
+    if q318 and ((q56 and q344) or (q57 and q176))
+        bool upperPoint = q56 and q344
         float pairHigh = bodyHigh
         float pairLow = bodyLow
-        float q145 = upperPoint ? pairHigh : pairLow
-        int q147 = time
-        q363 := upperPoint ? 1 : -1
-        q357 := q145
-        q356 := bar_index
-        q355 := rangeDayKey
-        q354 := false
-        q140 := q147
-        q138 := q147 == time ? bar_index : bar_index - 1
-        q139 := q147 == time ? open : open[1]
-        q155 := 1
-        q137 := na
-        q161 := q145
-        q160 := false
+        float q138 = upperPoint ? pairHigh : pairLow
+        int q140 = time
+        q333 := upperPoint ? 1 : -1
+        q327 := q138
+        q326 := bar_index
+        q325 := rangeDayKey
+        q324 := false
+        q134 := q140
+        q132 := q140 == time ? bar_index : bar_index - 1
+        q133 := q140 == time ? open : open[1]
+        q148 := 1
+        q131 := na
+        q153 := q138
+        q152 := false
         middlePrice := na
         middleTime := na
         q29 := na
         q26 := na
-        q200 := na
-        q280 := 1
-        q344 := false
-        q281 := na
-        q283 := na
-        q343 := na
-    if q60
+        q185 := na
+        q248 := 1
+        q314 := false
+        q249 := na
+        q251 := na
+        q313 := na
+    if q56
         upperRun := 1
         upperMarked := true
-    if q61
+    if q57
         lowerRun := 1
         lowerMarked := true
-if barstate.isconfirmed and q148 and m5Chart and q355 == rangeDayKey and q363 != 0 and not q160
-    float q27 = q363 == -1 ? bodyLow : bodyHigh
-    bool q121 = q363 == -1 ? close < q357 : close > q357
-    if q121
-        q357 := q27
-        q161 := q27
-        q140 := time
-        q138 := bar_index
-        q139 := open
-        q155 := 1
+if barstate.isconfirmed and q141 and m5Chart and q325 == rangeDayKey and q333 != 0 and not q152
+    float q27 = q333 == -1 ? bodyLow : bodyHigh
+    bool q115 = q333 == -1 ? close < q327 : close > q327
+    if q115
+        q327 := q27
+        q153 := q27
+        q134 := time
+        q132 := bar_index
+        q133 := open
+        q148 := 1
         middlePrice := na
         middleTime := na
         q29 := na
         q26 := na
-        q200 := na
-    else if bar_index > q138
-        bool q154 = q363 == -1 ? close >= q357 : close <= q357
-        q155 := q209(q155, time - time[1] == 300000, open, close, q363 == -1)
-        float q289 = q363 == -1 ? bodyHigh : bodyLow
-        if na(middlePrice) or (q363 == -1 ? q289 > middlePrice : q289 < middlePrice)
-            middlePrice := q289
+        q185 := na
+    else if bar_index > q132
+        bool q147 = q333 == -1 ? close >= q327 : close <= q327
+        q148 := q194(q148, time - time[1] == 300000, open, close, q333 == -1)
+        float q257 = q333 == -1 ? bodyHigh : bodyLow
+        if na(middlePrice) or (q333 == -1 ? q257 > middlePrice : q257 < middlePrice)
+            middlePrice := q257
             middleTime := time
-            q200 := time
+            q185 := time
             q28 := open
-            q29 := q363 == -1 ? bodyLow : bodyHigh
+            q29 := q333 == -1 ? bodyLow : bodyHigh
             q26 := bar_index
-        else if q289 == middlePrice and time - q200 == 300000
+        else if q257 == middlePrice and time - q185 == 300000
             middleTime := int((middleTime + time) / 2)
-            q200 := time
-        if q155 >= q201 and q154
-            q160 := true
-            q137 := bar_index
-            q356 := q138
-            [rangeOriginPrice, rangeOriginTime] = q130(q407, q406, q408, -q363, q410, q140)
-            q68 := rangeOriginPrice
-            q69 := rangeOriginTime
-            q399 := rangeOriginTime
-            if not na(q68)
-                zeroLabel := q207(q69, q68, "0", q363 == -1 ? label.style_label_down : label.style_label_up)
-                array.push(q143, zeroLabel)
-            q162 := q207(q140, q357, "1", q363 == -1 ? label.style_label_up : label.style_label_down)
-            array.push(q143, q162)
-            if array.size(q143) > 180
-                label.delete(array.shift(q143))
-if barstate.isconfirmed and q148 and m5Chart and q355 == rangeDayKey and q160 and not na(q68) and q112 == 0 and not q96
-    bool counterDown = q363 == 1
-    if q354 and q264 and not q141
-        q91 := true
-    bool seedCounter = na(q85)
+            q185 := time
+        if q148 >= q186 and q147
+            q152 := true
+            q131 := bar_index
+            q326 := q132
+            [rangeOriginPrice, rangeOriginTime] = q124(q371, q370, q372, -q333, q374, q134)
+            q63 := rangeOriginPrice
+            q64 := rangeOriginTime
+            q363 := rangeOriginTime
+            if not na(q63)
+                zeroLabel := q192(q64, q63, "0", q333 == -1 ? label.style_label_down : label.style_label_up)
+                array.push(q136, zeroLabel)
+            q154 := q192(q134, q327, "1", q333 == -1 ? label.style_label_up : label.style_label_down)
+            array.push(q136, q154)
+            if array.size(q136) > 180
+                label.delete(array.shift(q136))
+if barstate.isconfirmed and q141 and m5Chart and q325 == rangeDayKey and q152 and not na(q63) and q105 == 0 and not q90
+    bool counterDown = q333 == 1
+    if q324 and q232 and not q135
+        q85 := true
+    bool seedCounter = na(q80)
     if seedCounter
-        int savedCount = array.size(q408)
+        int savedCount = array.size(q372)
         if savedCount > 0
             for ci = 0 to savedCount - 1
-                int ct = array.get(q408, ci)
-                if ct > q140 and ct <= time
-                    float co = array.get(q407, ci)
-                    float cc = array.get(q406, ci)
+                int ct = array.get(q372, ci)
+                if ct > q134 and ct <= time
+                    float co = array.get(q371, ci)
+                    float cc = array.get(q370, ci)
                     float cp = counterDown ? math.min(co, cc) : math.max(co, cc)
-                    if na(q85) or (counterDown ? cp < q85 : cp > q85)
-                        q85 := cp
-                        q87 := ct
-                        q86 := bar_index - int((time - ct) / 300000)
-                        q95 := 1
-                        q93 := na
-                        q94 := na
+                    if na(q80) or (counterDown ? cp < q80 : cp > q80)
+                        q80 := cp
+                        q82 := ct
+                        q81 := bar_index - int((time - ct) / 300000)
+                        q89 := 1
+                        q87 := na
+                        q88 := na
                     else
-                        q95 := q95 + 1
+                        q89 := q89 + 1
                         float opposite = counterDown ? math.max(co, cc) : math.min(co, cc)
-                        if na(q93) or (counterDown ? opposite >= q93 : opposite <= q93)
-                            q93 := opposite
-                            q94 := ct
-        q97 := q95 >= q201
+                        if na(q87) or (counterDown ? opposite >= q87 : opposite <= q87)
+                            q87 := opposite
+                            q88 := ct
+        q91 := q89 >= q186
     else
         float nextExtreme = counterDown ? bodyLow : bodyHigh
-        float q208 = counterDown ? bodyHigh : bodyLow
-        bool q92 = q412 or twoM5Break(q68, not counterDown, q144, pointPairM5)
-        if q97
-            if na(q93) or (counterDown ? q208 >= q93 : q208 <= q93)
-                q93 := q208
-                q94 := time
-            bool q16 = counterDown ? q85 - close >= q144 - 0.000000001 : close - q85 >= q144 - 0.000000001
-            if q83
-                if counterDown ? nextExtreme <= q80 : nextExtreme >= q80
-                    q80 := nextExtreme
-                    q81 := time
-                if twoM5Break(q85, not counterDown, q144, pointPairM5)
-                    q101 := q299(q407, q406, q408, q87, q93, not counterDown, q201)
-                    q100 := q93
-                    q102 := q94
-                    q82 := true
-                    q83 := false
-                    if q91 and q92 and q89
-                        q96 := true
-                        q98 := time
+        float q193 = counterDown ? bodyHigh : bodyLow
+        bool q86 = q376 or twoM5Break(q63, not counterDown, q137, pointPairM5)
+        if q91
+            if na(q87) or (counterDown ? q193 >= q87 : q193 <= q87)
+                q87 := q193
+                q88 := time
+            bool q16 = counterDown ? q80 - close >= q137 - 0.000000001 : close - q80 >= q137 - 0.000000001
+            if q78
+                if counterDown ? nextExtreme <= q75 : nextExtreme >= q75
+                    q75 := nextExtreme
+                    q76 := time
+                if twoM5Break(q80, not counterDown, q137, pointPairM5)
+                    q95 := q267(q371, q370, q372, q82, q87, not counterDown, q186)
+                    q94 := q87
+                    q96 := q88
+                    q77 := true
+                    q78 := false
+                    if q85 and q86 and q84
+                        q90 := true
+                        q92 := time
                     else
-                        q85 := q80
-                        q87 := q81
-                        q86 := bar_index
-                        q95 := 1
-                        q97 := false
-                        q93 := na
-                        q94 := na
+                        q80 := q75
+                        q82 := q76
+                        q81 := bar_index
+                        q89 := 1
+                        q91 := false
+                        q87 := na
+                        q88 := na
                 else
-                    q85 := q80
-                    q87 := q81
-                    q86 := bar_index
-                    q83 := false
+                    q80 := q75
+                    q82 := q76
+                    q81 := bar_index
+                    q78 := false
             else if q16
-                q83 := true
-                q80 := nextExtreme
-                q81 := time
-        else if counterDown ? nextExtreme < q85 : nextExtreme > q85
-            q85 := nextExtreme
-            q87 := time
-            q86 := bar_index
-            q95 := 1
-            q93 := na
-            q94 := na
-        else if bar_index > q86
-            q95 := q209(q95, time - time[1] == 300000, open, close, counterDown)
-            if na(q93) or (counterDown ? q208 >= q93 : q208 <= q93)
-                q93 := q208
-                q94 := time
-            if q95 >= q201
-                q97 := true
-                q82 := false
-        if q91 and q82 and q92 and q89
-            q96 := true
-            q98 := time
-    if q97 and not na(q93) and (counterDown ? q93 > q85 : q93 < q85)
-        q89 := true
-if barstate.isconfirmed and q148 and m5Chart and q355 == rangeDayKey and q160 and not na(q68) and q112 == 0 and q257 != 2 and not q412
+                q78 := true
+                q75 := nextExtreme
+                q76 := time
+        else if counterDown ? nextExtreme < q80 : nextExtreme > q80
+            q80 := nextExtreme
+            q82 := time
+            q81 := bar_index
+            q89 := 1
+            q87 := na
+            q88 := na
+        else if bar_index > q81
+            q89 := q194(q89, time - time[1] == 300000, open, close, counterDown)
+            if na(q87) or (counterDown ? q193 >= q87 : q193 <= q87)
+                q87 := q193
+                q88 := time
+            if q89 >= q186
+                q91 := true
+                q77 := false
+        if q85 and q77 and q86 and q84
+            q90 := true
+            q92 := time
+    if q91 and not na(q87) and (counterDown ? q87 > q80 : q87 < q80)
+        q84 := true
+if barstate.isconfirmed and q141 and m5Chart and q325 == rangeDayKey and q152 and not na(q63) and q105 == 0 and q225 != 2 and not q376
     bool moveZero = false
     bool moveFirst = false
-    bool upZero = q363 == -1
-    float q398 = upZero ? bodyHigh : bodyLow
-    bool beyondZero = upZero ? close - q68 >= q144 - 0.000000001 : q68 - close >= q144 - 0.000000001
-    if q397
-        if upZero ? q398 >= q393 : q398 <= q393
-            q393 := q398
-            q395 := time
-            q392 := bar_index
-            q394 := open
-        if twoM5Break(q68, upZero, q144, pointPairM5)
-            q397 := false
+    bool upZero = q333 == -1
+    float q362 = upZero ? bodyHigh : bodyLow
+    bool beyondZero = upZero ? close - q63 >= q137 - 0.000000001 : q63 - close >= q137 - 0.000000001
+    if q361
+        if upZero ? q362 >= q357 : q362 <= q357
+            q357 := q362
+            q359 := time
+            q356 := bar_index
+            q358 := open
+        if twoM5Break(q63, upZero, q137, pointPairM5)
+            q361 := false
         else
-            moveZero := not (q91 and q89)
-            q397 := false
+            moveZero := not (q85 and q84)
+            q361 := false
     else if beyondZero
-        q397 := true
-        q393 := q398
-        q395 := time
-        q392 := bar_index
-        q394 := open
-    bool upFirst = q363 == 1
-    float q136 = upFirst ? bodyHigh : bodyLow
-    bool beyondFirst = upFirst ? close - q357 >= q144 - 0.000000001 : q357 - close >= q144 - 0.000000001
-    if q135
-        if upFirst ? q136 >= q132 : q136 <= q132
-            q132 := q136
-            q134 := time
-            q131 := bar_index
-            q133 := open
-        if twoM5Break(q357, upFirst, q144, pointPairM5)
-            q135 := false
-            q141 := true
+        q361 := true
+        q357 := q362
+        q359 := time
+        q356 := bar_index
+        q358 := open
+    bool upFirst = q333 == 1
+    float q130 = upFirst ? bodyHigh : bodyLow
+    bool beyondFirst = upFirst ? close - q327 >= q137 - 0.000000001 : q327 - close >= q137 - 0.000000001
+    if q129
+        if upFirst ? q130 >= q126 : q130 <= q126
+            q126 := q130
+            q128 := time
+            q125 := bar_index
+            q127 := open
+        if twoM5Break(q327, upFirst, q137, pointPairM5)
+            q129 := false
+            q135 := true
         else
             moveFirst := true
-            q135 := false
-    else if not q141 and beyondFirst
-        q135 := true
-        q132 := q136
-        q134 := time
-        q131 := bar_index
-        q133 := open
+            q129 := false
+    else if not q135 and beyondFirst
+        q129 := true
+        q126 := q130
+        q128 := time
+        q125 := bar_index
+        q127 := open
     if moveZero or moveFirst
-        if q257 == 1
-            q296(q240, q250, q254, q253, q247, q259, q261)
-        q257 := 0
-        q249 := false
-        q149 := false
-        q248 := false
-        q264 := false
-        q263 := false
-        q153 := false
-        q152 := false
-        q151 := na
-        q242 := na
-        q258 := na
-        q260 := na
-        q262 := na
+        if q225 == 1
+            q264(q208, q218, q222, q221, q215, q227, q229)
+        q225 := 0
+        q217 := false
+        q142 := false
+        q216 := false
+        q232 := false
+        q231 := false
+        q146 := false
+        q145 := false
+        q144 := na
+        q210 := na
+        q226 := na
+        q228 := na
+        q230 := na
         positionRR := na
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-        q400 := false
-        q409 := false
-        q404 := na
-        q405 := na
-        q73 := false
-        if not na(q343)
-            label.delete(q343)
-        if not na(q203)
-            label.delete(q203)
-        if not na(q202)
-            label.delete(q202)
+        q222 := na
+        q221 := na
+        q215 := na
+        q227 := na
+        q229 := na
+        q364 := false
+        q373 := false
+        q368 := na
+        q369 := na
+        q68 := false
+        if not na(q313)
+            label.delete(q313)
+        if not na(q188)
+            label.delete(q188)
+        if not na(q187)
+            label.delete(q187)
         if not na(fifthLabel)
             label.delete(fifthLabel)
-        q343 := na
-        q203 := na
-        q202 := na
+        q313 := na
+        q188 := na
+        q187 := na
         fifthLabel := na
-        q354 := false
-        q344 := false
-        q66 := na
-        q67 := na
-        q64 := na
-        q63 := na
+        q324 := false
+        q314 := false
+        q61 := na
+        q62 := na
+        q60 := na
+        q59 := na
         thirdLocked := false
-        q371 := true
-        q167 := false
+        q341 := true
+        q159 := false
         fifthLocked := false
-        q51 := na
-        q366 := na
-        q165 := na
-        q127 := na
-        q200 := na
+        q47 := na
+        q336 := na
+        q157 := na
+        q120 := na
+        q185 := na
         q29 := na
         q26 := na
-        q280 := 1
-        q281 := na
-        q283 := na
-        q137 := bar_index
-        q141 := false
+        q248 := 1
+        q249 := na
+        q251 := na
+        q131 := bar_index
+        q135 := false
         if moveZero
-            q68 := q393
-            q69 := q395
-            q216 := true
-            label.set_xy(zeroLabel, q69, q68)
-            middlePrice := q68
-            middleTime := q69
-            q200 := q69
-            q28 := q394
-            q26 := q392
-            q156 := false
+            q63 := q357
+            q64 := q359
+            q201 := true
+            label.set_xy(zeroLabel, q64, q63)
+            middlePrice := q63
+            middleTime := q64
+            q185 := q64
+            q28 := q358
+            q26 := q356
+            q149 := false
         if moveFirst
-            q146 := true
-            q357 := q132
-            q161 := q132
-            q140 := q134
-            q138 := q131
-            q356 := q131
-            q139 := q133
-            label.set_xy(q162, q140, q357)
-            q155 := 1
-            q156 := true
-    else if q156 and bar_index > q138
-        q155 := q209(q155, time - time[1] == 300000, open, close, q363 == -1)
-        float q206 = q363 == -1 ? bodyHigh : bodyLow
-        if na(middlePrice) or (q363 == -1 ? q206 > middlePrice : q206 < middlePrice)
-            middlePrice := q206
+            q139 := true
+            q327 := q126
+            q153 := q126
+            q134 := q128
+            q132 := q125
+            q326 := q125
+            q133 := q127
+            label.set_xy(q154, q134, q327)
+            q148 := 1
+            q149 := true
+    else if q149 and bar_index > q132
+        q148 := q194(q148, time - time[1] == 300000, open, close, q333 == -1)
+        float q191 = q333 == -1 ? bodyHigh : bodyLow
+        if na(middlePrice) or (q333 == -1 ? q191 > middlePrice : q191 < middlePrice)
+            middlePrice := q191
             middleTime := time
-            q200 := time
+            q185 := time
             q28 := open
             q26 := bar_index
-        if q155 >= q201
-            q156 := false
-            q137 := bar_index
-if barstate.isconfirmed and q148 and m5Chart and q355 == rangeDayKey and q363 != 0 and q160 and not q156 and not q354 and bar_index > q137
-    if not q344
-        float q30 = q363 == -1 ? bodyHigh : bodyLow
-        bool q204 = na(middlePrice) or (q363 == -1 ? q30 > middlePrice : q30 < middlePrice)
-        if q204
+        if q148 >= q186
+            q149 := false
+            q131 := bar_index
+if barstate.isconfirmed and q141 and m5Chart and q325 == rangeDayKey and q333 != 0 and q152 and not q149 and not q324 and bar_index > q131
+    if not q314
+        float q30 = q333 == -1 ? bodyHigh : bodyLow
+        bool q189 = na(middlePrice) or (q333 == -1 ? q30 > middlePrice : q30 < middlePrice)
+        if q189
             middlePrice := q30
             middleTime := time
-            q200 := time
+            q185 := time
             q28 := open
-            q29 := q363 == -1 ? bodyLow : bodyHigh
+            q29 := q333 == -1 ? bodyLow : bodyHigh
             q26 := bar_index
-            q280 := 1
-            q281 := na
-            q283 := na
+            q248 := 1
+            q249 := na
+            q251 := na
         else
-            if q30 == middlePrice and not na(q200) and time - q200 == 300000
+            if q30 == middlePrice and not na(q185) and time - q185 == 300000
                 middleTime := int((middleTime + time) / 2)
-                q200 := time
-            bool q70 = time - time[1] == 300000
-            bool q15 = q363 == -1 ? close < middlePrice : close > middlePrice
-            q280 := q209(q280, q70, open, close, q363 == 1)
-            float q298 = q363 == -1 ? bodyLow : bodyHigh
-            if na(q281) or (q363 == -1 ? q298 < q281 : q298 > q281)
-                q281 := q298
-                q283 := time
-                q284 := open
-                q285 := q363 == -1 ? bodyHigh : bodyLow
-                q282 := bar_index
-            bool q75 = twoM5Break(q357, q363 == 1, q144, pointPairM5)
-            if (q280 >= q201 and q15) or q75
-                q344 := true
-                q66 := middlePrice
-                if not q216 or middlePrice != q68
-                    q343 := q207(middleTime, middlePrice, "2", q363 == -1 ? label.style_label_down : label.style_label_up)
-                    array.push(q143, q343)
-    if q344
-        bool q107 = twoM5Break(middlePrice, q363 == -1, q144, pointPairM5)
-        bool q105 = twoM5Break(q357, q363 == 1, q144, pointPairM5)
-        if q107 or q105
-            q67 := q107 ? q281 : (q363 == -1 ? bodyLow : bodyHigh)
-            q371 := true
-            if q107
-                q371 := q299(q407, q406, q408, time[bar_index - q26], q67, q363 == -1, q201)
-            int q369 = q107 ? q283 : time
-            q366 := q369
-            label thirdLabel = q207(q369, q67, q371 ? (q216 ? "2" : "3") : "", q363 == -1 ? label.style_label_up : label.style_label_down)
-            if q107
-                if not q371 and not na(q343)
-                    label.set_text(q343, "")
-                q51 := time
-                q64 := q363 == -1 ? bodyHigh : bodyLow
-                int q169 = time
-                q165 := q169
-                label fourthLabel = q207(q169, q64, q371 ? (q216 ? "3" : "4") : "2", q363 == -1 ? label.style_label_down : label.style_label_up)
-                q202 := fourthLabel
-                bool q168 = true
-                q163 := q168 ? open : open[1]
-                q166 := q168 ? bar_index : bar_index - 1
-                q171 := 1
-                q167 := false
-                array.push(q143, fourthLabel)
-            q203 := thirdLabel
-            q368 := q107 ? q284 : open
-            q367 := q107 ? q282 : q369 == time ? bar_index : q369 == time[1] ? bar_index - 1 : bar_index
-            q370 := 1
-            thirdLocked := q107
-            array.push(q143, thirdLabel)
-            q354 := true
-            if q257 != 2 and q112 == 0 and (not q400 or q409)
-                if q257 == 1
-                    q296(q240, q250, q254, q253, q247, q259, q261)
-                q205 := true
-                q249 := false
-                q149 := false
-                q248 := false
-                q151 := q107 ? (q371 ? q67 : q357) : q66
-                q150 := q107 ? -q363 : q363
-                q153 := q107
-                q256 := q107 ? -q363 : q363
-                q263 := false
-                q152 := false
-                q264 := q107
-                q239 := q107 ? (q371 ? q369 : q140) : middleTime
-                q258 := q107 ? (q371 ? q67 : q357) : q66
-                q260 := q107 ? q64 : q67
-                q262 := (q258 + q260) / 2.0
-                q257 := 1
-                q252 := rangeDayKey
-                q255 := bar_index
-                q243 := na
-                q242 := na
+                q185 := time
+            bool q65 = time - time[1] == 300000
+            bool q15 = q333 == -1 ? close < middlePrice : close > middlePrice
+            q248 := q194(q248, q65, open, close, q333 == 1)
+            float q266 = q333 == -1 ? bodyLow : bodyHigh
+            if na(q249) or (q333 == -1 ? q266 < q249 : q266 > q249)
+                q249 := q266
+                q251 := time
+                q252 := open
+                q253 := q333 == -1 ? bodyHigh : bodyLow
+                q250 := bar_index
+            bool q70 = twoM5Break(q327, q333 == 1, q137, pointPairM5)
+            if (q248 >= q186 and q15) or q70
+                q314 := true
+                q61 := middlePrice
+                if not q201 or middlePrice != q63
+                    q313 := q192(middleTime, middlePrice, "2", q333 == -1 ? label.style_label_down : label.style_label_up)
+                    array.push(q136, q313)
+    if q314
+        bool q100 = twoM5Break(middlePrice, q333 == -1, q137, pointPairM5)
+        bool q98 = twoM5Break(q327, q333 == 1, q137, pointPairM5)
+        if q100 or q98
+            q62 := q100 ? q249 : (q333 == -1 ? bodyLow : bodyHigh)
+            q341 := true
+            if q100
+                q341 := q267(q371, q370, q372, time[bar_index - q26], q62, q333 == -1, q186)
+            int q339 = q100 ? q251 : time
+            q336 := q339
+            label thirdLabel = q192(q339, q62, q341 ? (q201 ? "2" : "3") : "", q333 == -1 ? label.style_label_up : label.style_label_down)
+            if q100
+                if not q341 and not na(q313)
+                    label.set_text(q313, "")
+                q47 := time
+                q60 := q333 == -1 ? bodyHigh : bodyLow
+                int q161 = time
+                q157 := q161
+                label fourthLabel = q192(q161, q60, q341 ? (q201 ? "3" : "4") : "2", q333 == -1 ? label.style_label_down : label.style_label_up)
+                q187 := fourthLabel
+                bool q160 = true
+                q155 := q160 ? open : open[1]
+                q158 := q160 ? bar_index : bar_index - 1
+                q163 := 1
+                q159 := false
+                array.push(q136, fourthLabel)
+            q188 := thirdLabel
+            q338 := q100 ? q252 : open
+            q337 := q100 ? q250 : q339 == time ? bar_index : q339 == time[1] ? bar_index - 1 : bar_index
+            q340 := 1
+            thirdLocked := q100
+            array.push(q136, thirdLabel)
+            q324 := true
+            if q225 != 2 and q105 == 0 and (not q364 or q373)
+                if q225 == 1
+                    q264(q208, q218, q222, q221, q215, q227, q229)
+                q190 := true
+                q217 := false
+                q142 := false
+                q216 := false
+                q144 := q100 ? (q341 ? q62 : q327) : q61
+                q143 := q100 ? -q333 : q333
+                q146 := q100
+                q224 := q100 ? -q333 : q333
+                q231 := false
+                q145 := false
+                q232 := q100
+                q207 := q100 ? (q341 ? q339 : q134) : middleTime
+                q226 := q100 ? (q341 ? q62 : q327) : q61
+                q228 := q100 ? q60 : q62
+                q230 := (q226 + q228) / 2.0
+                q225 := 1
+                q220 := rangeDayKey
+                q223 := bar_index
+                q211 := na
+                q210 := na
                 positionRR := na
-                q254 := na
-                q253 := na
-                q247 := na
-                q259 := na
-                q261 := na
+                q222 := na
+                q221 := na
+                q215 := na
+                q227 := na
+                q229 := na
         else
-            float q298 = q363 == -1 ? bodyLow : bodyHigh
-            if na(q281) or (q363 == -1 ? q298 < q281 : q298 > q281)
-                q281 := q298
-                q283 := time
-                q284 := open
-                q285 := q363 == -1 ? bodyHigh : bodyLow
-                q282 := bar_index
-    while array.size(q143) > 180
-        label.delete(array.shift(q143))
-if barstate.isconfirmed and q148 and m5Chart and q355 == rangeDayKey and q354 and (not thirdLocked or (q257 == 1 and not q249 and not q248 and not q264 and not q263)) and not na(q203)
-    float q210 = q363 == -1 ? bodyLow : bodyHigh
-    bool q123 = q363 == -1 ? q210 < q67 : q210 > q67
-    if q123
-        q366 := time
-        q67 := q210
-        q368 := open
-        q367 := bar_index
-        q370 := 1
+            float q266 = q333 == -1 ? bodyLow : bodyHigh
+            if na(q249) or (q333 == -1 ? q266 < q249 : q266 > q249)
+                q249 := q266
+                q251 := time
+                q252 := open
+                q253 := q333 == -1 ? bodyHigh : bodyLow
+                q250 := bar_index
+    while array.size(q136) > 180
+        label.delete(array.shift(q136))
+if barstate.isconfirmed and q141 and m5Chart and q325 == rangeDayKey and q324 and (not thirdLocked or (q225 == 1 and not q217 and not q216 and not q232 and not q231)) and not na(q188)
+    float q195 = q333 == -1 ? bodyLow : bodyHigh
+    bool q117 = q333 == -1 ? q195 < q62 : q195 > q62
+    if q117
+        q336 := time
+        q62 := q195
+        q338 := open
+        q337 := bar_index
+        q340 := 1
         thirdLocked := false
-        q371 := true
-        label.set_xy(q203, time, q67)
-    else if bar_index > q367 and not na(q368)
-        bool q234 = q363 == -1 ? close > q67 : close < q67
-        q370 := q209(q370, time - time[1] == 300000, open, close, q363 == -1)
-        if q370 >= q201 and q234
+        q341 := true
+        label.set_xy(q188, time, q62)
+    else if bar_index > q337 and not na(q338)
+        bool q202 = q333 == -1 ? close > q62 : close < q62
+        q340 := q194(q340, time - time[1] == 300000, open, close, q333 == -1)
+        if q340 >= q186 and q202
             thirdLocked := true
-if barstate.isconfirmed and q148 and m5Chart and q355 == rangeDayKey and not na(q202) and not q167
-    float q164 = q363 == -1 ? bodyHigh : bodyLow
-    bool q122 = q363 == -1 ? q164 > q64 : q164 < q64
-    if q122
-        q165 := time
-        q64 := q164
-        q163 := open
-        q166 := bar_index
-        q171 := 1
-        label.set_xy(q202, time, q64)
-    else if bar_index > q166
-        bool q170 = q363 == -1 ? close < q64 : close > q64
-        q171 := q209(q171, time - time[1] == 300000, open, close, q363 == 1)
-        if q171 >= q201 and q170
-            q167 := true
-if barstate.isconfirmed and q148 and m5Chart and (q248 or q263) and not na(fifthLabel) and (not fifthLocked or (q248 and q257 == 1))
-    float q126 = q256 == 1 ? bodyHigh : bodyLow
-    bool q120 = q256 == 1 ? q126 > q63 : q126 < q63
-    if q120
-        q127 := time
-        q63 := q126
-        q125 := open
-        q128 := bar_index
-        q129 := 1
-        label.set_xy(fifthLabel, time, q63)
-    else if bar_index > q128
-        q129 := q209(q129, time - time[1] == 300000, open, close, q256 == -1)
-        if q129 >= q201 and (q256 == 1 ? close < q63 : close > q63)
+if barstate.isconfirmed and q141 and m5Chart and q325 == rangeDayKey and not na(q187) and not q159
+    float q156 = q333 == -1 ? bodyHigh : bodyLow
+    bool q116 = q333 == -1 ? q156 > q60 : q156 < q60
+    if q116
+        q157 := time
+        q60 := q156
+        q155 := open
+        q158 := bar_index
+        q163 := 1
+        label.set_xy(q187, time, q60)
+    else if bar_index > q158
+        bool q162 = q333 == -1 ? close < q60 : close > q60
+        q163 := q194(q163, time - time[1] == 300000, open, close, q333 == 1)
+        if q163 >= q186 and q162
+            q159 := true
+if barstate.isconfirmed and q141 and m5Chart and (q216 or q231) and not na(fifthLabel) and (not fifthLocked or (q216 and q225 == 1))
+    float q119 = q224 == 1 ? bodyHigh : bodyLow
+    bool q114 = q224 == 1 ? q119 > q59 : q119 < q59
+    if q114
+        q120 := time
+        q59 := q119
+        q118 := open
+        q121 := bar_index
+        q122 := 1
+        label.set_xy(fifthLabel, time, q59)
+    else if bar_index > q121
+        q122 := q194(q122, time - time[1] == 300000, open, close, q224 == -1)
+        if q122 >= q186 and (q224 == 1 ? close < q59 : close > q59)
             fifthLocked := true
-if barstate.isconfirmed and q148 and m5Chart and q354 and not na(q64) and not na(q67) and q371 and not q412 and not q73 and q112 == 0 and q257 != 2
-    bool q21 = twoM5Break(q67, q363 == 1, q144, pointPairM5)
+if barstate.isconfirmed and q141 and m5Chart and q324 and not na(q60) and not na(q62) and q341 and not q376 and not q68 and q105 == 0 and q225 != 2
+    bool q21 = twoM5Break(q62, q333 == 1, q137, pointPairM5)
     if q21
-        if q257 == 1
-            q296(q240, q250, q254, q253, q247, q259, q261)
-        q73 := true
-        q249 := false
-        q149 := false
-        q248 := false
-        q263 := true
-        q152 := true
-        q153 := false
-        q264 := false
-        q256 := q363
-        q150 := q256
-        q258 := q64
-        q151 := q258
-        q239 := q165
-        q63 := q256 == 1 ? bodyHigh : bodyLow
-        q260 := q63
-        q404 := q260
-        q405 := time
-        q127 := time
-        q125 := open
-        q128 := bar_index
-        q129 := 1
+        if q225 == 1
+            q264(q208, q218, q222, q221, q215, q227, q229)
+        q68 := true
+        q217 := false
+        q142 := false
+        q216 := false
+        q231 := true
+        q145 := true
+        q146 := false
+        q232 := false
+        q224 := q333
+        q143 := q224
+        q226 := q60
+        q144 := q226
+        q207 := q157
+        q59 := q224 == 1 ? bodyHigh : bodyLow
+        q228 := q59
+        q368 := q228
+        q369 := time
+        q120 := time
+        q118 := open
+        q121 := bar_index
+        q122 := 1
         fifthLocked := false
-        fifthLabel := q207(time, q63, "5", q256 == 1 ? label.style_label_down : label.style_label_up)
-        array.push(q143, fifthLabel)
-        while array.size(q143) > 180
-            label.delete(array.shift(q143))
-        q262 := (q258 + q260) / 2.0
-        q257 := 1
-        q252 := rangeDayKey
-        q255 := bar_index
-        q243 := na
-        q242 := na
+        fifthLabel := q192(time, q59, "5", q224 == 1 ? label.style_label_down : label.style_label_up)
+        array.push(q136, fifthLabel)
+        while array.size(q136) > 180
+            label.delete(array.shift(q136))
+        q230 := (q226 + q228) / 2.0
+        q225 := 1
+        q220 := rangeDayKey
+        q223 := bar_index
+        q211 := na
+        q210 := na
         positionRR := na
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-        q205 := true
-if barstate.isconfirmed and q148 and m5Chart and q160 and not na(q68) and (not q400 or (q249 and q257 == 1 and q96 and q101 and not na(q100) and q258 != q100)) and q112 == 0 and q257 != 2
-    bool q402 = q357 > q68
-    bool q401 = q357 < q68
-    bool zeroBreak = (q402 or q401) and twoM5Break(q68, q401, q144, pointPairM5)
-    bool q376 = q91 and q89 and q101 and not na(q100)
-    bool counterGate = not (q91 and q89) or q96
+        q222 := na
+        q221 := na
+        q215 := na
+        q227 := na
+        q229 := na
+        q190 := true
+if barstate.isconfirmed and q141 and m5Chart and q152 and not na(q63) and (not q364 or (q217 and q225 == 1 and q90 and q95 and not na(q94) and q226 != q94)) and q105 == 0 and q225 != 2
+    bool q366 = q327 > q63
+    bool q365 = q327 < q63
+    bool zeroBreak = (q366 or q365) and twoM5Break(q63, q365, q137, pointPairM5)
+    bool q345 = q85 and q84 and q95 and not na(q94)
+    bool counterGate = not (q85 and q84) or q90
     if zeroBreak and counterGate
-        if q257 == 1
-            q296(q240, q250, q254, q253, q247, q259, q261)
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-        q400 := true
-        q409 := false
-        q249 := true
-        q152 := false
-        q263 := false
-        q149 := true
-        q248 := false
-        q256 := q402 ? -1 : 1
-        q239 := q376 ? q102 : q140
-        q258 := q376 ? q100 : q357
-        q260 := q256 == 1 ? bodyHigh : bodyLow
-        q404 := q260
-        q405 := time
-        q151 := q258
-        q150 := q256
-        q153 := false
-        q264 := false
-        q262 := (q258 + q260) / 2.0
-        q257 := 1
-        q252 := rangeDayKey
-        q255 := bar_index
-        q243 := na
-        q242 := na
+        if q225 == 1
+            q264(q208, q218, q222, q221, q215, q227, q229)
+        q222 := na
+        q221 := na
+        q215 := na
+        q227 := na
+        q229 := na
+        q364 := true
+        q373 := false
+        q217 := true
+        q145 := false
+        q231 := false
+        q142 := true
+        q216 := false
+        q224 := q366 ? -1 : 1
+        q207 := q345 ? q96 : q134
+        q226 := q345 ? q94 : q327
+        q228 := q224 == 1 ? bodyHigh : bodyLow
+        q368 := q228
+        q369 := time
+        q144 := q226
+        q143 := q224
+        q146 := false
+        q232 := false
+        q230 := (q226 + q228) / 2.0
+        q225 := 1
+        q220 := rangeDayKey
+        q223 := bar_index
+        q211 := na
+        q210 := na
         positionRR := na
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-        q205 := true
-if barstate.isconfirmed and q148 and m5Chart and q160 and not na(q68)
-    bool q178 = q357 > q68
-    bool q106 = twoM5Break(q68, not q178, q144, pointPairM5)
-    if q106
-        if na(q52)
-            q52 := time
-        q412 := true
-if barstate.isconfirmed and q148 and m5Chart and (q149 or q152) and not q248
-    if na(q404) or (q150 == -1 ? bodyLow < q404 : bodyHigh > q404)
-        q405 := time
-    q404 := q150 == -1 ? math.min(q404, bodyLow) : math.max(q404, bodyHigh)
-float q305 = ta.pivothigh(bodyHigh, 1, 4)
-float q306 = ta.pivotlow(bodyLow, 1, 4)
-bool q316 = m5Chart and not na(time[5]) and time - time[5] == 1500000 and rangeDayKey == rangeDayKey[4]
-if barstate.isconfirmed and q316 and q287 and time[4] >= q410
-    bool q304 = not na(q305)
-    bool retryHasLow = not na(q306)
-    if q304 and retryHasLow
-        int retryCount = array.size(q322)
-        bool q315 = retryCount > 0 ? array.get(q319, retryCount - 1) == rangeDayKey : false
-        if q315
-            bool q271 = array.get(q320, retryCount - 1)
-            q304 := not q271
-            retryHasLow := q271
+        q222 := na
+        q221 := na
+        q215 := na
+        q227 := na
+        q229 := na
+        q190 := true
+if barstate.isconfirmed and q141 and m5Chart and q152 and not na(q63)
+    bool q170 = q327 > q63
+    bool q99 = twoM5Break(q63, not q170, q137, pointPairM5)
+    if q99
+        if na(q48)
+            q48 := time
+        q376 := true
+if barstate.isconfirmed and q141 and m5Chart and (q142 or q145) and not q216
+    if na(q368) or (q143 == -1 ? bodyLow < q368 : bodyHigh > q368)
+        q369 := time
+    q368 := q143 == -1 ? math.min(q368, bodyLow) : math.max(q368, bodyHigh)
+float q273 = ta.pivothigh(bodyHigh, 1, 4)
+float q274 = ta.pivotlow(bodyLow, 1, 4)
+bool q284 = m5Chart and not na(time[5]) and time - time[5] == 1500000 and rangeDayKey == rangeDayKey[4]
+if barstate.isconfirmed and q284 and q255 and time[4] >= q374
+    bool q272 = not na(q273)
+    bool retryHasLow = not na(q274)
+    if q272 and retryHasLow
+        int retryCount = array.size(q290)
+        bool q283 = retryCount > 0 ? array.get(q287, retryCount - 1) == rangeDayKey : false
+        if q283
+            bool q239 = array.get(q288, retryCount - 1)
+            q272 := not q239
+            retryHasLow := q239
         else
-            q304 := false
+            q272 := false
             retryHasLow := false
-    if q304
-        q291(q322, q321, q320, q319, time[4], q305, true, rangeDayKey, 64)
+    if q272
+        q259(q290, q289, q288, q287, time[4], q273, true, rangeDayKey, 64)
     else if retryHasLow
-        q291(q322, q321, q320, q319, time[4], q306, false, rangeDayKey, 64)
-int q227 = array.indexof(q7, rangeDayKey)
-bool q217 = q227 >= 0
-float q230 = q217 ? array.get(q12, q227) : na
-float originalOne = q217 ? array.get(q8, q227) : na
-int q223 = q217 ? array.get(q9, q227) : na
-int q233 = q217 ? array.get(q13, q227) : na
-int q228 = originalOne > q230 ? 1 : -1
-if barstate.isconfirmed and m5Chart and q217
-    if na(q224) or q224 != rangeDayKey or q226 != q230 or q225 != originalOne
-        q224 := rangeDayKey
-        q226 := q230
-        q225 := originalOne
-        q221 := false
-        q231 := na
-        q229 := false
-    if time > q223
-        if q228 == 1 ? bodyHigh > originalOne : bodyLow < originalOne
-            q221 := true
-        if na(q231) and twoM5Break(q230, q228 == -1, q144, pointPairM5)
-            q231 := time
-        if q228 == 1 ? bodyLow <= q230 : bodyHigh >= q230
-            q229 := true
-if barstate.isconfirmed and m5Chart and q148 and q217 and q221 and not q229 and q112 == 0 and not q248 and q257 != 2
-    if q257 != 1 or q256 != q228
-        if q257 == 1 and not na(q247)
-            q296(q240, q250, q254, q253, q247, q259, q261)
-        q256 := q228
-        q257 := 1
-        q252 := rangeDayKey
-        q255 := bar_index
-        q242 := na
-        q243 := na
-        positionRR := na
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-        q205 := true
-[originalCounterReady, originalCounterStop, originalCounterTarget, originalCounterStopTime] = q218(q322, q321, q320, q319, rangeDayKey, q231, -q228, originalOne)
-if originalCounterReady
-    int q90 = array.indexof(q322, originalCounterStopTime)
-    int q104 = q90 >= 0 and q90 + 1 < array.size(q322) ? array.get(q322, q90 + 1) : na
-    int savedCount = array.size(q408)
-    if not na(q104) and savedCount > 0
-        for si = 0 to savedCount - 1
-            if array.get(q408, si) >= q104
-                float edge = q228 == -1 ? math.min(array.get(q407, si), array.get(q406, si)) : math.max(array.get(q407, si), array.get(q406, si))
-                if q228 == -1 ? edge <= originalCounterStop : edge >= originalCounterStop
-                    originalCounterReady := false
-if barstate.isconfirmed and m5Chart and q148 and q217 and originalCounterReady and not na(q231) and q112 == 0 and not q248 and q257 != 2
-    if q257 != 1 or q256 != -q228
-        if q257 == 1 and not na(q247)
-            q296(q240, q250, q254, q253, q247, q259, q261)
-        q256 := -q228
-        q249 := true
-        q149 := true
-        q263 := false
-        q152 := false
-        q264 := false
-        q153 := false
-        q404 := originalCounterTarget
-        q405 := time
-        q257 := 1
-        q252 := rangeDayKey
-        q255 := bar_index
-        q242 := na
-        q243 := na
-        positionRR := na
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-        q205 := true
-bool q142 = q217 and q256 == q228
-bool q157 = q217 and (q142 ? q221 and not q229 : not na(q231) and originalCounterReady)
-bool q220 = q217 and not q248 and q112 == 0 and q142
-if barstate.isconfirmed and m5Chart and q257 == 1 and not q248 and q112 == 0 and q217
-    float chosenStop = q142 ? q230 : originalCounterStop
-    float q35 = q142 ? originalOne : originalCounterTarget
-    if q142 or originalCounterReady
-        bool q34 = q258 != chosenStop or q260 != q35
-        q258 := chosenStop
-        q260 := q35
-        q262 := (q258 + q260) / 2.0
-        q239 := q142 ? q233 : originalCounterStopTime
-        q151 := q258
-        q150 := q256
-        if q142
-            q249 := false
-            q149 := false
-            q263 := false
-            q152 := false
-            q264 := false
-            q153 := false
-        if q34
-            q255 := bar_index
-        if q157 and na(q247)
-            q205 := true
-int q246 = 0
-bool q244 = false
-if barstate.isrealtime and not barstate.isconfirmed and m5Chart and q257 == 1
-    bool q182 = not na(q68) and (q357 > q68 ? q256 == -1 : q256 == 1)
-    bool q183 = (not q182 or q412 or (q248 and q159)) and not (q91 and q89 and not q96 and q182 and not q248)
-    if not q248 and q112 == 0
-        q183 := q157
-    bool q187 = q256 == 1 ? bodyLow > q258 : bodyHigh < q258
-    if q183 and q187 and q252 == rangeDayKey and q148 and q112 < q111 and (not q248 or q159) and bar_index > q255 and low <= q262 and high >= q262
-        q184 := bar_index
-        q185 := q255
-    if q184 == bar_index and q185 == q255
-        v1EntryMark(q377, time, q262, q256, q112 + 1)
-        if q211
-            alert(q116("ВХОД — касание RR 1:1", q256, q262, q258, q260), alert.freq_once_per_bar)
+        q259(q290, q289, q288, q287, time[4], q274, false, rangeDayKey, 64)
+int q214 = 0
+bool q212 = false
 if barstate.isconfirmed and m5Chart
-    bool q235 = not na(q68) and (q357 > q68 ? q256 == -1 : q256 == 1)
-    bool q390 = q91 and q89 and not q96 and q235 and not q248
-    bool q236 = (not q235 or q412 or (q248 and q159)) and not q390
-    if not q248 and q112 == 0
-        q236 := q157
-        q390 := false
-    if q257 == 1 and q390
-        if q249
-            q400 := false
-        if not na(q247)
-            q296(q240, q250, q254, q253, q247, q259, q261)
-            q254 := na
-            q253 := na
-            q247 := na
-            q259 := na
-            q261 := na
-    if q257 == 1 and q235 and q412 and not q390 and na(q247)
-        q255 := bar_index
-        q205 := true
-    if q257 == 1
-        if q252 != rangeDayKey or not q148
-            q257 := 5
+    bool q203 = not na(q63) and (q327 > q63 ? q224 == -1 : q224 == 1)
+    bool q355 = q85 and q84 and not q90 and q203 and not q216
+    bool q204 = (not q203 or q376 or (q216 and q151)) and not q355
+    if q225 == 1 and q355
+        if q217
+            q364 := false
+        if not na(q215)
+            q264(q208, q218, q222, q221, q215, q227, q229)
+            q222 := na
+            q221 := na
+            q215 := na
+            q227 := na
+            q229 := na
+    if q225 == 1 and q203 and q376 and not q355 and na(q215)
+        q223 := bar_index
+        q190 := true
+    if q225 == 1
+        if q220 != rangeDayKey or not q141
+            q225 := 5
         else
-            bool q186 = not na(q184) and q184 == bar_index and q185 == q255
-            bool q350 = not q186 and (q256 == 1 ? bodyLow <= q258 : bodyHigh >= q258)
-            bool q391 = q415 == q255 and bar_index > q413 and (q256 == 1 ? high >= q416 : low <= q416)
-            bool q373 = low <= q262 and high >= q262
-            float q109 = q248 or q249 ? (q256 == 1 ? bodyHigh : bodyLow) : (q248 or q263) ? q63 : q264 ? q64 : q67
-            if not q220 and not (not q248 and q112 == 0 and q217 and originalCounterReady) and not (q373 and q236 and not q350)
-                q260 := q256 == 1 ? math.max(q260, q109) : math.min(q260, q109)
-                q262 := (q258 + q260) / 2.0
-            if bar_index > q255 and q350
-                q257 := 5
-            else if bar_index > q255
-                float riskAtLevel = q256 == 1 ? q262 - q258 : q258 - q262
-                float q336 = q256 == 1 ? q260 - q262 : q262 - q260
-                bool q372 = low <= q262 and high >= q262
-                if q372 and q236 and (na(q415) or q415 != q255)
-                    q415 := q255
-                    q413 := bar_index
-                    q416 := q260
-                    q414 := q262
-                bool q6 = not na(q68) and (q357 > q68 ? q256 == -1 : q256 == 1)
-                bool q214 = (not q6 or q412 or (q248 and q159)) and not (q91 and q89 and not q96 and q6 and not q248)
-                if not q248 and q112 == 0
-                    q214 := q157
-                bool q65 = q372 and q214 and q236
-                if q112 < q111 and (not q248 or q159) and riskAtLevel > 0 and q336 > 0 and q65
-                    q112 := q112 + 1
-                    q242 := q262
-                    positionRR := q336 / riskAtLevel
-                    q243 := bar_index
-                    q245 := time
-                    q244 := true
-                    v1EntryMark(q377, time, q242, q256, q112)
-                    if q211 and not q186
-                        alert(q116("ВХОД ИСПОЛНЕН — касание RR 1:1", q256, q242, q258, q260), alert.freq_once_per_bar_close)
-                    q58 := na
-                    q257 := 2
-            if q257 == 1 and q391 and not q350
-                q257 := 7
-                q260 := q416
-                q262 := q414
-    if q257 == 2 and bar_index > q243
-        bool hitStop = q256 == 1 ? bodyLow <= q258 : bodyHigh >= q258
-        bool hitTarget = q256 == 1 ? high >= q260 : low <= q260
+            bool q321 = q224 == 1 ? bodyLow <= q226 : bodyHigh >= q226
+            bool q123 = q204 and not q321 and bar_index > q223 and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and q307 == q223 and q306 == q230 and low <= q230 and high >= q230
+            float q102 = q216 or q217 ? (q224 == 1 ? bodyHigh : bodyLow) : (q216 or q231) ? q59 : q232 ? q60 : q62
+            if not q123
+                q228 := q224 == 1 ? math.max(q228, q102) : math.min(q228, q102)
+                q230 := (q226 + q228) / 2.0
+            if bar_index > q223 and q321
+                q225 := 5
+            else if bar_index > q223
+                float riskAtLevel = q224 == 1 ? q230 - q226 : q226 - q230
+                float q304 = q224 == 1 ? q228 - q230 : q230 - q228
+                bool q342 = low <= q230 and high >= q230
+                bool q6 = not na(q63) and (q327 > q63 ? q224 == -1 : q224 == 1)
+                bool q199 = (not q6 or q376 or (q216 and q151)) and not (q85 and q84 and not q90 and q6 and not q216)
+                bool validTouch = q342 and q199 and q204
+                bool q315 = validTouch and rrTouchBar == bar_index - 1 and time - rrTouchTime == 300000 and q307 == q223 and q306 == q230
+                rrTouchBar := validTouch ? bar_index : na
+                rrTouchTime := validTouch ? time : na
+                q307 := validTouch ? q223 : na
+                q306 := validTouch ? q230 : na
+                bool q109 = validTouch and q105 < q104 and (not q216 or q151) and riskAtLevel > 0 and q304 > 0
+                if q109 and not q315 and q197
+                    alert(q110("КАСАНИЕ ЗОНЫ — ждём вторую M5", q224, q230, q226, q228), alert.freq_once_per_bar_close)
+                if q105 < q104 and (not q216 or q151) and riskAtLevel > 0 and q304 > 0 and q315
+                    q105 := q105 + 1
+                    q210 := q230
+                    positionRR := q304 / riskAtLevel
+                    q211 := bar_index
+                    q213 := time
+                    q212 := true
+                    v1EntryMark(q346, time, q210, q224, q105)
+                    if q196
+                        alert(q110("ВХОД ИСПОЛНЕН — второе касание", q224, q210, q226, q228), alert.freq_once_per_bar_close)
+                    q54 := na
+                    q225 := 2
+    if q225 == 2 and bar_index > q211
+        bool hitStop = q224 == 1 ? bodyLow <= q226 : bodyHigh >= q226
+        bool hitTarget = q224 == 1 ? high >= q228 : low <= q228
         if hitStop or hitTarget
-            q58 := time
-            q246 := hitStop ? -1 : 1
-            q257 := hitStop ? 4 : 3
-            if not na(q254)
-                box.set_right(q254, time + 300000)
-                box.set_right(q253, time + 300000)
-            v1ExitMark(v1ExitMarks, time, hitStop ? q258 : q260, hitStop, q256)
-            if not na(q245)
-                v1ExitTrace(q378, q245, q242, time, hitStop ? q258 : q260, hitStop, q256)
-            q259 := q374(q259, time + 600000, q258, q379("Стоп: ", na(q242) ? q262 : q242, q258, true) + (q257 == 4 ? " +" : ""), color.red)
-            q261 := q374(q261, time + 600000, q260, q379("Тейк: ", na(q242) ? q262 : q242, q260, false) + (q257 == 3 ? " +" : ""), color.teal)
-            if q257 == 4 and q112 == 1 and q252 == rangeDayKey
-                q159 := true
-                q158 := bar_index
-                q300 := q260
-                q301 := na
-                q303 := na
-                q307 := not na(q357) and math.abs(q151 - q357) <= 0.000000001
-                q308 := q140
-                q314 := na
-                q317 := q150 == 1 ? bodyLow : bodyHigh
-                q323 := na
-                q324 := 0
-                if array.size(q408) > 0
-                    for originIndex = 0 to array.size(q408) - 1
-                        int originTime = array.get(q408, originIndex)
-                        float originOpen = array.get(q407, originIndex)
-                        float originClose = array.get(q406, originIndex)
-                        float q215 = q150 == -1 ? math.min(originOpen, originClose) : math.max(originOpen, originClose)
-                        if na(q301) and originTime >= q239 and math.abs(q215 - q300) <= 0.000000001
-                            q301 := originTime
-                if na(q301)
-                    q301 := q239
-    int q310 = 0
-    float q311 = na
-    float q313 = na
-    int q312 = na
-    int q309 = na
-    bool q23 = q148 and q252 == rangeDayKey and q159 and q112 == 1 and (q257 == 4 or q257 == 5)
-    if q23 and not na(q300)
-        bool q74 = q150 == 1 ? close - q300 >= q144 - 0.000000001 : q300 - close >= q144 - 0.000000001
-        if na(q303) and bar_index > q158 and q74
-            q303 := time
-        int retryCount = array.size(q322)
-        int q295 = na
-        bool q292 = q150 == -1
+            q54 := time
+            q214 := hitStop ? -1 : 1
+            q225 := hitStop ? 4 : 3
+            if not na(q222)
+                box.set_right(q222, time + 300000)
+                box.set_right(q221, time + 300000)
+            v1ExitMark(v1ExitMarks, time, hitStop ? q226 : q228, hitStop, q224)
+            if not na(q213)
+                v1ExitTrace(q347, q213, q210, time, hitStop ? q226 : q228, hitStop, q224)
+            q227 := q343(q227, time + 600000, q226, q348("Стоп: ", na(q210) ? q230 : q210, q226, true) + (q225 == 4 ? " +" : ""), color.red)
+            q229 := q343(q229, time + 600000, q228, q348("Тейк: ", na(q210) ? q230 : q210, q228, false) + (q225 == 3 ? " +" : ""), color.teal)
+            if q225 == 4 and q105 == 1 and q220 == rangeDayKey
+                q151 := true
+                q150 := bar_index
+                q268 := q228
+                q269 := na
+                q271 := na
+                q275 := not na(q327) and math.abs(q144 - q327) <= 0.000000001
+                q276 := q134
+                q282 := na
+                q285 := q143 == 1 ? bodyLow : bodyHigh
+                q291 := na
+                q292 := 0
+                if array.size(q372) > 0
+                    for originIndex = 0 to array.size(q372) - 1
+                        int originTime = array.get(q372, originIndex)
+                        float originOpen = array.get(q371, originIndex)
+                        float originClose = array.get(q370, originIndex)
+                        float q200 = q143 == -1 ? math.min(originOpen, originClose) : math.max(originOpen, originClose)
+                        if na(q269) and originTime >= q207 and math.abs(q200 - q268) <= 0.000000001
+                            q269 := originTime
+                if na(q269)
+                    q269 := q207
+    int q278 = 0
+    float q279 = na
+    float q281 = na
+    int q280 = na
+    int q277 = na
+    bool q23 = q141 and q220 == rangeDayKey and q151 and q105 == 1 and (q225 == 4 or q225 == 5)
+    if q23 and not na(q268)
+        bool q69 = q143 == 1 ? close - q268 >= q137 - 0.000000001 : q268 - close >= q137 - 0.000000001
+        if na(q271) and bar_index > q150 and q69
+            q271 := time
+        int retryCount = array.size(q290)
+        int q263 = na
+        bool q260 = q143 == -1
         if retryCount > 0
             for i = 0 to retryCount - 1
-                float price = array.get(q321, i)
-                bool beyondStop = q292 ? price >= q151 : price <= q151
-                if na(q295) and array.get(q320, i) == q292 and array.get(q322, i) >= time[bar_index - q158] and beyondStop
-                    q295 := i
-        if not na(q295)
-            float q293 = array.get(q321, q295)
-            int q294 = array.get(q322, q295)
-            if q295 < retryCount - 2
-                for anchorIndex = q295 to retryCount - 3
-                    float anchorPrice = array.get(q321, anchorIndex)
-                    bool anchorType = array.get(q320, anchorIndex) == q292
-                    bool q351 = q292 ? anchorPrice >= q293 : anchorPrice <= q293
-                    float q278 = anchorIndex > 0 ? array.get(q321, anchorIndex - 1) : q300
-                    float priorSame = anchorIndex > 1 ? array.get(q321, anchorIndex - 2) : q151
-                    bool q172 = anchorIndex == q295 or (q292 ? anchorPrice > priorSame : anchorPrice < priorSame)
-                    if anchorType and q351 and q172
+                float price = array.get(q289, i)
+                bool beyondStop = q260 ? price >= q144 : price <= q144
+                if na(q263) and array.get(q288, i) == q260 and array.get(q290, i) >= time[bar_index - q150] and beyondStop
+                    q263 := i
+        if not na(q263)
+            float q261 = array.get(q289, q263)
+            int q262 = array.get(q290, q263)
+            if q263 < retryCount - 2
+                for anchorIndex = q263 to retryCount - 3
+                    float anchorPrice = array.get(q289, anchorIndex)
+                    bool anchorType = array.get(q288, anchorIndex) == q260
+                    bool q322 = q260 ? anchorPrice >= q261 : anchorPrice <= q261
+                    float q246 = anchorIndex > 0 ? array.get(q289, anchorIndex - 1) : q268
+                    float priorSame = anchorIndex > 1 ? array.get(q289, anchorIndex - 2) : q144
+                    bool q164 = anchorIndex == q263 or (q260 ? anchorPrice > priorSame : anchorPrice < priorSame)
+                    if anchorType and q322 and q164
                         for middleIndex = anchorIndex + 1 to retryCount - 2
-                            float middle = array.get(q321, middleIndex)
-                            bool validMiddle = q292 ? middle > q278 and middle < anchorPrice : middle < q278 and middle > anchorPrice
-                            if array.get(q320, middleIndex) != q292 and validMiddle
+                            float middle = array.get(q289, middleIndex)
+                            bool validMiddle = q260 ? middle > q246 and middle < anchorPrice : middle < q246 and middle > anchorPrice
+                            if array.get(q288, middleIndex) != q260 and validMiddle
                                 for goalIndex = middleIndex + 1 to retryCount - 1
-                                    float goal = array.get(q321, goalIndex)
-                                    bool q22 = array.get(q320, goalIndex) != q292 and (q292 ? goal < middle : goal > middle)
+                                    float goal = array.get(q289, goalIndex)
+                                    bool q22 = array.get(q288, goalIndex) != q260 and (q260 ? goal < middle : goal > middle)
                                     if q22
                                         break
-                                    bool newExtreme = q292 ? goal > anchorPrice : goal < anchorPrice
-                                    bool q62 = q302(q406, q408, anchorPrice, q292, q144, array.get(q322, middleIndex))
-                                    if array.get(q320, goalIndex) == q292 and newExtreme and q62
-                                        q310 := -q150
-                                        q311 := middle
-                                        q313 := goal
-                                        q312 := array.get(q322, middleIndex)
-                                        q309 := array.get(q322, goalIndex)
+                                    bool newExtreme = q260 ? goal > anchorPrice : goal < anchorPrice
+                                    bool q58 = q270(q370, q372, anchorPrice, q260, q137, array.get(q290, middleIndex))
+                                    if array.get(q288, goalIndex) == q260 and newExtreme and q58
+                                        q278 := -q143
+                                        q279 := middle
+                                        q281 := goal
+                                        q280 := array.get(q290, middleIndex)
+                                        q277 := array.get(q290, goalIndex)
                                         break
-                                if q310 != 0
+                                if q278 != 0
                                     break
-                        if q310 != 0
+                        if q278 != 0
                             break
-            if not na(q303) and q295 < retryCount - 1
-                float q78 = q293
-                int q79 = q294
-                for i = q295 to retryCount - 1
-                    float price = array.get(q321, i)
-                    int atTime = array.get(q322, i)
-                    if array.get(q320, i) == q292 and atTime <= q303 and (q292 ? price > q78 : price < q78)
-                        q78 := price
-                        q79 := atTime
-                float q76 = na
-                int q77 = na
-                for i = q295 + 1 to retryCount - 1
-                    float price = array.get(q321, i)
-                    bool beyondBase = q150 == -1 ? price < q300 : price > q300
-                    bool moreExtreme = na(q76) or (q150 == -1 ? price < q76 : price > q76)
-                    if array.get(q320, i) != q292 and array.get(q322, i) > q79 and beyondBase and moreExtreme
-                        q76 := price
-                        q77 := array.get(q322, i)
-                if not na(q76)
-                    q310 := q150
-                    q311 := q78
-                    q313 := q76
-                    q312 := q79
-                    q309 := q77
-    if q23 and q307
-        int returnSide = -q150
-        bool q325 = returnSide == 1 ? close - q151 >= q144 - 0.000000001 : q151 - close >= q144 - 0.000000001
-        if na(q314) and bar_index >= q158 and q325
-            q314 := time
-        if not na(q314)
-            int returnCount = array.size(q322)
-            float q327 = na
-            int q328 = na
-            bool q199 = returnSide == -1
+            if not na(q271) and q263 < retryCount - 1
+                float q73 = q261
+                int q74 = q262
+                for i = q263 to retryCount - 1
+                    float price = array.get(q289, i)
+                    int atTime = array.get(q290, i)
+                    if array.get(q288, i) == q260 and atTime <= q271 and (q260 ? price > q73 : price < q73)
+                        q73 := price
+                        q74 := atTime
+                float q71 = na
+                int q72 = na
+                for i = q263 + 1 to retryCount - 1
+                    float price = array.get(q289, i)
+                    bool beyondBase = q143 == -1 ? price < q268 : price > q268
+                    bool moreExtreme = na(q71) or (q143 == -1 ? price < q71 : price > q71)
+                    if array.get(q288, i) != q260 and array.get(q290, i) > q74 and beyondBase and moreExtreme
+                        q71 := price
+                        q72 := array.get(q290, i)
+                if not na(q71)
+                    q278 := q143
+                    q279 := q73
+                    q281 := q71
+                    q280 := q74
+                    q277 := q72
+    if q23 and q275
+        int returnSide = -q143
+        bool q293 = returnSide == 1 ? close - q144 >= q137 - 0.000000001 : q144 - close >= q137 - 0.000000001
+        if na(q282) and bar_index >= q150 and q293
+            q282 := time
+        if not na(q282)
+            int returnCount = array.size(q290)
+            float q295 = na
+            int q296 = na
+            bool q184 = returnSide == -1
             if returnCount > 0
                 for i = 0 to returnCount - 1
-                    float price = array.get(q321, i)
-                    int atTime = array.get(q322, i)
-                    if array.get(q320, i) == q199 and atTime > q308 and atTime < time[bar_index - q158] and math.abs(price - q300) <= 0.000000001
-                        q327 := price
-                        q328 := atTime
-                if not na(q327)
+                    float price = array.get(q289, i)
+                    int atTime = array.get(q290, i)
+                    if array.get(q288, i) == q184 and atTime > q276 and atTime < time[bar_index - q150] and math.abs(price - q268) <= 0.000000001
+                        q295 := price
+                        q296 := atTime
+                if not na(q295)
                     for i = 0 to returnCount - 1
-                        float price = array.get(q321, i)
-                        int atTime = array.get(q322, i)
-                        if array.get(q320, i) == q199 and atTime > q308 and atTime <= q314 and (q199 ? price > q327 : price < q327)
-                            q327 := price
-                            q328 := atTime
+                        float price = array.get(q289, i)
+                        int atTime = array.get(q290, i)
+                        if array.get(q288, i) == q184 and atTime > q276 and atTime <= q282 and (q184 ? price > q295 : price < q295)
+                            q295 := price
+                            q296 := atTime
                     float returnGoal = na
-                    int q326 = na
+                    int q294 = na
                     for i = 0 to returnCount - 1
-                        float price = array.get(q321, i)
-                        int atTime = array.get(q322, i)
-                        bool q17 = returnSide == 1 ? price > q151 : price < q151
+                        float price = array.get(q289, i)
+                        int atTime = array.get(q290, i)
+                        bool q17 = returnSide == 1 ? price > q144 : price < q144
                         bool moreExtreme = na(returnGoal) or (returnSide == 1 ? price > returnGoal : price < returnGoal)
-                        if array.get(q320, i) != q199 and atTime >= time[bar_index - q158] and atTime > q328 and q17 and moreExtreme
+                        if array.get(q288, i) != q184 and atTime >= time[bar_index - q150] and atTime > q296 and q17 and moreExtreme
                             returnGoal := price
-                            q326 := atTime
-                    bool q330 = false
-                    int q329 = na
+                            q294 := atTime
+                    bool q298 = false
+                    int q297 = na
                     if not na(returnGoal)
                         for i = 0 to returnCount - 1
-                            float price = array.get(q321, i)
-                            int atTime = array.get(q322, i)
-                            bool q339 = array.get(q320, i) == q199
-                            if atTime > q328 and atTime < q326
-                                if not q339
-                                    q329 := atTime
-                                else if not na(q329) and atTime > q329 and (q199 ? price < q327 : price > q327)
-                                    q330 := true
-                    if not na(returnGoal) and q330
-                        q310 := returnSide
-                        q311 := q327
-                        q313 := returnGoal
-                        q312 := q328
-                        q309 := q326
-    bool freshRetry = q310 != 0 and (q310 != q324 or q309 != q323)
-    bool q318 = q310 == 1 ? bodyLow > q311 : bodyHigh < q311
-    if q23 and freshRetry and q318
-        if not na(q247)
-            label.set_text(q247, "Точка входа в " + (q256 == 1 ? "LONG: $" : "SHORT: $") + str.tostring(q242, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
-        q256 := q310
-        q324 := q310
-        q323 := q309
-        q248 := true
-        q263 := false
-        q249 := false
-        if q152 or q149
+                            float price = array.get(q289, i)
+                            int atTime = array.get(q290, i)
+                            bool q309 = array.get(q288, i) == q184
+                            if atTime > q296 and atTime < q294
+                                if not q309
+                                    q297 := atTime
+                                else if not na(q297) and atTime > q297 and (q184 ? price < q295 : price > q295)
+                                    q298 := true
+                    if not na(returnGoal) and q298
+                        q278 := returnSide
+                        q279 := q295
+                        q281 := returnGoal
+                        q280 := q296
+                        q277 := q294
+    bool freshRetry = q278 != 0 and (q278 != q292 or q277 != q291)
+    bool q286 = q278 == 1 ? bodyLow > q279 : bodyHigh < q279
+    if q23 and freshRetry and q286
+        if not na(q215)
+            label.set_text(q215, "Точка входа в " + (q224 == 1 ? "LONG: $" : "SHORT: $") + str.tostring(q210, "#.#####") + " · RR 1:" + str.tostring(positionRR, "#.##"))
+        q224 := q278
+        q292 := q278
+        q291 := q277
+        q216 := true
+        q231 := false
+        q217 := false
+        if q145 or q142
             fifthLabel := na
-        q239 := q312
-        q258 := q311
-        q63 := q313
-        q260 := q63
-        q262 := (q258 + q260) / 2.0
-        q257 := 1
-        q255 := bar_index
-        q243 := na
-        q242 := na
+        q207 := q280
+        q226 := q279
+        q59 := q281
+        q228 := q59
+        q230 := (q226 + q228) / 2.0
+        q225 := 1
+        q223 := bar_index
+        q211 := na
+        q210 := na
         positionRR := na
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-        q205 := true
-        q125 := open
-        q128 := bar_index
-        q129 := 1
+        rrTouchBar := na
+        rrTouchTime := na
+        q307 := na
+        q306 := na
+        q222 := na
+        q221 := na
+        q215 := na
+        q227 := na
+        q229 := na
+        q190 := true
+        q118 := open
+        q121 := bar_index
+        q122 := 1
         fifthLocked := false
-        q127 := time
-        if not q149 and not q152
-            fifthLabel := q207(time, q63, q153 ? (q216 ? "4" : "5") : (q216 ? "3" : "4"), q256 == 1 ? label.style_label_down : label.style_label_up)
-            array.push(q143, fifthLabel)
-            if array.size(q143) > 180
-                label.delete(array.shift(q143))
-    if q257 == 5 and q249 and q112 == 0 and q252 == rangeDayKey
-        q409 := true
-    if q257 == 5 and not na(q247)
-        q296(q240, q250, q254, q253, q247, q259, q261)
-        q254 := na
-        q253 := na
-        q247 := na
-        q259 := na
-        q261 := na
-    q235 := not na(q68) and (q357 > q68 ? q256 == -1 : q256 == 1)
-    q390 := q91 and q89 and not q96 and q235 and not q248
-    q236 := (not q235 or q412 or (q248 and q159)) and not q390
-    if not q248 and q112 == 0
-        q236 := q157
-    if q205 and q236
-        q254 := box.new(left=(na(q239) ? time : q239), top=math.max(q258, q262), right=time + 600000, bottom=math.min(q258, q262), xloc=xloc.bar_time, border_color=color.new(color.red, 100), bgcolor=color.new(color.red, 85))
-        q253 := box.new(left=(na(q239) ? time : q239), top=math.max(q260, q262), right=time + 600000, bottom=math.min(q260, q262), xloc=xloc.bar_time, border_color=color.new(color.teal, 100), bgcolor=color.new(color.teal, 85))
-        q247 := q374(na, time + 600000, q262, "Точка входа в " + (q256 == 1 ? "LONG: $" : "SHORT: $") + str.tostring(q262, "#.#####"), color.blue)
-        q259 := q374(na, time + 600000, q258, q379("Стоп: ", na(q242) ? q262 : q242, q258, true), color.red)
-        q261 := q374(na, time + 600000, q260, q379("Тейк: ", na(q242) ? q262 : q242, q260, false), color.teal)
-        array.push(q240, q254)
-        array.push(q240, q253)
-        array.push(q250, q247)
-        array.push(q250, q259)
-        array.push(q250, q261)
-        while array.size(q240) > 80
-            box.delete(array.shift(q240))
-        while array.size(q250) > 120
-            label.delete(array.shift(q250))
-    if not na(q247) and (q257 == 1 or q257 == 2 or q244 or q257 != q257[1])
-        float drawnEntry = na(q242) ? q262 : q242
-        box.set_top(q254, math.max(q258, drawnEntry))
-        box.set_bottom(q254, math.min(q258, drawnEntry))
-        box.set_top(q253, math.max(q260, drawnEntry))
-        box.set_bottom(q253, math.min(q260, drawnEntry))
-        int q241 = (q257 == 4 or q257 == 3 or q257 == 7) ? time + 300000 : time + 600000
-        box.set_right(q254, q241)
-        box.set_right(q253, q241)
-        float q118 = math.abs(drawnEntry - q258)
-        string q117 = q118 > 0 ? " · RR 1:" + str.tostring(math.abs(q260 - drawnEntry) / q118, "#.##") : ""
-        q247 := q374(q247, time + 600000, drawnEntry, (q257 == 7 ? "Отработал без входа " : "Точка входа в ") + (q256 == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + q117 + (q257 == 6 ? " · TP/SL?" : ""), color.blue)
-        q259 := q374(q259, time + 600000, q258, q379("Стоп: ", na(q242) ? q262 : q242, q258, true) + (q257 == 4 ? " +" : ""), color.red)
-        q261 := q374(q261, time + 600000, q260, q379("Тейк: ", na(q242) ? q262 : q242, q260, false) + (q257 == 3 ? " +" : ""), color.teal)
-        float q114 = math.abs(drawnEntry - q258)
-        string rrCaption = q114 > 0 ? "R:R 1:" + str.tostring(math.abs(q260 - drawnEntry) / q114, "#.###") : ""
-        box.set_text(q253, rrCaption)
-        box.set_text_color(q253, color.white)
-        box.set_text_size(q253, size.small)
-plot(q244 ? q256 : 0, "Вход LONG/SHORT", display=display.none)
-plot(q257, "Состояние позиции", display=display.data_window)
-plot(q246, "Выход TP 1 / SL -1 / неизвестно 2", display=display.data_window)
-plot(q258, "Стоп позиции", display=display.data_window)
-plot(q260, "Цель позиции", display=display.data_window)
-plot(q262, "Граница RR 1:1", display=display.data_window)
-plot(q242, "Цена входа по close", display=display.data_window)
+        q120 := time
+        if not q142 and not q145
+            fifthLabel := q192(time, q59, q146 ? (q201 ? "4" : "5") : (q201 ? "3" : "4"), q224 == 1 ? label.style_label_down : label.style_label_up)
+            array.push(q136, fifthLabel)
+            if array.size(q136) > 180
+                label.delete(array.shift(q136))
+    if q225 == 5 and q217 and q105 == 0 and q220 == rangeDayKey
+        q373 := true
+    if q225 == 5 and not na(q215)
+        q264(q208, q218, q222, q221, q215, q227, q229)
+        q222 := na
+        q221 := na
+        q215 := na
+        q227 := na
+        q229 := na
+    q203 := not na(q63) and (q327 > q63 ? q224 == -1 : q224 == 1)
+    q355 := q85 and q84 and not q90 and q203 and not q216
+    q204 := (not q203 or q376 or (q216 and q151)) and not q355
+    if q190 and q204
+        q222 := box.new(left=(na(q207) ? time : q207), top=math.max(q226, q230), right=time + 600000, bottom=math.min(q226, q230), xloc=xloc.bar_time, border_color=color.new(color.red, 100), bgcolor=color.new(color.red, 85))
+        q221 := box.new(left=(na(q207) ? time : q207), top=math.max(q228, q230), right=time + 600000, bottom=math.min(q228, q230), xloc=xloc.bar_time, border_color=color.new(color.teal, 100), bgcolor=color.new(color.teal, 85))
+        q215 := q343(na, time + 600000, q230, "Точка входа в " + (q224 == 1 ? "LONG: $" : "SHORT: $") + str.tostring(q230, "#.#####"), color.blue)
+        q227 := q343(na, time + 600000, q226, q348("Стоп: ", na(q210) ? q230 : q210, q226, true), color.red)
+        q229 := q343(na, time + 600000, q228, q348("Тейк: ", na(q210) ? q230 : q210, q228, false), color.teal)
+        array.push(q208, q222)
+        array.push(q208, q221)
+        array.push(q218, q215)
+        array.push(q218, q227)
+        array.push(q218, q229)
+        while array.size(q208) > 80
+            box.delete(array.shift(q208))
+        while array.size(q218) > 120
+            label.delete(array.shift(q218))
+    if not na(q215) and (q225 == 1 or q225 == 2 or q212 or q225 != q225[1])
+        float drawnEntry = na(q210) ? q230 : q210
+        box.set_top(q222, math.max(q226, drawnEntry))
+        box.set_bottom(q222, math.min(q226, drawnEntry))
+        box.set_top(q221, math.max(q228, drawnEntry))
+        box.set_bottom(q221, math.min(q228, drawnEntry))
+        int q209 = (q225 == 4 or q225 == 3) ? time + 300000 : time + 600000
+        box.set_right(q222, q209)
+        box.set_right(q221, q209)
+        float q112 = math.abs(drawnEntry - q226)
+        string q111 = q112 > 0 ? " · RR 1:" + str.tostring(math.abs(q228 - drawnEntry) / q112, "#.##") : ""
+        q215 := q343(q215, time + 600000, drawnEntry, "Точка входа в " + (q224 == 1 ? "LONG: $" : "SHORT: $") + str.tostring(drawnEntry, "#.#####") + q111 + (q225 == 6 ? " · TP/SL?" : ""), color.blue)
+        q227 := q343(q227, time + 600000, q226, q348("Стоп: ", na(q210) ? q230 : q210, q226, true) + (q225 == 4 ? " +" : ""), color.red)
+        q229 := q343(q229, time + 600000, q228, q348("Тейк: ", na(q210) ? q230 : q210, q228, false) + (q225 == 3 ? " +" : ""), color.teal)
+        float q107 = math.abs(drawnEntry - q226)
+        string rrCaption = q107 > 0 ? "R:R 1:" + str.tostring(math.abs(q228 - drawnEntry) / q107, "#.###") : ""
+        box.set_text(q221, rrCaption)
+        box.set_text_color(q221, color.white)
+        box.set_text_size(q221, size.small)
+plot(q212 ? q224 : 0, "Вход LONG/SHORT", display=display.none)
+plot(q225, "Состояние позиции", display=display.data_window)
+plot(q214, "Выход TP 1 / SL -1 / неизвестно 2", display=display.data_window)
+plot(q226, "Стоп позиции", display=display.data_window)
+plot(q228, "Цель позиции", display=display.data_window)
+plot(q230, "Граница RR 1:1", display=display.data_window)
+plot(q210, "Цена входа по close", display=display.data_window)
 plot(positionRR, "RR входа", display=display.data_window)
-plot(q112, "Входов за день", display=display.data_window)
-plot(q149 ? 1 : 0, "Первая позиция по нулевому условию", display=display.data_window)
-plot(q409 ? 1 : 0, "Нулевой сценарий отменён", display=display.data_window)
-plot(q412 ? 1 : 0, "Разворот закреплён за 0", display=display.data_window)
-plot(q68, "Цена точки 0", display=display.data_window)
-plot(q73 ? 1 : 0, "Продолжение после пробоя 3", display=display.data_window)
-if barstate.isconfirmed and q148 and m5Chart and not q371 and q249 and not q248 and not na(q202) and (q257 == 1 or q244)
-    label.set_xy(q202, q405, q260)
-    label.set_text(q202, "2")
-bool q346 = q91 and (q371 or q101) and not q216 and not q146 and not q141
-if barstate.isconfirmed and q148 and m5Chart and q355 == rangeDayKey
-    if q346
-        if not na(q343)
-            label.set_text(q343, "")
-        if not na(q203)
-            label.set_text(q203, "")
-        if not na(q202)
-            label.set_text(q202, "")
+plot(q105, "Входов за день", display=display.data_window)
+plot(q142 ? 1 : 0, "Первая позиция по нулевому условию", display=display.data_window)
+plot(q373 ? 1 : 0, "Нулевой сценарий отменён", display=display.data_window)
+plot(q376 ? 1 : 0, "Разворот закреплён за 0", display=display.data_window)
+plot(q63, "Цена точки 0", display=display.data_window)
+plot(q68 ? 1 : 0, "Продолжение после пробоя 3", display=display.data_window)
+if barstate.isconfirmed and q141 and m5Chart and not q341 and q217 and not q216 and not na(q187) and (q225 == 1 or q212)
+    label.set_xy(q187, q369, q228)
+    label.set_text(q187, "2")
+bool q317 = q85 and (q341 or q95) and not q201 and not q139 and not q135
+if barstate.isconfirmed and q141 and m5Chart and q325 == rangeDayKey
+    if q317
+        if not na(q313)
+            label.set_text(q313, "")
+        if not na(q188)
+            label.set_text(q188, "")
+        if not na(q187)
+            label.set_text(q187, "")
         if not na(fifthLabel)
             label.set_text(fifthLabel, "")
-        if not na(q85)
-            if na(q103)
-                q103 := q207(q87, q85, "3", q363 == 1 ? label.style_label_up : label.style_label_down)
-                array.push(q143, q103)
+        if not na(q80)
+            if na(q97)
+                q97 := q192(q82, q80, "3", q333 == 1 ? label.style_label_up : label.style_label_down)
+                array.push(q136, q97)
             else
-                label.set_xy(q103, q87, q85)
-        if not na(q93) or not na(q100)
-            float fivePrice = q96 ? q100 : q93
-            int fiveTime = q96 ? q102 : q94
-            bool validFive = q96 ? q101 : q299(q407, q406, q408, q87, fivePrice, q363 == -1, q201)
-            if not na(fivePrice) and validFive and (q97 or q96)
-                if na(q88)
-                    q88 := q207(fiveTime, fivePrice, "5", q363 == 1 ? label.style_label_down : label.style_label_up)
-                    array.push(q143, q88)
+                label.set_xy(q97, q82, q80)
+        if not na(q87) or not na(q94)
+            float fivePrice = q90 ? q94 : q87
+            int fiveTime = q90 ? q96 : q88
+            bool validFive = q90 ? q95 : q267(q371, q370, q372, q82, fivePrice, q333 == -1, q186)
+            if not na(fivePrice) and validFive and (q91 or q90)
+                if na(q83)
+                    q83 := q192(fiveTime, fivePrice, "5", q333 == 1 ? label.style_label_down : label.style_label_up)
+                    array.push(q136, q83)
                 else
-                    label.set_xy(q88, fiveTime, fivePrice)
-        if q96 and q249 and not na(q260)
-            if na(q99)
-                q99 := q207(q405, q260, "6", q363 == 1 ? label.style_label_up : label.style_label_down)
-                array.push(q143, q99)
-            else if q112 == 0
-                label.set_xy(q99, q405, q260)
-    else if not na(q103)
-        label.delete(q103)
-        label.delete(q88)
-        label.delete(q99)
-        q103 := na
-        q88 := na
-        q99 := na
-        if not na(q343)
-            label.set_text(q343, q371 ? "2" : "")
-        if not na(q203)
-            label.set_text(q203, q371 ? (q216 ? "2" : "3") : "")
-        if not na(q202)
-            label.set_text(q202, q371 ? (q216 ? "3" : "4") : "2")
-if barstate.isconfirmed and m5Chart and q355 == rangeDayKey and q160 and not na(q68)
-    bool q84 = q96 and q101 and not na(q100)
-    int q56 = array.indexof(q7, q355)
-    int q55 = q56 >= 0 ? array.get(q10, q56) : na
-    if q246 == 1 and q252 == q355
-        q55 := time
-    int q54 = q56 >= 0 ? array.get(q13, q56) : (na(q399) ? q69 : q399)
-    float q53 = q56 >= 0 ? array.get(q12, q56) : q68
-    float q49 = q56 >= 0 ? array.get(q8, q56) : q357
-    int q50 = q56 >= 0 ? array.get(q9, q56) : q140
-    q4 := q290(q48, q47, q407, q406, q408, q54, q53, q49, q50, q144, q55)
-    while array.size(q45) > 0
-        polyline.delete(array.pop(q45))
-    while array.size(q57) > 50
-        polyline.delete(array.shift(q57))
-    q115(q48, q45, q57, fallingTrendColor)
-    q115(q47, q45, q57, risingTrendColor)
-    while array.size(q57) + array.size(q45) > 94
-        if array.size(q57) > 0
-            polyline.delete(array.shift(q57))
+                    label.set_xy(q83, fiveTime, fivePrice)
+        if q90 and q217 and not na(q228)
+            if na(q93)
+                q93 := q192(q369, q228, "6", q333 == 1 ? label.style_label_up : label.style_label_down)
+                array.push(q136, q93)
+            else if q105 == 0
+                label.set_xy(q93, q369, q228)
+    else if not na(q97)
+        label.delete(q97)
+        label.delete(q83)
+        label.delete(q93)
+        q97 := na
+        q83 := na
+        q93 := na
+        if not na(q313)
+            label.set_text(q313, q341 ? "2" : "")
+        if not na(q188)
+            label.set_text(q188, q341 ? (q201 ? "2" : "3") : "")
+        if not na(q187)
+            label.set_text(q187, q341 ? (q201 ? "3" : "4") : "2")
+if barstate.isconfirmed and m5Chart and q325 == rangeDayKey and q152 and not na(q63)
+    bool q79 = q90 and q95 and not na(q94)
+    int q52 = array.indexof(q7, q325)
+    int q51 = q52 >= 0 ? array.get(q10, q52) : na
+    if q214 == 1 and q220 == q325
+        q51 := time
+    int q50 = q52 >= 0 ? array.get(q13, q52) : (na(q363) ? q64 : q363)
+    float q49 = q52 >= 0 ? array.get(q12, q52) : q63
+    q4 := q258(q46, q45, q371, q370, q372, q50, q49, q327, q134, q137, q51)
+    while array.size(q43) > 0
+        polyline.delete(array.pop(q43))
+    while array.size(q53) > 50
+        polyline.delete(array.shift(q53))
+    q108(q46, q43, q53, fallingTrendColor)
+    q108(q45, q43, q53, risingTrendColor)
+    while array.size(q53) + array.size(q43) > 94
+        if array.size(q53) > 0
+            polyline.delete(array.shift(q53))
         else
-            polyline.delete(array.shift(q45))
+            polyline.delete(array.shift(q43))
 plot(q4, "Действующий цвет тренда", display=display.data_window)
-var array<line> q251 = array.new_line()
+var array<line> q219 = array.new_line()
 if barstate.islast
-    while array.size(q251) > 0
-        line.delete(array.pop(q251))
-    int drawnPlans = math.min(int(array.size(q240) / 2), int(array.size(q250) / 3))
+    while array.size(q219) > 0
+        line.delete(array.pop(q219))
+    int drawnPlans = math.min(int(array.size(q208) / 2), int(array.size(q218) / 3))
     if drawnPlans > 0
         for planIndex = 0 to drawnPlans - 1
-            box risk = array.get(q240, planIndex * 2)
+            box risk = array.get(q208, planIndex * 2)
             int leftTime = box.get_left(risk)
             int rightTime = box.get_right(risk)
             for levelIndex = 0 to 2
-                label priceLabel = array.get(q250, planIndex * 3 + levelIndex)
+                label priceLabel = array.get(q218, planIndex * 3 + levelIndex)
                 float levelPrice = label.get_y(priceLabel)
                 line levelLine = line.new(x1=leftTime, y1=levelPrice, x2=rightTime, y2=levelPrice, xloc=xloc.bar_time, color=levelIndex == 0 ? color.blue : levelIndex == 1 ? color.red : color.green, style=levelIndex == 0 ? line.style_dashed : line.style_solid, width=1)
-                array.push(q251, levelLine)
-float q192 = ta.pivothigh(bodyHigh, 1, 4)
-float q193 = ta.pivotlow(bodyLow, 1, 4)
-bool q364 = m5Chart and not na(time[5]) and time - time[5] == 1500000
-int q389 = rangeDayKey[4]
-bool q388 = q287[4] and time[4] >= q410[4]
-if q364 and array.size(q7) > 0
+                array.push(q219, levelLine)
+float q177 = ta.pivothigh(bodyHigh, 1, 4)
+float q178 = ta.pivotlow(bodyLow, 1, 4)
+bool q334 = m5Chart and not na(time[5]) and time - time[5] == 1500000
+int q354 = rangeDayKey[4]
+bool q353 = q255[4] and time[4] >= q374[4]
+if q334 and array.size(q7) > 0
     for scopeIndex = array.size(q7) - 1 to 0
         int q24 = array.get(q7, scopeIndex)
         int q31 = array.get(q13, scopeIndex)
         int q25 = array.get(q10, scopeIndex)
-        bool openCarry = q24 == q252 and (q257 == 2 or q246 != 0)
+        bool openCarry = q24 == q220 and (q225 == 2 or q214 != 0)
         bool scopedCarry = not na(q25) ? time[4] <= q25 : openCarry
         if time[4] >= q31 and scopedCarry
-            q389 := q24
-            q388 := true
+            q354 := q24
+            q353 := true
             break
-if barstate.isconfirmed and q364 and q388
-    bool hasHigh = not na(q192)
-    bool hasLow = not na(q193)
+if barstate.isconfirmed and q334 and q353
+    bool hasHigh = not na(q177)
+    bool hasLow = not na(q178)
     if hasHigh and hasLow
-        int count = array.size(q198)
-        bool sameDay = count > 0 ? array.get(q195, count - 1) == q389 : false
+        int count = array.size(q183)
+        bool sameDay = count > 0 ? array.get(q180, count - 1) == q354 : false
         if sameDay
-            bool q272 = array.get(q196, count - 1)
-            hasHigh := not q272
-            hasLow := q272
+            bool q240 = array.get(q181, count - 1)
+            hasHigh := not q240
+            hasLow := q240
         else
             hasHigh := false
             hasLow := false
     if hasHigh
-        q291(q198, q197, q196, q195, time[4], q192, true, q389)
-        q291(q361, q360, q359, q358, time[4], q192, true, q389, 10000)
+        q259(q183, q182, q181, q180, time[4], q177, true, q354)
+        q259(q331, q330, q329, q328, time[4], q177, true, q354, 10000)
     else if hasLow
-        q291(q198, q197, q196, q195, time[4], q193, false, q389)
-        q291(q361, q360, q359, q358, time[4], q193, false, q389, 10000)
-if barstate.isconfirmed and m5Chart and q160 and q355 == rangeDayKey and not na(q68)
+        q259(q183, q182, q181, q180, time[4], q178, false, q354)
+        q259(q331, q330, q329, q328, time[4], q178, false, q354, 10000)
+if barstate.isconfirmed and m5Chart and q152 and q325 == rangeDayKey and not na(q63)
     int anchorCount = array.size(q7)
-    bool q338 = anchorCount > 0 ? array.get(q7, anchorCount - 1) == rangeDayKey : false
-    if not q338
+    bool q308 = anchorCount > 0 ? array.get(q7, anchorCount - 1) == rangeDayKey : false
+    if not q308
         array.push(q7, rangeDayKey)
-        array.push(q13, q69)
-        array.push(q12, q68)
-        array.push(q9, q140)
-        array.push(q8, q357)
-        array.push(q11, q68 > q357)
+        array.push(q13, q64)
+        array.push(q12, q63)
+        array.push(q9, q134)
+        array.push(q8, q327)
+        array.push(q11, q63 > q327)
         array.push(q10, na)
         if array.size(q7) > 1000
             array.shift(q7)
@@ -1941,99 +1791,74 @@ if barstate.isconfirmed and m5Chart and q160 and q355 == rangeDayKey and not na(
             array.shift(q11)
             array.shift(q10)
     else
-        int q223 = array.get(q9, anchorCount - 1)
-        float q222 = array.get(q8, anchorCount - 1)
-        bool q232 = array.get(q11, anchorCount - 1)
-        bool q36 = q69 < q223
-        bool q213 = q232 ? q68 > q222 : q68 < q222
-        if q36 and q213
-            array.set(q13, anchorCount - 1, q69)
-            array.set(q12, anchorCount - 1, q68)
-            array.set(q11, anchorCount - 1, q232)
-if barstate.isconfirmed and q246 == 1
-    int q365 = array.indexof(q7, q252)
-    if q365 >= 0
-        array.set(q10, q365, time)
+        bool q34 = q64 < q134
+        bool q198 = q333 == 1 ? q63 < q327 : q63 > q327
+        if q34 and q198
+            array.set(q13, anchorCount - 1, q64)
+            array.set(q12, anchorCount - 1, q63)
+            array.set(q11, anchorCount - 1, q333 == -1)
+        array.set(q9, anchorCount - 1, q134)
+        array.set(q8, anchorCount - 1, q327)
+if barstate.isconfirmed and q214 == 1
+    int q335 = array.indexof(q7, q220)
+    if q335 >= 0
+        array.set(q10, q335, time)
 if barstate.islast
-    while array.size(q194) > 0
-        label.delete(array.pop(q194))
-    if array.size(q143) > 0
-        for numberIndex = 0 to array.size(q143) - 1
-            label.set_text(array.get(q143, numberIndex), "")
-    int q380 = chart.left_visible_bar_time
-    int q381 = chart.right_visible_bar_time
-    int q382 = 0
-    if array.size(q7) > 0
-        for anchorIndex = 0 to array.size(q7) - 1
-            int anchorEnd = array.get(q10, anchorIndex)
-            for anchorNumber = 0 to 1
-                int anchorTime = anchorNumber == 0 ? array.get(q13, anchorIndex) : array.get(q9, anchorIndex)
-                if anchorTime >= q380 and anchorTime <= q381 and (na(anchorEnd) or anchorTime <= anchorEnd)
-                    q382 := q382 + 1
-    int q353 = math.max(0, 120 - q382)
-    array<int> q386 = array.new_int()
-    array<int> q385 = array.new_int()
-    if array.size(q361) > 0
-        for historyIndex = 0 to array.size(q361) - 1
-            int historyTime = array.get(q361, historyIndex)
-            int historyDay = array.get(q358, historyIndex)
-            int q174 = array.indexof(q7, historyDay)
-            int q175 = q174 >= 0 ? array.get(q13, q174) : na
-            int historyEnd = q174 >= 0 ? array.get(q10, q174) : na
-            if historyTime >= q380 and historyTime <= q381 and not na(q175) and historyTime >= q175 and (na(historyEnd) or historyTime <= historyEnd)
-                int q384 = array.indexof(q386, historyDay)
-                if q384 < 0
-                    array.push(q386, historyDay)
-                    array.push(q385, 1)
-                else
-                    array.set(q385, q384, array.get(q385, q384) + 1)
-    int q383 = array.size(q386)
-    int q180 = q383 > 0 ? int(math.floor(q353 / q383)) : 0
-    int q124 = q383 > 0 ? q353 % q383 : 0
-    array<int> q387 = array.new_int(q383, 0)
-    float q271 = na
+    while array.size(q179) > 0
+        label.delete(array.pop(q179))
+    if array.size(q136) > 0
+        for numberIndex = 0 to array.size(q136) - 1
+            label.set_text(array.get(q136, numberIndex), "")
+    int q349 = chart.left_visible_bar_time
+    int q350 = chart.right_visible_bar_time
+    int q351 = 0
+    if array.size(q331) > 0
+        for historyIndex = 0 to array.size(q331) - 1
+            int historyTime = array.get(q331, historyIndex)
+            int historyDay = array.get(q328, historyIndex)
+            int q166 = array.indexof(q7, historyDay)
+            int q167 = q166 >= 0 ? array.get(q13, q166) : na
+            int historyEnd = q166 >= 0 ? array.get(q10, q166) : na
+            if historyTime >= q349 and historyTime <= q350 and not na(q167) and historyTime >= q167 and (na(historyEnd) or historyTime <= historyEnd)
+                q351 := q351 + 1
+    int q352 = 0
+    float q239 = na
     float previousLow = na
-    int q276 = na
+    int q244 = na
     int scopedStart = na
     int scopedEnd = na
-    float q342 = na
-    bool q341 = false
-    if q348 and array.size(q361) > 0
-        for swingIndex = 0 to array.size(q361) - 1
-            int swingDay = array.get(q358, swingIndex)
-            if na(q276) or swingDay != q276
+    float q312 = na
+    bool q311 = false
+    if q319 and array.size(q331) > 0
+        for swingIndex = 0 to array.size(q331) - 1
+            int swingDay = array.get(q328, swingIndex)
+            if na(q244) or swingDay != q244
                 int scopeIndex = array.indexof(q7, swingDay)
                 scopedStart := scopeIndex >= 0 ? array.get(q13, scopeIndex) : na
                 scopedEnd := scopeIndex >= 0 ? array.get(q10, scopeIndex) : na
-                q342 := scopeIndex >= 0 ? array.get(q12, scopeIndex) : na
-                q341 := scopeIndex >= 0 ? array.get(q11, scopeIndex) : false
-                q271 := q341 ? q342 : na
-                previousLow := q341 ? na : q342
-                q276 := swingDay
-            bool isHigh = array.get(q359, swingIndex)
-            float price = array.get(q360, swingIndex)
-            int swingTime = array.get(q361, swingIndex)
+                q312 := scopeIndex >= 0 ? array.get(q12, scopeIndex) : na
+                q311 := scopeIndex >= 0 ? array.get(q11, scopeIndex) : false
+                q239 := q311 ? q312 : na
+                previousLow := q311 ? na : q312
+                q244 := swingDay
+            bool isHigh = array.get(q329, swingIndex)
+            float price = array.get(q330, swingIndex)
+            int swingTime = array.get(q331, swingIndex)
             bool inScope = not na(scopedStart) and swingTime >= scopedStart and (na(scopedEnd) or swingTime <= scopedEnd)
-            bool q403 = swingTime == scopedStart and isHigh == q341 and math.abs(price - q342) <= 0.000000001
-            string q37 = swingClass(price, q403 ? na : isHigh ? q271 : previousLow, isHigh)
-            string caption = q37 == "H" ? "HH" : q37 == "L" ? "LL" : q37
-            bool q352 = caption == "HH" or caption == "HL" or caption == "LH" or caption == "LL"
-            bool inViewport = inScope and swingTime >= q380 and swingTime <= q381
-            bool renderSwing = false
+            bool q367 = swingTime == scopedStart and isHigh == q311 and math.abs(price - q312) <= 0.000000001
+            string q35 = swingClass(price, q367 ? na : isHigh ? q239 : previousLow, isHigh)
+            string caption = q35 == "H" ? "HH" : q35 == "L" ? "LL" : q35
+            bool q323 = caption == "HH" or caption == "HL" or caption == "LH" or caption == "LL"
+            bool inViewport = inScope and swingTime >= q349 and swingTime <= q350
             if inViewport
-                int q384 = array.indexof(q386, swingDay)
-                if q384 >= 0
-                    int seenForDay = array.get(q387, q384) + 1
-                    array.set(q387, q384, seenForDay)
-                    int dayQuota = q180 + (q384 >= q383 - q124 ? 1 : 0)
-                    renderSwing := seenForDay > math.max(0, array.get(q385, q384) - dayQuota)
-            if renderSwing
-                if q352
-                    label q362 = label.new(x=swingTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=isHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
-                    array.push(q194, q362)
+                q352 := q352 + 1
+            if inViewport and q352 > math.max(0, q351 - 116)
+                if q323
+                    label q332 = label.new(x=swingTime, y=price, text=caption, xloc=xloc.bar_time, yloc=yloc.price, style=isHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
+                    array.push(q179, q332)
             if inScope
                 if isHigh
-                    q271 := price
+                    q239 := price
                 else
                     previousLow := price
     if array.size(q7) > 0
@@ -2043,19 +1868,19 @@ if barstate.islast
                 float anchorPrice = anchorNumber == 0 ? array.get(q12, anchorIndex) : array.get(q8, anchorIndex)
                 bool anchorHigh = anchorNumber == 0 ? array.get(q11, anchorIndex) : not array.get(q11, anchorIndex)
                 int anchorEnd = array.get(q10, anchorIndex)
-                if anchorTime >= q380 and anchorTime <= q381 and (na(anchorEnd) or anchorTime <= anchorEnd)
+                if anchorTime >= q349 and anchorTime <= q350 and (na(anchorEnd) or anchorTime <= anchorEnd)
                     bool foundAnchor = false
-                    if not foundAnchor and array.size(q194) > 0
-                        for labelIndex = 0 to array.size(q194) - 1
-                            label q119 = array.get(q194, labelIndex)
-                            if label.get_x(q119) == anchorTime and math.abs(label.get_y(q119) - anchorPrice) <= 0.000000001
-                                label.set_text(q119, str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L"))
+                    if not foundAnchor and array.size(q179) > 0
+                        for labelIndex = 0 to array.size(q179) - 1
+                            label q113 = array.get(q179, labelIndex)
+                            if label.get_x(q113) == anchorTime and math.abs(label.get_y(q113) - anchorPrice) <= 0.000000001
+                                label.set_text(q113, str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L"))
                                 foundAnchor := true
                                 break
                     if not foundAnchor
                         label anchorLabel = label.new(x=anchorTime, y=anchorPrice, text=str.tostring(anchorNumber) + (anchorHigh ? " · H" : " · L"), xloc=xloc.bar_time, yloc=yloc.price, style=anchorHigh ? label.style_label_down : label.style_label_up, color=color.new(color.white, 100), textcolor=color.black, size=size.small)
-                        array.push(q194, anchorLabel)
-                        while array.size(q194) > 120
-                            label.delete(array.shift(q194))
-    while array.size(q194) > 120
-        label.delete(array.shift(q194))
+                        array.push(q179, anchorLabel)
+                        while array.size(q179) > 120
+                            label.delete(array.shift(q179))
+    while array.size(q179) > 120
+        label.delete(array.shift(q179))
