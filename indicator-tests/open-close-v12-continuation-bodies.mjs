@@ -4,7 +4,7 @@ const sources={draft:readFileSync(new URL('../KRYTES_V1_2_LONDON_STRUCTURE.txt',
 for(const mirror of[false,true])for(const mode of['roll','filled','samebar']){
  const p=x=>mirror?200-x:x,start=Date.UTC(2026,9,20,5),values=[100,99,101,102,104,105,104,103.5,104,104.5,110,109,108,107,106,102,103,104,105];
  const bars=values.map((x,i)=>({open:p(x),close:p(x),high:p(x)+.1,low:p(x)-.1,volume:1,openTime:start+i*300000,closeTime:start+i*300000+299999}));
- const touch=mode==='roll'?15:mode==='filled'?10:14;if(mirror){bars[touch].low=200-values[touch]-.1;bars[touch].high=102.6;}else{bars[touch].low=97.4;bars[touch].high=values[touch]+.1;}
+ const touch=mode==='roll'?15:mode==='filled'?10:11;if(mirror){bars[touch].low=200-values[touch]-.1;bars[touch].high=102.6;}else{bars[touch].low=97.4;bars[touch].high=values[touch]+.1;}
  const injection=`\nfirstPointWindow := true\npointPairM5 := true\nfirstSwingDisplayLocked := true\nstructureDay := rangeDayKey\nconfirmedZeroPrice := ${p(90)}\nconfirmedZeroTime := ${start-600000}\nstructureFirstPrice := 100\nfirstExtremeTime := ${start-300000}\n`;
  for(const variant of['draft']){
   const c=await new PineTS(bars,'TEST','5').run(sources[variant].replace('// V1.2: исполнение отдельно',injection+'\n// V1.2: исполнение отдельно'));

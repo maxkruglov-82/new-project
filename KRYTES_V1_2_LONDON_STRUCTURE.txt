@@ -1557,6 +1557,7 @@ var float v12B = na
 var int v12BTime = na
 var float v12C = na
 var int v12CTime = na
+var int v12VisualEnd = na
 var box v12RiskBox = na
 var box v12RewardBox = na
 var label v12Info = na
@@ -1584,6 +1585,7 @@ if barstate.isconfirmed and m5Chart
             v12Info := na
             v12StopInfo := na
             v12TargetInfo := na
+        v12VisualEnd := na
         v12Day := rangeDayKey
         v12Zero := na
         v12One := na
@@ -1677,8 +1679,8 @@ if barstate.isconfirmed and m5Chart
         v12ProposedStop := v12B
         v12ProposedTarget := v12C
         v12ProposedAnchor := v12BTime
-    // Draft: each continuation HH/LL needs a close beyond its opposite body edge.
-    // Until retreat plus four right candles, a new extreme extends this same point.
+    // Each continuation HH/LL needs a close beyond its opposite body edge.
+    // Second extreme: retreat plus four right candles; third cancellation: retreat only.
     bool bodyGoalEvent = false
     if not thirdCanceled and v12CanFirst and (na(v12ZeroBreakTime) or v12ResumeInitial)
         float bodyGoalNow = v12InitialSide == 1 ? bodyHigh : bodyLow
@@ -1695,7 +1697,7 @@ if barstate.isconfirmed and m5Chart
             bodyGoalLocked := false
         else if not na(bodyGoalPrice) and not bodyGoalLocked and bar_index > bodyGoalBar
             bodyGoalRetreated := bodyGoalRetreated or (v12InitialSide == 1 ? close < bodyGoalEdge : close > bodyGoalEdge)
-            if bodyGoalRetreated and bar_index-bodyGoalBar >= 4
+            if bodyGoalRetreated and (bar_index-bodyGoalBar >= 4 or (not na(v12FirstTarget) and bodyGoalTime > thirdSecondTime))
                 bodyGoalLocked := true
                 bodyGoalEvent := true
     // Продолжение: первый подтверждённый HH/LL. Последующие цель не сдвигают.
@@ -1710,7 +1712,7 @@ if barstate.isconfirmed and m5Chart
         v12ProposedStop := v12Zero
         v12ProposedTarget := v12FirstTarget
         v12ProposedAnchor := v12ZeroTime
-    // Unapproved draft: original 1 is high/low #1, continuation target is #2.
+    // Original 1 is high/low #1; the continuation target is #2.
     if v12CanFirst and not thirdCanceled and not na(thirdSecondTime) and v12Pivot and v12PivotTime > thirdSecondTime
         if not v12SameType
             thirdPullback := na(thirdPullback) ? v12PivotPrice : (v12InitialSide == 1 ? math.min(thirdPullback,v12PivotPrice) : math.max(thirdPullback,v12PivotPrice))
@@ -1854,6 +1856,7 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
         bool v12HitTarget = v12Side == 1 ? high >= v12Target : low <= v12Target
         if v12HitStop or v12HitTarget
             v12State := v12HitStop ? 4 : 3
+            v12VisualEnd := time+300000
             positionExitEvent := v12HitStop ? -1 : 1
             colorStopTime := time
             v1ExitMark(v1ExitMarks, time, v12HitStop ? v12Stop : v12Target, v12HitStop, v12Side)
@@ -1861,8 +1864,8 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
             if not na(v12Info)
                 box.set_right(v12RiskBox,time+300000)
                 box.set_right(v12RewardBox,time+300000)
-                v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,v1LevelCaption("Стоп: ",v12Entry,v12Stop,true)+(v12HitStop?" +":""),color.red)
-                v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,v1LevelCaption("Тейк: ",v12Entry,v12Target,false)+(v12HitStop?"":" +"),color.teal)
+                v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,"№"+str.tostring(v12Entries)+" · "+v1LevelCaption("Стоп: ",v12Entry,v12Stop,true)+(v12HitStop?" +":""),color.red)
+                v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,"№"+str.tostring(v12Entries)+" · "+v1LevelCaption("Тейк: ",v12Entry,v12Target,false)+(v12HitStop?"":" +"),color.teal)
             if v12HitStop and v12Entries == 1 and v12PlanDay == rangeDayKey
                 v12Stopped := true
                 v12StopBar := bar_index
@@ -1956,8 +1959,11 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
         v12StopInfo := na
         v12TargetInfo := na
     if v12NewPlan
-        v12RiskBox := box.new(left=v12Anchor, top=math.max(v12Stop,v12Level), right=time+600000, bottom=math.min(v12Stop,v12Level), xloc=xloc.bar_time, border_color=color.new(color.red,100), bgcolor=color.new(color.red,85))
-        v12RewardBox := box.new(left=v12Anchor, top=math.max(v12Target,v12Level), right=time+600000, bottom=math.min(v12Target,v12Level), xloc=xloc.bar_time, border_color=color.new(color.teal,100), bgcolor=color.new(color.teal,85))
+        // Only the drawing starts after the preceding trade's frozen right edge.
+        int v12VisualLeft = na(v12VisualEnd) ? v12Anchor : math.max(v12Anchor,v12VisualEnd)
+        color v12ToolColor = v12Entries == 0 ? color.rgb(21,101,192) : color.rgb(123,31,162)
+        v12RiskBox := box.new(left=v12VisualLeft, top=math.max(v12Stop,v12Level), right=time+600000, bottom=math.min(v12Stop,v12Level), xloc=xloc.bar_time, border_color=v12ToolColor, border_width=1, border_style=v12Entries==0?line.style_solid:line.style_dashed, bgcolor=color.new(color.red,85))
+        v12RewardBox := box.new(left=v12VisualLeft, top=math.max(v12Target,v12Level), right=time+600000, bottom=math.min(v12Target,v12Level), xloc=xloc.bar_time, border_color=v12ToolColor, border_width=1, border_style=v12Entries==0?line.style_solid:line.style_dashed, bgcolor=color.new(color.teal,85))
         v12Info := updatePositionPrice(na,time+600000,v12Level,"Ожидаем касания "+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
         v12StopInfo := updatePositionPrice(na,time+600000,v12Stop,v1LevelCaption("Стоп: ",v12Level,v12Stop,true),color.red)
         v12TargetInfo := updatePositionPrice(na,time+600000,v12Target,v1LevelCaption("Тейк: ",v12Level,v12Target,false),color.teal)
@@ -1974,11 +1980,12 @@ if (barstate.isconfirmed or v12LiveLatched) and m5Chart
         int v12Right = positionExitEvent!=0 and not v12NewPlan ? time+300000 : time+600000
         box.set_right(v12RiskBox,v12Right)
         box.set_right(v12RewardBox,v12Right)
-        v12Info := updatePositionPrice(v12Info,time+600000,v12Level,(v12State==1?"Ожидаем касания ":"Точка входа в ")+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
-        v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,v1LevelCaption("Стоп: ",v12Level,v12Stop,true)+(v12State==4?" +":""),color.red)
-        v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,v1LevelCaption("Тейк: ",v12Level,v12Target,false)+(v12State==3?" +":""),color.teal)
-        box.set_text(v12RewardBox,"R:R 1:1")
-        box.set_text_color(v12RewardBox,color.white)
+        string v12ToolName = (v12State==1?"План №":"Сделка №")+str.tostring(v12State==1?v12Entries+1:v12Entries)+" · "
+        v12Info := updatePositionPrice(v12Info,time+600000,v12Level,v12ToolName+(v12State==1?"Ожидаем касания ":"Точка входа в ")+(v12Side==1?"LONG: $":"SHORT: $")+str.tostring(v12Level,"#.#####")+" · RR 1:1",color.blue)
+        v12StopInfo := updatePositionPrice(v12StopInfo,time+600000,v12Stop,"№"+str.tostring(v12State==1?v12Entries+1:v12Entries)+" · "+v1LevelCaption("Стоп: ",v12Level,v12Stop,true)+(v12State==4?" +":""),color.red)
+        v12TargetInfo := updatePositionPrice(v12TargetInfo,time+600000,v12Target,"№"+str.tostring(v12State==1?v12Entries+1:v12Entries)+" · "+v1LevelCaption("Тейк: ",v12Level,v12Target,false)+(v12State==3?" +":""),color.teal)
+        box.set_text(v12RewardBox,v12ToolName+(v12Side==1?"LONG":"SHORT")+"\nRR 1:1")
+        box.set_text_color(v12RewardBox,v12Entries==0 or (v12Entries==1 and v12State!=1)?color.rgb(21,101,192):color.rgb(123,31,162))
         box.set_text_size(v12RewardBox,size.small)
 // Экспорт состояний для прежней разметки; старые расчётные планы не исполняются.
 positionState := v12State

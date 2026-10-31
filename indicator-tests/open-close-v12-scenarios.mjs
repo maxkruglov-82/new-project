@@ -13,7 +13,7 @@ for(const mirror of [false,true])for(const mode of ['freeze','same-stop','return
  }
  if(mode==='resume'){bars[22].low=mirror?95.5:104.4;bars[22].high=mirror?95.6:104.5;}
  if(mode==='freeze'||mode==='same-stop'){bars[15].low=mirror?97.9:97.4;bars[15].high=mirror?102.6:102.1;if(mode==='same-stop'){bars[16].open=p(89);bars[16].close=p(89);bars[16].high=p(89)+.1;bars[16].low=p(89)-.1;}}
- if(mode==='same-stop'){if(mirror)bars[14].high=102.6;else bars[14].low=97.4;}
+ if(mode==='same-stop'){for(let j=12;j<=15;j++){bars[j].open=p(102);bars[j].close=p(102);bars[j].high=p(102)+.1;bars[j].low=p(102)-.1;}if(mirror)bars[11].high=102.6;else bars[11].low=97.4;}
  const zero=p(['return','resume'].includes(mode)?110:90),one=100;
  const injection=`\nfirstPointWindow := true\npointPairM5 := true\nfirstSwingDisplayLocked := true\nstructureDay := rangeDayKey\nconfirmedZeroPrice := ${zero}\nconfirmedZeroTime := ${start-600000}\nstructureFirstPrice := ${one}\nfirstExtremeTime := ${start-300000}\n`;
  const code=source.replace('// V1.2: исполнение отдельно',injection+'\n// V1.2: исполнение отдельно');
